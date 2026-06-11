@@ -1,0 +1,19 @@
+// Calorimeter domain: EMNC (label 22) + HCNC (label 23) on sDST.
+// CalorimeterWriter reads ctx_.tracking and emits:
+//   <tag>_EMNC_Showers   ECAL (HPC bit 0 / EMF bit 1 in Cluster.type)
+//   <tag>_HCNC_Showers   HCAL (bit 2)
+// Sets Particle.clusters on each owner Particle via tracking.pa_to_particle.
+
+#pragma once
+
+#include "delphi_edm4hep/CollectionWriter.h"
+
+namespace delphi_edm4hep::calorimeter {
+
+class CalorimeterWriter : public CollectionWriter {
+public:
+  using CollectionWriter::CollectionWriter;
+  void emit() override;
+};
+
+}  // namespace delphi_edm4hep::calorimeter

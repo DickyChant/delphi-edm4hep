@@ -1,0 +1,4 @@
+[submodule "delphi_edm4hep/extern/delphi-nanoaod"]
+	path = delphi_edm4hep/extern/delphi-nanoaod
+	url = https://github.com/DickyChant/delphi-nanoaod.git
+	branch = feature/sim-truth-pv

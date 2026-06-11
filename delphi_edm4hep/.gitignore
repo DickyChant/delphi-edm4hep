@@ -1,0 +1,4 @@
+build/
+build-*/
+*.edm4hep.root
+PDLINPUT

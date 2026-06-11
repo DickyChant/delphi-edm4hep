@@ -1,0 +1,22 @@
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.toc
+
+# build artifacts
+bin/
+!delphi_edm4hep/bin/
+**/__pycache__/
+*.pyc
+
+# Sparse-checked-out external sources (reference only, do not commit).
+external/cmssw/
+
+# PHDST scratch files from running converters in the worktree root
+PDLINPUT
+fort.*
+*.sdst
+*.fadana
+*.edm4hep.root
+Y[0-9]*.al
+R[0-9]*.al
