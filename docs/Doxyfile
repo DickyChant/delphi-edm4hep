@@ -1,0 +1,42 @@
+# Doxygen configuration for delphi-edm4hep API docs.
+# Built by .github/workflows/pages.yml and deployed to GitHub Pages.
+# Local build (doxygen ships with the key4hep stack):
+#   doxygen docs/Doxyfile        # from the repo root; output in docs/html
+# Only options that differ from the doxygen defaults are listed.
+
+PROJECT_NAME           = "delphi-edm4hep"
+PROJECT_BRIEF          = "DELPHI SDST/FDST -> EDM4hep converter"
+OUTPUT_DIRECTORY       = docs
+GENERATE_LATEX         = NO
+
+# The converter sources plus the markdown docs. The vendored PHDST/SKELANA
+# wrapper headers (extern/) are third-party and deliberately not documented.
+INPUT                  = README.md \
+                         delphi_edm4hep/README.md \
+                         scripts/data-reco/README.md \
+                         delphi_edm4hep/extern/delphi-analysis/README.md \
+                         delphi_edm4hep/include \
+                         delphi_edm4hep/src \
+                         delphi_edm4hep/bin
+RECURSIVE              = YES
+EXCLUDE                = delphi_edm4hep/extern/delphi-analysis/include
+USE_MDFILE_AS_MAINPAGE = README.md
+IMAGE_PATH             =
+
+# The codebase is not (yet) doxygen-annotated; extract everything so the
+# full API surface is browsable, with the source inline for reference.
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+SOURCE_BROWSER         = YES
+STRIP_CODE_COMMENTS    = NO
+
+GENERATE_TREEVIEW      = YES
+HTML_DYNAMIC_SECTIONS  = YES
+FULL_SIDEBAR           = NO
+
+HAVE_DOT               = YES
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+
+WARN_IF_UNDOCUMENTED   = NO
+QUIET                  = YES
