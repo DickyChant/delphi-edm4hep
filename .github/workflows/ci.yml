@@ -13,6 +13,9 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    outputs:
+      key4hep: ${{ steps.versions.outputs.key4hep }}
+      delphi: ${{ steps.versions.outputs.delphi }}
     steps:
       - uses: actions/checkout@v4
 
@@ -33,3 +36,52 @@ jobs:
             -v ${{ github.workspace }}:/repo \
             almalinux:9 \
             bash /repo/.github/scripts/ci-build.sh
+
+      # What this run actually built against, for the README badges:
+      # the key4hep pin from CMakeLists.txt, and the concrete DELPHI
+      # release FindDelphiAL9 resolved (from the configure cache).
+      - name: Collect resolved dependency versions
+        id: versions
+        if: always()
+        run: |
+          key4hep=$(sed -n 's/^set(KEY4HEP_RELEASE "\([^"]*\)".*/\1/p' delphi_edm4hep/CMakeLists.txt)
+          delphi=$(sed -n 's|^DELPHI_AL9_LIB_DIR:PATH=/cvmfs/delphi.cern.ch/releases/almalinux-9-x86_64/\([^/]*\)/.*|\1|p' build/CMakeCache.txt 2>/dev/null || true)
+          echo "key4hep=${key4hep:-unknown}" >> "$GITHUB_OUTPUT"
+          echo "delphi=${delphi:-unknown}"   >> "$GITHUB_OUTPUT"
+
+  # Publish shields.io endpoint JSON to the orphan 'badges' branch so the
+  # README badges can say "build passing for key4hep <release>" / the
+  # concrete DELPHI release this run resolved. Only pushes to dev update
+  # the badges; PR runs (incl. forks, which lack write perms) skip this.
+  badges:
+    needs: build-and-test
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Generate badge JSON
+        run: |
+          if [ "${{ needs.build-and-test.result }}" = "success" ]; then
+            msg="build passing"; color="brightgreen"
+          else
+            msg="build failing"; color="red"
+          fi
+          mkdir badges
+          cat > badges/key4hep.json <<EOF
+          {"schemaVersion": 1, "label": "key4hep ${{ needs.build-and-test.outputs.key4hep }}", "message": "${msg}", "color": "${color}"}
+          EOF
+          cat > badges/delphi.json <<EOF
+          {"schemaVersion": 1, "label": "DELPHI libs", "message": "${{ needs.build-and-test.outputs.delphi }} · ${msg#build }", "color": "${color}"}
+          EOF
+      - name: Push to badges branch
+        run: |
+          cd badges
+          git init -q -b badges
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -q -m "badges: ${{ needs.build-and-test.result }} @ ${{ github.sha }}"
+          git push -q --force \
+            "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" \
+            badges
