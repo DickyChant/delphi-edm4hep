@@ -85,6 +85,26 @@ Pass 2 matches each fullDST event to the intermediate frame by
 `(runNumber, eventNumber)`, and matches tracks within an event by PA.TRAC
 perigee geometry (the PA index is not stable across DST levels).
 
+### Tests
+
+```sh
+ctest --test-dir build              # everything
+ctest --test-dir build -R cli_sdst  # a subset, by name regex
+```
+
+Two kinds of test:
+
+- **CLI argument-contract checks** — each pass must exit nonzero on missing
+  arguments and on a non-numeric / non-positive `-n` (declared `WILL_FAIL`,
+  so `ctest` passes iff the binary rejects). These need no data files.
+- **`tests/align_audit.py`** — audits a converted EDM4hep file for the
+  regression class where a UserData array is labelled parallel to the wrong
+  collection, or a relation (e.g. RecDqdx → Track) is left unset. It is a
+  no-op (exit 0) unless `DELPHI_EDM4HEP_SAMPLE` points at a converted file:
+  ```sh
+  DELPHI_EDM4HEP_SAMPLE=out_final.edm4hep.root ctest --test-dir build -R alignment_audit
+  ```
+
 ---
 
 ## 2. Output collections
