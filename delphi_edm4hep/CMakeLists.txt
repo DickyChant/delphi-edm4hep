@@ -16,12 +16,49 @@ endif()
 
 add_compile_options(-Wall -Wextra)
 
-# key4hep dependencies. The user is expected to have sourced
-#   /cvmfs/sw.hsf.org/key4hep/setup.sh -r <release>
-# before running cmake. find_package picks up EDM4hep and podio from that.
-find_package(EDM4HEP REQUIRED)
-find_package(podio   REQUIRED)
-find_package(ROOT    REQUIRED COMPONENTS Core RIO Matrix)
+# key4hep stack pin. The converter is built and validated against one
+# specific key4hep release (the -r argument to
+#   source /cvmfs/sw.hsf.org/key4hep/setup.sh -r <release>
+# sourced before cmake). find_package alone picks up whatever stack happens
+# to be in the environment, so a drifting `latest` can silently swap
+# EDM4hep/podio/ROOT versions under us. Parse the sourced release out of
+# $KEY4HEP_STACK and require it to match the pin. Bump the pin here when
+# migrating releases, or override per-build with -DKEY4HEP_RELEASE=...;
+# set -DKEY4HEP_RELEASE_STRICT=OFF to demote a mismatch to a warning.
+set(KEY4HEP_RELEASE "2026-04-08"
+  CACHE STRING "key4hep stack release this build is pinned to")
+option(KEY4HEP_RELEASE_STRICT
+  "Fail configure when the sourced key4hep release differs from KEY4HEP_RELEASE" ON)
+if(DEFINED ENV{KEY4HEP_STACK})
+  string(REGEX MATCH "/releases/([^/]+)/" _k4h_unused "$ENV{KEY4HEP_STACK}")
+  set(_k4h_sourced "${CMAKE_MATCH_1}")
+  if(_k4h_sourced STREQUAL KEY4HEP_RELEASE)
+    message(STATUS "key4hep: stack release ${_k4h_sourced} (matches pin)")
+  elseif(KEY4HEP_RELEASE_STRICT)
+    message(FATAL_ERROR
+      "key4hep: sourced stack release '${_k4h_sourced}' does not match the "
+      "pinned release '${KEY4HEP_RELEASE}'. Re-source with\n"
+      "  source /cvmfs/sw.hsf.org/key4hep/setup.sh -r ${KEY4HEP_RELEASE}\n"
+      "or configure with -DKEY4HEP_RELEASE=${_k4h_sourced} (after validating), "
+      "or -DKEY4HEP_RELEASE_STRICT=OFF to proceed anyway.")
+  else()
+    message(WARNING
+      "key4hep: sourced stack release '${_k4h_sourced}' != pinned "
+      "'${KEY4HEP_RELEASE}' (KEY4HEP_RELEASE_STRICT=OFF, continuing)")
+  endif()
+else()
+  message(WARNING
+    "key4hep: \$KEY4HEP_STACK is not set — source "
+    "/cvmfs/sw.hsf.org/key4hep/setup.sh -r ${KEY4HEP_RELEASE} before "
+    "configuring. Proceeding with whatever EDM4hep/podio/ROOT find_package "
+    "locates, which is NOT the validated stack.")
+endif()
+
+find_package(EDM4HEP 1.0 REQUIRED)
+find_package(podio   1.7 REQUIRED)
+find_package(ROOT        REQUIRED COMPONENTS Core RIO Matrix)
+message(STATUS
+  "key4hep: EDM4hep ${EDM4HEP_VERSION}, podio ${podio_VERSION}, ROOT ${ROOT_VERSION}")
 
 # DELPHI almalinux-9 Fortran libraries (custom find module).
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
