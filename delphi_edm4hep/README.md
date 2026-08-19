@@ -28,16 +28,26 @@ mnemonic, and `<ReadableName>` uses DELPHI terminology. Positions are in
   ```sh
   source /cvmfs/sw.hsf.org/key4hep/setup.sh -r 2026-04-08
   ```
-- The DELPHI almalinux-9 Fortran libraries (PHDST / SKELANA / DSTANA …) and
-  the `delphi-analysis` C++ headers (`phdst.hpp`, `skelana/*.hpp`). The headers
-  ship as a git submodule (`extern/delphi-nanoaod`); fetch it once with
-  ```sh
-  git submodule update --init --recursive
-  ```
-  and `cmake/FindDelphiAL9.cmake` finds them automatically (no flags). Override
-  with `-DDELPHI_ANALYSIS_INC=/path/to/delphi-analysis/include` if you keep them
-  elsewhere. (Only the two PHDST-driven passes need these; `delphi_bs_fit` does
-  not.)
+  The release is **pinned** in `CMakeLists.txt` (`KEY4HEP_RELEASE`); configure
+  fails if the sourced stack differs, so a `latest` drift can't silently swap
+  EDM4hep/podio/ROOT versions. To migrate, bump the pin (or pass
+  `-DKEY4HEP_RELEASE=<release>`; `-DKEY4HEP_RELEASE_STRICT=OFF` demotes the
+  mismatch to a warning).
+- The DELPHI almalinux-9 Fortran libraries (PHDST / SKELANA / DSTANA …),
+  located by `cmake/FindDelphiAL9.cmake`. Source the DELPHI environment
+  (`source /cvmfs/delphi.cern.ch/setup.sh`) **before configuring**: the find
+  module pins the library directories from `$DELPHI_LIB` / `$CERN_LIB`,
+  resolving cvmfs symlinks (`latest`, `pro`) to concrete release paths so a
+  later `latest` bump can't silently change or break the build. Without the
+  env it falls back to discovery under `-DDELPHI_AL9_ROOT`; override the pins
+  directly with `-DDELPHI_AL9_LIB_DIR=...` / `-DCERN_AL9_LIB_DIR=...`.
+- The `delphi-analysis` C++ wrapper headers (`phdst/*.hpp`, `skelana/*.hpp`)
+  are vendored in-tree (`extern/delphi-analysis/`, copied from
+  [delphi-nanoaod](https://github.com/DickyChant/delphi-nanoaod) — provenance
+  in the README there), so no submodule fetch is needed. Override with
+  `-DDELPHI_ANALYSIS_INC=/path/to/delphi-analysis/include` to build against
+  an external checkout. (Only the two PHDST-driven passes need these;
+  `delphi_bs_fit` does not.)
 
 ### Compile
 

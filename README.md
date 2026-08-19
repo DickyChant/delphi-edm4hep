@@ -7,8 +7,7 @@ feed it (`scripts/data-reco/`).
 ## Build
 
 ```sh
-git clone --recurse-submodules \
-    https://github.com/delphi-fullDST-edm4hep/delphi-edm4hep.git
+git clone https://github.com/delphi-fullDST-edm4hep/delphi-edm4hep.git
 cd delphi-edm4hep
 
 source /cvmfs/delphi.cern.ch/setup.sh                  # DELPHI runtime (pdl2pdl, $DELPHI_DAT)
@@ -36,9 +35,10 @@ documents the 94c data drivers and their environment knobs.
 
 ## License
 
-Not yet chosen. This package builds on (and pins, as a submodule) the
-[`delphi-nanoaod`](https://github.com/DickyChant/delphi-nanoaod) analysis
-package, which as far as we know carries no explicit license; until that is
-clarified we have deliberately not attached a license here either. Until one
-is added, the default "all rights reserved" applies — contact the authors
+Not yet chosen. This package vendors the PHDST/SKELANA wrapper headers from
+the [`delphi-nanoaod`](https://github.com/DickyChant/delphi-nanoaod) analysis
+package (see `delphi_edm4hep/extern/delphi-analysis/README.md` for the exact
+provenance), which as far as we know carries no explicit license; until that
+is clarified we have deliberately not attached a license here either. Until
+one is added, the default "all rights reserved" applies — contact the authors
 for use beyond reading.
