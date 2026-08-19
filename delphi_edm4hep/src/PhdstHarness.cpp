@@ -84,7 +84,7 @@ void setSkelanaFlags(BtagMode btag, BtagPrimaryVertex btag_pv) {
   // NOTE: changing IFLBTG away from 2 also changes SKELANA's track
   // selection, so output is no longer bit-compatible with delphi-nanoaod
   // at the default. That is intentional but must be validated, not
-  // assumed -- see CLAUDE.md.
+  // assumed -- see docs/README.md.
   switch (btag) {
     case BtagMode::Off:    sk::IFLBTG = 0; break;
     case BtagMode::Bank:   sk::IFLBTG = 1; break;
