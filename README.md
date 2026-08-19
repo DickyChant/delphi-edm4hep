@@ -1,5 +1,9 @@
 # delphi-edm4hep
 
+[![CI](https://github.com/delphi-fullDST-edm4hep/delphi-edm4hep/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/delphi-fullDST-edm4hep/delphi-edm4hep/actions/workflows/ci.yml)
+[![key4hep](https://img.shields.io/badge/key4hep-2026--04--08-blue)](https://key4hep.github.io/key4hep-doc/)
+[![DELPHI](https://img.shields.io/badge/DELPHI%20libs-cvmfs%20latest-blue)](https://delphi.web.cern.ch/)
+
 The installable software: the dual-pass **DELPHI SDST/FDST → EDM4hep
 converter** (`delphi_edm4hep/`) and the data-reconstruction drivers that
 feed it (`scripts/data-reco/`).

@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mount cvmfs (DELPHI + key4hep)
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+        with:
+          cvmfs_repositories: 'delphi.cern.ch,sw.hsf.org'
+
+      # Trigger the autofs mounts on the host before handing /cvmfs to
+      # docker — binding an un-triggered autofs root gives empty dirs.
+      - name: Warm cvmfs mounts
+        run: ls /cvmfs/delphi.cern.ch /cvmfs/sw.hsf.org
+
+      - name: Build and test (AlmaLinux 9, pinned stacks)
+        run: |
+          docker run --rm \
+            -v /cvmfs:/cvmfs:shared \
+            -v ${{ github.workspace }}:/repo \
+            almalinux:9 \
+            bash /repo/.github/scripts/ci-build.sh

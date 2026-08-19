@@ -32,7 +32,9 @@ mnemonic, and `<ReadableName>` uses DELPHI terminology. Positions are in
   fails if the sourced stack differs, so a `latest` drift can't silently swap
   EDM4hep/podio/ROOT versions. To migrate, bump the pin (or pass
   `-DKEY4HEP_RELEASE=<release>`; `-DKEY4HEP_RELEASE_STRICT=OFF` demotes the
-  mismatch to a warning).
+  mismatch to a warning). CI reads the release out of the pin, so a bump is
+  CI-verified automatically — just update the `-r` in the README build
+  snippets and the key4hep badge in the top-level README alongside.
 - The DELPHI almalinux-9 Fortran libraries (PHDST / SKELANA / DSTANA …),
   located by `cmake/FindDelphiAL9.cmake`. Source the DELPHI environment
   (`source /cvmfs/delphi.cern.ch/setup.sh`) **before configuring**: the find
