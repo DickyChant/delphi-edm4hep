@@ -1,8 +1,8 @@
 # delphi-edm4hep
 
 [![CI](https://github.com/delphi-fullDST-edm4hep/delphi-edm4hep/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/delphi-fullDST-edm4hep/delphi-edm4hep/actions/workflows/ci.yml)
-[![key4hep build](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdelphi-fullDST-edm4hep%2Fdelphi-edm4hep%2Fbadges%2Fkey4hep.json)](https://github.com/delphi-fullDST-edm4hep/delphi-edm4hep/actions/workflows/ci.yml)
-[![DELPHI libs build](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fdelphi-fullDST-edm4hep%2Fdelphi-edm4hep%2Fbadges%2Fdelphi.json)](https://github.com/delphi-fullDST-edm4hep/delphi-edm4hep/actions/workflows/ci.yml)
+[![key4hep build](https://img.shields.io/endpoint?url=https%3A%2F%2Fdelphi-fulldst-edm4hep.github.io%2Fdelphi-edm4hep%2Fbadges%2Fkey4hep.json)](https://github.com/delphi-fullDST-edm4hep/delphi-edm4hep/actions/workflows/ci.yml)
+[![DELPHI libs build](https://img.shields.io/endpoint?url=https%3A%2F%2Fdelphi-fulldst-edm4hep.github.io%2Fdelphi-edm4hep%2Fbadges%2Fdelphi.json)](https://github.com/delphi-fullDST-edm4hep/delphi-edm4hep/actions/workflows/ci.yml)
 [![docs](https://img.shields.io/badge/docs-API%20%2B%20guides-blue)](https://delphi-fulldst-edm4hep.github.io/delphi-edm4hep/)
 
 The installable software: the dual-pass **DELPHI SDST/FDST → EDM4hep

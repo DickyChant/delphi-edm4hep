@@ -49,39 +49,51 @@ jobs:
           echo "key4hep=${key4hep:-unknown}" >> "$GITHUB_OUTPUT"
           echo "delphi=${delphi:-unknown}"   >> "$GITHUB_OUTPUT"
 
-  # Publish shields.io endpoint JSON to the orphan 'badges' branch so the
-  # README badges can say "build passing for key4hep <release>" / the
-  # concrete DELPHI release this run resolved. Only pushes to dev update
-  # the badges; PR runs (incl. forks, which lack write perms) skip this.
-  badges:
+  # Build the Doxygen API docs and the shields.io endpoint JSON for the
+  # README badges ("build passing for key4hep <release>" / the concrete
+  # DELPHI release this run resolved), and deploy both to GitHub Pages as
+  # one artifact. Runs on dev only; if: always() so a failed build still
+  # turns the badges red. PR runs (incl. forks) skip this.
+  site:
     needs: build-and-test
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    if: >-
+      always() &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Generate badge JSON
+      - uses: actions/checkout@v4
+
+      - name: Install doxygen
+        run: sudo apt-get update -q && sudo apt-get install -y -q doxygen graphviz
+
+      - name: Build API docs
+        run: doxygen docs/Doxyfile
+
+      - name: Generate badge JSON into the site
         run: |
           if [ "${{ needs.build-and-test.result }}" = "success" ]; then
             msg="build passing"; color="brightgreen"
           else
             msg="build failing"; color="red"
           fi
-          mkdir badges
-          cat > badges/key4hep.json <<EOF
+          mkdir -p docs/html/badges
+          cat > docs/html/badges/key4hep.json <<EOF
           {"schemaVersion": 1, "label": "key4hep ${{ needs.build-and-test.outputs.key4hep }}", "message": "${msg}", "color": "${color}"}
           EOF
-          cat > badges/delphi.json <<EOF
+          cat > docs/html/badges/delphi.json <<EOF
           {"schemaVersion": 1, "label": "DELPHI libs", "message": "${{ needs.build-and-test.outputs.delphi }} · ${msg#build }", "color": "${color}"}
           EOF
-      - name: Push to badges branch
-        run: |
-          cd badges
-          git init -q -b badges
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -q -m "badges: ${{ needs.build-and-test.result }} @ ${{ github.sha }}"
-          git push -q --force \
-            "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" \
-            badges
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/html
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
