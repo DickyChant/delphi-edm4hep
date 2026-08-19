@@ -6,6 +6,8 @@
 // Usage: delphi_sdst_pass <input.sdst> <output.edm4hep.root> [-n MAX]
 
 #include "delphi_edm4hep/CollectionWriter.h"   // EventContext
+#include "delphi_edm4hep/Btag/Btag.h"
+#include "delphi_edm4hep/BtagMode.h"
 #include "delphi_edm4hep/PhdstHarness.h"
 #include "delphi_edm4hep/Calorimeter/Calorimeter.h"
 #include "delphi_edm4hep/Tracking/EltrSdst.h"
@@ -42,7 +44,8 @@ extern "C" {
 static void usage(const char* argv0) {
   std::cerr
     << "usage: " << argv0
-    << " <input.sdst> <output.edm4hep.root> [-n MAX_EVENTS]\n";
+    << " <input.sdst> <output.edm4hep.root> [-n MAX_EVENTS]"
+       " [--btag off|bank|recalc] [--btag-pv]\n";
 }
 
 // Parse a strictly-positive integer for -n; error + usage + exit(1) on
@@ -60,6 +63,19 @@ static int parseMaxEvents(const char* s, const char* argv0) {
   return v;
 }
 
+// Parse --btag {off,bank,recalc}. Default is off: rerunning AABTAG is a
+// reconstruction step, not a transcription, and it perturbs SKELANA track
+// selection -- so it is opt-in.
+static delphi_edm4hep::BtagMode parseBtag(const char* s, const char* argv0) {
+  using delphi_edm4hep::BtagMode;
+  if (std::strcmp(s, "off")    == 0) return BtagMode::Off;
+  if (std::strcmp(s, "bank")   == 0) return BtagMode::Bank;
+  if (std::strcmp(s, "recalc") == 0) return BtagMode::Recalc;
+  std::cerr << "error: --btag expects off|bank|recalc, got '" << s << "'\n";
+  usage(argv0);
+  std::exit(1);
+}
+
 int main(int argc, char** argv) {
   if (argc < 3) { usage(argv[0]); return 1; }
 
@@ -70,6 +86,12 @@ int main(int argc, char** argv) {
   for (int i = 3; i < argc; ++i) {
     if (std::strcmp(argv[i], "-n") == 0 && i + 1 < argc) {
       cfg.max_events = parseMaxEvents(argv[++i], argv[0]);
+    } else if (std::strcmp(argv[i], "--btag") == 0 && i + 1 < argc) {
+      cfg.btag = parseBtag(argv[++i], argv[0]);
+    } else if (std::strcmp(argv[i], "--btag-pv") == 0) {
+      // Let AABTAG's vertex replace the DELANA one in PSCVTX (IFLPVT=1).
+      // Off by default -- see BtagMode.h.
+      cfg.btag_pv = delphi_edm4hep::BtagPrimaryVertex::Replace;
     } else {
       std::cerr << "unknown option: " << argv[i] << "\n";
       usage(argv[0]);
@@ -81,7 +103,7 @@ int main(int argc, char** argv) {
   // (since RecoToGen links need them), then Tracking (which Vertex /
   // V0 / PhotonConv depend on), then the RecoToGen link emission, then
   // Vertex. Source tag is "sDST" for the pass-1 output.
-  cfg.on_event = [](podio::Frame& frame, int /*run*/, int /*evt*/) {
+  cfg.on_event = [btag_mode = cfg.btag](podio::Frame& frame, int /*run*/, int /*evt*/) {
     delphi_edm4hep::EventContext ctx;
 
     // All writers (CollectionWriter base + ctx-mediated I/O).
@@ -101,6 +123,10 @@ int main(int argc, char** argv) {
     // §3.3 deferred PSC commons: VD hits + VECP-indexed PID extras.
     dom::vd_hits::VdHitsWriter             (frame, ctx, "sDST").emit();
     dom::pid_extras_sdst::PidExtrasSdstWriter(frame, ctx, "sDST").emit();
+    // B-tagging. After Tracking (needs ctx.tracking to resolve AABTAG's
+    // PA addresses onto emitted Particles); no-op unless --btag was given.
+    // fulldst=false: on a shortDST, SKELANA honours IFLBTG=1 as a bank read.
+    dom::btag::BtagWriter(frame, ctx, "sDST", btag_mode, /*fulldst=*/false).emit();
   };
 
   return harness::run(cfg);

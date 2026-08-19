@@ -11,6 +11,8 @@
 
 #include "delphi_edm4hep/PhdstHarness.h"
 
+#include "delphi_edm4hep/BtagMode.h"
+
 #include "phdst/functions.hpp"   // ph::PHSET, phdst_, ph::IIIRUN etc.
 #include "phdst/phciii.hpp"
 #include "phdst/uxcom.hpp"
@@ -62,7 +64,7 @@ long                               g_n_written = 0;
 // analysis processors and are copied verbatim from
 // delphi-nanoaod/config/delphi-nanoaod.yaml (the same values the current
 // SDST converter uses; bit-by-bit-compatible output).
-void setSkelanaFlags() {
+void setSkelanaFlags(BtagMode btag, BtagPrimaryVertex btag_pv) {
   sk::IFLTRA = 1;
   sk::IFLODR = 1;
   sk::IFLVEC = 22;
@@ -71,8 +73,24 @@ void setSkelanaFlags() {
   sk::IFLRVR = 111;
   sk::IFLSIM = 1;
   sk::IFLBSP = 2;
-  sk::IFLBTG = 2;
-  sk::IFLPVT = 1;
+  // B-tagging is configurable (see BtagMode.h). Previously both of these
+  // were hard-wired to IFLBTG=2 / IFLPVT=1, copied verbatim from
+  // delphi-raw-nanoaod, which set them to reproduce legacy LVLOCK track
+  // selection bit-for-bit -- not because b-tagging was wanted. The effect
+  // was that AABTAG ran on every event, its output was never read by any
+  // writer, and IFLPVT=1 let it overwrite the primary vertex (with -999
+  // whenever the beamspot lookup failed).
+  //
+  // NOTE: changing IFLBTG away from 2 also changes SKELANA's track
+  // selection, so output is no longer bit-compatible with delphi-nanoaod
+  // at the default. That is intentional but must be validated, not
+  // assumed -- see CLAUDE.md.
+  switch (btag) {
+    case BtagMode::Off:    sk::IFLBTG = 0; break;
+    case BtagMode::Bank:   sk::IFLBTG = 1; break;
+    case BtagMode::Recalc: sk::IFLBTG = 2; break;
+  }
+  sk::IFLPVT = (btag_pv == BtagPrimaryVertex::Replace) ? 1 : 0;
   sk::IFLVDR = 1;
   sk::IFLFCT = 1;
   sk::IFLRNQ = 0;
@@ -98,7 +116,7 @@ void on_user00() {
   // transient FPEs in PSHSCT/PSHBANKS would change IREJ outcomes.
   ph::PHSET("FPE", 0);
   sk::PSINI();
-  setSkelanaFlags();
+  setSkelanaFlags(g_cfg.btag, g_cfg.btag_pv);
 
   if (g_cfg.output.empty()) {
     std::cerr << "harness::on_user00: output path not set\n";

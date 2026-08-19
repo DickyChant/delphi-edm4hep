@@ -10,6 +10,8 @@
 //                        <output.edm4hep.root> [-n MAX]
 
 #include "delphi_edm4hep/CollectionWriter.h"   // EventContext
+#include "delphi_edm4hep/Btag/Btag.h"
+#include "delphi_edm4hep/BtagMode.h"
 #include "delphi_edm4hep/PhdstHarness.h"
 #include "delphi_edm4hep/Calorimeter/CcalFdst.h"
 #include "delphi_edm4hep/Calorimeter/EmcaFdst.h"
@@ -50,7 +52,8 @@ static void usage(const char* argv0) {
   std::cerr
     << "usage: " << argv0
     << " <intermediate.edm4hep.root[,more.root...]> <input.fadana>"
-    << " <output.edm4hep.root> [-n MAX_EVENTS]\n";
+    << " <output.edm4hep.root> [-n MAX_EVENTS]"
+    << " [--btag off|bank|recalc] [--btag-pv]\n";
 }
 
 // Parse a strictly-positive integer for -n; error + usage + exit(1) on
@@ -66,6 +69,19 @@ static int parseMaxEvents(const char* s, const char* argv0) {
     std::exit(1);
   }
   return v;
+}
+
+// Parse --btag {off,bank,recalc}. Default is off: rerunning AABTAG is a
+// reconstruction step, not a transcription, and it perturbs SKELANA track
+// selection -- so it is opt-in.
+static delphi_edm4hep::BtagMode parseBtag(const char* s, const char* argv0) {
+  using delphi_edm4hep::BtagMode;
+  if (std::strcmp(s, "off")    == 0) return BtagMode::Off;
+  if (std::strcmp(s, "bank")   == 0) return BtagMode::Bank;
+  if (std::strcmp(s, "recalc") == 0) return BtagMode::Recalc;
+  std::cerr << "error: --btag expects off|bank|recalc, got '" << s << "'\n";
+  usage(argv0);
+  std::exit(1);
 }
 
 int main(int argc, char** argv) {
@@ -99,6 +115,12 @@ int main(int argc, char** argv) {
   for (int i = 4; i < argc; ++i) {
     if (std::strcmp(argv[i], "-n") == 0 && i + 1 < argc) {
       cfg.max_events = parseMaxEvents(argv[++i], argv[0]);
+    } else if (std::strcmp(argv[i], "--btag") == 0 && i + 1 < argc) {
+      cfg.btag = parseBtag(argv[++i], argv[0]);
+    } else if (std::strcmp(argv[i], "--btag-pv") == 0) {
+      // Let AABTAG's vertex replace the DELANA one in PSCVTX (IFLPVT=1).
+      // Off by default -- see BtagMode.h.
+      cfg.btag_pv = delphi_edm4hep::BtagPrimaryVertex::Replace;
     } else {
       std::cerr << "unknown option: " << argv[i] << "\n";
       usage(argv[0]);
@@ -120,7 +142,7 @@ int main(int argc, char** argv) {
   // fDST_* collections on top. EventContext threads cross-writer
   // state (e.g. fdst_pa_to_sdst_track from MatchProvenanceWriter
   // is consumed by later writers).
-  cfg.on_event = [](podio::Frame& frame, int /*run*/, int /*evt*/) {
+  cfg.on_event = [btag_mode = cfg.btag](podio::Frame& frame, int /*run*/, int /*evt*/) {
     using namespace delphi_edm4hep;
     EventContext ctx;
     // MatchProvenanceWriter must run FIRST: it populates
@@ -154,6 +176,9 @@ int main(int argc, char** argv) {
     fdst_pid_extras::FdstPidExtrasWriter(frame, ctx, "fDST").emit();
     pid_hybrid::PidHybridWriter     (frame, ctx, "fDST").emit();
     tbl_hybrid::TblHybridWriter     (frame, ctx, "fDST").emit();
+    // B-tagging. fulldst=true: SKELANA recalculates for ANY IFLBTG > 0 on
+    // a fullDST, so --btag bank still yields AABTAG-named output here.
+    btag::BtagWriter                (frame, ctx, "fDST", btag_mode, /*fulldst=*/true).emit();
   };
 
   return harness::run(cfg);

@@ -357,6 +357,64 @@ originals described in §2.2.
 - `fDST_EMNC_Showers`, `fDST_HCNC_Showers` — shower clones.
 - `fDST_TBL_RecoToGen` — `from` re-pointed to `fDST_MAIN_Particles`.
 
+### 2.5 B-tagging (`--btag`, opt-in)
+
+Both passes take `--btag off|bank|recalc` (default `off`) and `--btag-pv`.
+These map to the SKELANA flags `IFLBTG` and `IFLPVT`:
+
+| `--btag` | `IFLBTG` | shortDST (pass 1) | fullDST (pass 2) |
+|---|---|---|---|
+| `off` | 0 | AABTAG not run | AABTAG not run |
+| `bank` | 1 | reads the stored BTAG bank (`PSHBTG`) | **recalculates** (`PSFBTG`) |
+| `recalc` | 2 | recalculates (`PSFBTG`) | recalculates (`PSFBTG`) |
+
+The asymmetry is SKELANA's, not ours: on a fullDST, `PSHORT` calls `PSFBTG`
+for *any* `IFLBTG > 0`. Output is named for what actually happened —
+`<source>_BTG_*` for a bank transcription, `<source>_AABTAG_*` for a
+conversion-time rerun. `AABTAG` is deliberately not a bank mnemonic; it marks
+values the converter computed rather than read.
+
+Every frame carries `<source>_BTAGCFG_Mode` (`off`/`bank`/`recalc`) and
+`<source>_BTAGCFG_Recalculated` (0/1) regardless of setting, so a file's
+provenance is machine-readable.
+
+**Event-level** (frame parameters, both modes). Each probability triplet is
+ordered *(hemisphere 1, hemisphere 2, whole event)*:
+`ProbNegIP`, `ProbPosIP`, `ProbAllIP`, `ThrustAxis` (3 components),
+`ThrustValue`. `PSFBTG` pre-fills these with `2.0` and only overwrites them
+when the beamspot is usable, so **2.0 is a "not computed" marker** — it is
+mapped to NaN on output.
+
+**Per-track and vertex** (`recalc`, or `bank` on the fullDST). From AABTAG's
+`AAMAIN` / `AAMNVX` commons:
+
+- `<source>_AABTAG_PrimaryVertex` (Vertex, 1 entry, `algorithmType = 3`) —
+  AABTAG's own fitted vertex. Emitted *alongside* `sDST_PV_PrimaryVertex`,
+  never replacing it.
+- `<source>_AABTAG_Tracks_*` (UserData, all mutually index-parallel, in
+  AABTAG's own track order 1..`NTracks`): `ParticleIndex` (→
+  `<source>_MAIN_Particles`, −1 if unresolvable), `ImpactParRPhi` /
+  `ImpactParRPhiError`, `ImpactParZ` / `ImpactParZError` (mm),
+  `ProbRPhi` / `ProbZ` (per-track probabilities — the jet-probability
+  ingredient), `UsedForTag` (0 = AABTAG ignored this track), `AttachedToPV`,
+  `NVDHitsRPhi` / `NVDHitsZ`, `NVDLayersRPhi` / `NVDLayersZ`, `Chi2VD`,
+  `Chi2PV`, `Momentum`.
+- Frame parameters `NTracks`, `NTracksAttached`, `Truncated`. AABTAG's arrays
+  are dimensioned 100 tracks; `Truncated = 1` marks an event where it saw
+  more and clipped.
+
+`ImpactParRPhi` uses AABTAG's **own sign convention**, not the LCIO `D0` sign
+of the Track collections — the sign is the physics (the negative-IP side is
+the mistag control sample). Do not mix it with `sDST_TRAC_d0PV` or
+`sDST_PV_trackD0PV`; see §2.2.
+
+`--btag-pv` sets `IFLPVT = 1`, letting AABTAG's vertex overwrite the DELANA
+one inside SKELANA's `PSCVTX`. **Not recommended.** On the beamspot-failure
+path (`IERRBS != 0`) `PSFBTG` writes the `-999` sentinel over the position,
+destroying a good DELANA vertex; and since AABTAG's vertex is emitted as its
+own collection anyway, there is nothing to gain. The flag exists only to
+reproduce the historical `delphi-nanoaod` configuration.
+
 ---
 
 ## 3. Code structure
@@ -445,5 +503,9 @@ synthesise non-bank quantities (alternative vertex finders, a second
 particle-flow, empirical covariance rescaling, shower-shape moments) are not
 applied here; where a downstream recipe is useful it is provided as a separate
 tool (e.g. `delphi_bs_fit`) beside the original collection. Event-level summary
-banks without a clean EDM4hep type (jets, trigger, b-tag, run quality) and a
+banks without a clean EDM4hep type (jets, trigger, run quality) and a
 few rare/forward per-PA modules are not currently emitted.
+
+B-tagging is the one deliberate exception, and it is opt-in (`--btag`, §2.5):
+`--btag recalc` reruns DELPHI's AABTAG at conversion time, which is a
+reconstruction step rather than a transcription. It is off by default.

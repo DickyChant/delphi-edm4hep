@@ -79,6 +79,7 @@ add_library(delphi_edm4hep
   src/PhdstHarness.cpp
   src/Event/Event.cpp
   src/Vertex/Vertex.cpp
+  src/Btag/Btag.cpp
   src/Tracking/Tracking.cpp
   src/Calorimeter/Calorimeter.cpp
   src/Pid/ParticleId.cpp
