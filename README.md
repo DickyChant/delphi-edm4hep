@@ -37,6 +37,22 @@ the converter reads DELPHI files via PHDST). `delphi_edm4hep/README.md`
 documents the full collection schema; `scripts/data-reco/README.md`
 documents the 94c data drivers and their environment knobs.
 
+## Dependency versions
+
+The two release badges above report the latest CI result together with the
+exact releases that run built against (CI regenerates them on every push to
+`dev`).
+
+| Dependency | Version | How it is controlled |
+| --- | --- | --- |
+| key4hep stack | **2026-04-08** | Pinned by `KEY4HEP_RELEASE` in `delphi_edm4hep/CMakeLists.txt`; configure fails on mismatch. Provides EDM4hep 1.0.0, podio 1.7.0, ROOT 6.38.04, gcc 14.2.0, CMake 3.31 (≥ 3.24 required). |
+| EDM4hep / podio | ≥ 1.0 / ≥ 1.7 | Version floors in `find_package`; actual versions come with the stack and are printed at configure time. |
+| DELPHI Fortran libs + CERNLIB | follows the sourced env (cvmfs `latest`) | `cmake/FindDelphiAL9.cmake` resolves `$DELPHI_LIB` / `$CERN_LIB` to concrete dated cvmfs paths at configure time and prints the pick; override with `-DDELPHI_AL9_LIB_DIR` / `-DCERN_AL9_LIB_DIR`. The DELPHI badge shows the release CI last resolved. |
+| PHDST/SKELANA wrapper headers | vendored @ `fde7b95f` | In-tree under `delphi_edm4hep/extern/delphi-analysis/` (provenance in its README); override with `-DDELPHI_ANALYSIS_INC`. |
+
+When migrating the key4hep pin, update `KEY4HEP_RELEASE`, the `-r` in the
+build snippets, and this table — CI verifies the bump automatically.
+
 ## License
 
 Not yet chosen. This package vendors the PHDST/SKELANA wrapper headers from
