@@ -38,10 +38,11 @@ constexpr float  kNaN      = std::numeric_limits<float>::quiet_NaN();
 // 10 V0, 11 photon conversion) so the two PVs are never confused.
 constexpr int kAlgoBtagPV = 3;
 
-// PSFBTG pre-fills the PSCBTG probabilities with 2.0 (CALL VFILL(...,2.))
-// and only overwrites them if the beamspot is usable. 2.0 is therefore a
-// "not computed" marker, not a probability -- map it to NaN so a consumer
-// that forgets to check cannot silently average it in.
+// Map the "not computed" sentinel to NaN so a consumer that forgets to check
+// cannot silently average it in.
+// PSFBTG pre-fills every PSCBTG word with 2.0 and only overwrites on success,
+// so 2.0 means "not computed". Neither a probability nor a direction cosine
+// can legitimately reach it.
 float prob(float v) { return (v >= 1.999f) ? kNaN : v; }
 
 }  // namespace
@@ -74,8 +75,14 @@ void BtagWriter::emit()
   putParameter(bank, "ProbAllIP",
                std::vector<float>{prob(sk::QBTPRS(1)), prob(sk::QBTPRS(2)),
                                   prob(sk::QBTPRS(3))});
+  // The thrust axis gets the same sentinel treatment: VFILL sets it to 2.0
+  // as well, and a direction cosine can never legitimately exceed 1, so an
+  // un-mapped 2.0 here would be a sentinel masquerading as data. (Caught by
+  // running --btag bank on a real short DST, where the BTAG bank is absent
+  // and every PSCBTG word is left at 2.0.)
   putParameter(bank, "ThrustAxis",
-               std::vector<float>{sk::QBTTHR(1), sk::QBTTHR(2), sk::QBTTHR(3)});
+               std::vector<float>{prob(sk::QBTTHR(1)), prob(sk::QBTTHR(2)),
+                                  prob(sk::QBTTHR(3))});
   // QBTTHR(4) is the thrust VALUE, not an axis component. (delphi-nanoaod
   // drops it; we keep it -- it is free and the axis alone is not enough to
   // reproduce a thrust-based hemisphere split.)
