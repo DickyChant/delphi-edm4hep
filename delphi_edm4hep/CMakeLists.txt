@@ -16,17 +16,19 @@ endif()
 
 add_compile_options(-Wall -Wextra)
 
-# key4hep stack pin. The converter is built and validated against one
-# specific key4hep release (the -r argument to
-#   source /cvmfs/sw.hsf.org/key4hep/setup.sh -r <release>
-# sourced before cmake). find_package alone picks up whatever stack happens
-# to be in the environment, so a drifting `latest` can silently swap
-# EDM4hep/podio/ROOT versions under us. Parse the sourced release out of
-# $KEY4HEP_STACK and require it to match the pin. Bump the pin here when
-# migrating releases, or override per-build with -DKEY4HEP_RELEASE=...;
-# set -DKEY4HEP_RELEASE_STRICT=OFF to demote a mismatch to a warning.
+# key4hep stack pin. KEY4HEP_RELEASE is the last release this converter was
+# validated against; regular builds and CI use exactly this stack
+# (source setup.sh -r <release>), and configure fails if the sourced stack
+# differs — a new release is not trusted until it has been tested. The
+# dependency-canary bot does that testing: daily it sources the newest
+# release (setup.sh with no -r), trial-builds, and opens a PR bumping this
+# pin only when everything passes. Never chase `-r latest` by hand: that is
+# a stale remnant frozen at 2024-04-12 (EDM4hep 0.10.5), caught by the
+# version floors below. Override per-build with -DKEY4HEP_RELEASE=... (how
+# the canary trials a candidate), or set -DKEY4HEP_RELEASE_STRICT=OFF to
+# demote a mismatch to a warning.
 set(KEY4HEP_RELEASE "2026-04-08"
-  CACHE STRING "key4hep stack release this build is pinned to")
+  CACHE STRING "key4hep stack release this build is pinned to (last validated)")
 option(KEY4HEP_RELEASE_STRICT
   "Fail configure when the sourced key4hep release differs from KEY4HEP_RELEASE" ON)
 if(DEFINED ENV{KEY4HEP_STACK})
@@ -37,7 +39,7 @@ if(DEFINED ENV{KEY4HEP_STACK})
   elseif(KEY4HEP_RELEASE_STRICT)
     message(FATAL_ERROR
       "key4hep: sourced stack release '${_k4h_sourced}' does not match the "
-      "pinned release '${KEY4HEP_RELEASE}'. Re-source with\n"
+      "pinned (last validated) release '${KEY4HEP_RELEASE}'. Re-source with\n"
       "  source /cvmfs/sw.hsf.org/key4hep/setup.sh -r ${KEY4HEP_RELEASE}\n"
       "or configure with -DKEY4HEP_RELEASE=${_k4h_sourced} (after validating), "
       "or -DKEY4HEP_RELEASE_STRICT=OFF to proceed anyway.")

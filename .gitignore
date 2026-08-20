@@ -20,3 +20,4 @@ fort.*
 *.edm4hep.root
 Y[0-9]*.al
 R[0-9]*.al
+.key4hep-resolved
