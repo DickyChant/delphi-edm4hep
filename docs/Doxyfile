@@ -1,5 +1,6 @@
 # Doxygen configuration for delphi-edm4hep API docs.
-# Built by .github/workflows/pages.yml and deployed to GitHub Pages.
+# Built by the docs-build job in .github/workflows/ci.yml and deployed to
+# GitHub Pages by docs-deploy (dev only). The build also runs on every PR.
 # Local build (doxygen ships with the key4hep stack):
 #   doxygen docs/Doxyfile        # from the repo root; output in docs/html
 # Only options that differ from the doxygen defaults are listed.
@@ -20,7 +21,7 @@ INPUT                  = README.md \
                          delphi_edm4hep/bin
 RECURSIVE              = YES
 EXCLUDE                = delphi_edm4hep/extern/delphi-analysis/include
-USE_MDFILE_AS_MAINPAGE = README.md
+USE_MDFILE_AS_MAINPAGE = ./README.md
 IMAGE_PATH             =
 
 # The codebase is not (yet) doxygen-annotated; extract everything so the

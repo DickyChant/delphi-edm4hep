@@ -28,15 +28,14 @@ mnemonic, and `<ReadableName>` uses DELPHI terminology. Positions are in
   ```sh
   source /cvmfs/sw.hsf.org/key4hep/setup.sh -r 2026-04-08
   ```
-  The release is **pinned** in `CMakeLists.txt` (`KEY4HEP_RELEASE` — the
-  last validated release); configure fails if the sourced stack differs, so
-  an untested release can't silently swap EDM4hep/podio/ROOT versions. The
-  daily dependency-canary bot trial-builds the newest release and PRs the
-  pin bump once it passes; to migrate by hand, bump the pin (or pass
-  `-DKEY4HEP_RELEASE=<release>`; `-DKEY4HEP_RELEASE_STRICT=OFF` demotes the
-  mismatch to a warning). Never use `-r latest`: key4hep's `releases/latest`
-  is a stale remnant frozen at 2024-04-12 (EDM4hep 0.10.5) and fails the
-  version floors (EDM4hep ≥ 1.0, podio ≥ 1.7).
+  `-r 2026-04-08` is the production release, recorded in
+  `.github/key4hep-production-release`. Nothing in the build system pins it:
+  any stack meeting the version floors (EDM4hep ≥ 1.0, podio ≥ 1.7) works, so
+  drop `-r` for the current stable release or source
+  `/cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh` for a nightly. Configure
+  fails immediately if no stack is sourced at all, and prints the exact
+  commands to run (`-DKEY4HEP_STACK_REQUIRED=OFF` to build against an
+  EDM4hep/podio provided some other way).
 - The DELPHI almalinux-9 Fortran libraries (PHDST / SKELANA / DSTANA …),
   located by `cmake/FindDelphiAL9.cmake`. Source the DELPHI environment
   (`source /cvmfs/delphi.cern.ch/setup.sh`) **before configuring**: the find

@@ -16,44 +16,44 @@ endif()
 
 add_compile_options(-Wall -Wextra)
 
-# key4hep stack pin. KEY4HEP_RELEASE is the last release this converter was
-# validated against; regular builds and CI use exactly this stack
-# (source setup.sh -r <release>), and configure fails if the sourced stack
-# differs — a new release is not trusted until it has been tested. The
-# dependency-canary bot does that testing: daily it sources the newest
-# release (setup.sh with no -r), trial-builds, and opens a PR bumping this
-# pin only when everything passes. Never chase `-r latest` by hand: that is
-# a stale remnant frozen at 2024-04-12 (EDM4hep 0.10.5), caught by the
-# version floors below. Override per-build with -DKEY4HEP_RELEASE=... (how
-# the canary trials a candidate), or set -DKEY4HEP_RELEASE_STRICT=OFF to
-# demote a mismatch to a warning.
-set(KEY4HEP_RELEASE "2026-04-08"
-  CACHE STRING "key4hep stack release this build is pinned to (last validated)")
-option(KEY4HEP_RELEASE_STRICT
-  "Fail configure when the sourced key4hep release differs from KEY4HEP_RELEASE" ON)
+# A key4hep stack must be sourced before configuring. setup.sh sets PATH,
+# LD_LIBRARY_PATH, CMAKE_PREFIX_PATH and the compiler, and those must stay
+# live through build and ctest — CMake cannot do it for you. Configuring
+# without a stack silently picks up whatever EDM4hep/podio/ROOT happen to be
+# visible, and that mismatch only shows up at runtime. Fail here instead.
+#
+# This file deliberately does NOT name a stack release: choosing a stack is
+# the caller's job. It declares the API floors the source code needs and
+# reports what the sourced stack provided. See .github/workflows/ for the
+# release channels CI exercises.
+option(KEY4HEP_STACK_REQUIRED
+  "Fail configure when no key4hep stack has been sourced" ON)
+
+if(KEY4HEP_STACK_REQUIRED AND NOT DEFINED ENV{KEY4HEP_STACK})
+  # The release CI treats as production. Read only to make this message
+  # actionable — nothing in the build depends on its value.
+  file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../.github/key4hep-production-release"
+    _k4h_prod LIMIT_COUNT 1)
+  string(STRIP "${_k4h_prod}" _k4h_prod)
+  message(FATAL_ERROR
+    "key4hep: no stack sourced (\$KEY4HEP_STACK is unset).\n"
+    "Set up the environment first:\n"
+    "  source /cvmfs/delphi.cern.ch/setup.sh\n"
+    "  source /cvmfs/sw.hsf.org/key4hep/setup.sh -r ${_k4h_prod}\n"
+    "  unset CXXFLAGS CFLAGS LDFLAGS\n"
+    "then configure into a clean build dir.\n"
+    "${_k4h_prod} is the production release, recorded in "
+    ".github/key4hep-production-release. Any stack meeting the version floors "
+    "works: drop '-r' for the current stable release, or source "
+    "/cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh for a nightly.\n"
+    "To build against an EDM4hep/podio provided some other way, pass "
+    "-DKEY4HEP_STACK_REQUIRED=OFF.")
+endif()
+
 if(DEFINED ENV{KEY4HEP_STACK})
-  string(REGEX MATCH "/releases/([^/]+)/" _k4h_unused "$ENV{KEY4HEP_STACK}")
-  set(_k4h_sourced "${CMAKE_MATCH_1}")
-  if(_k4h_sourced STREQUAL KEY4HEP_RELEASE)
-    message(STATUS "key4hep: stack release ${_k4h_sourced} (matches pin)")
-  elseif(KEY4HEP_RELEASE_STRICT)
-    message(FATAL_ERROR
-      "key4hep: sourced stack release '${_k4h_sourced}' does not match the "
-      "pinned (last validated) release '${KEY4HEP_RELEASE}'. Re-source with\n"
-      "  source /cvmfs/sw.hsf.org/key4hep/setup.sh -r ${KEY4HEP_RELEASE}\n"
-      "or configure with -DKEY4HEP_RELEASE=${_k4h_sourced} (after validating), "
-      "or -DKEY4HEP_RELEASE_STRICT=OFF to proceed anyway.")
-  else()
-    message(WARNING
-      "key4hep: sourced stack release '${_k4h_sourced}' != pinned "
-      "'${KEY4HEP_RELEASE}' (KEY4HEP_RELEASE_STRICT=OFF, continuing)")
-  endif()
+  message(STATUS "key4hep stack: $ENV{KEY4HEP_STACK}")
 else()
-  message(WARNING
-    "key4hep: \$KEY4HEP_STACK is not set — source "
-    "/cvmfs/sw.hsf.org/key4hep/setup.sh -r ${KEY4HEP_RELEASE} before "
-    "configuring. Proceeding with whatever EDM4hep/podio/ROOT find_package "
-    "locates, which is NOT the validated stack.")
+  message(STATUS "key4hep stack: none sourced (KEY4HEP_STACK_REQUIRED=OFF)")
 endif()
 
 find_package(EDM4HEP 1.0 REQUIRED)
