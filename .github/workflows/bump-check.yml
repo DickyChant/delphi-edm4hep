@@ -1,37 +1,25 @@
-# Daily dependency canary. Regular CI builds only the pinned (last validated)
-# key4hep release — a new release is not trusted until it has been tested.
-# This workflow is the tester:
+# Production-release tracker. CI's `production` channel builds the release
+# recorded in .github/key4hep-production-release; this workflow is what
+# advances that record. Daily it builds the current *stable* release and, if
+# that release is newer than the recorded one and everything passed, opens a
+# PR moving the record forward.
 #
-#  * Trial-builds with whatever key4hep's own resolution considers newest
-#    (`source setup.sh` with no -r — never `-r latest`, which is a stale
-#    remnant frozen at 2024-04-12 with EDM4hep 0.10.5). A breaking upstream
-#    release turns this workflow red within a day, without touching PR CI.
-#    With nothing newer this still exercises the DELPHI cvmfs `latest`, so a
-#    DELPHI-side drift also surfaces within a day.
-#  * If the resolved release is newer than the pin and builds and tests
-#    green, opens/updates a PR bumping KEY4HEP_RELEASE (CMakeLists.txt +
-#    the release strings in the READMEs).
-name: Dependency canary
+# This is a release tracker, not a breakage detector — see nightly.yml for
+# the latter.
+name: Production release bump check
 
 on:
   schedule:
-    - cron: '17 4 * * *'
+    - cron: '41 4 * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
-  pages: write
-  id-token: write
 
 jobs:
-  canary:
+  bump-check:
     runs-on: ubuntu-latest
-    concurrency:
-      group: pages-deploy
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,106 +31,59 @@ jobs:
       - name: Warm cvmfs mounts
         run: ls /cvmfs/delphi.cern.ch /cvmfs/sw.hsf.org
 
-      - name: Trial build and test the newest key4hep release
-        id: trial
+      - name: Build and test against the current stable release
         run: |
           docker run --rm \
             -v /cvmfs:/cvmfs:shared \
             -v ${{ github.workspace }}:/repo \
             almalinux:9 \
-            bash /repo/.github/scripts/ci-build.sh newest
+            bash /repo/.github/scripts/ci-build.sh stable
 
-      # Only reached when the trial build passed. The release the setup
-      # actually resolved is read from the configure cache and compared to
-      # the pin; a strictly newer green release becomes the bump candidate.
-      - name: Compare the trialled release to the pin
-        id: releases
+      - name: Compare the stable release with the production record
+        id: cmp
         run: |
-          pinned=$(sed -n 's/^set(KEY4HEP_RELEASE "\([^"]*\)".*/\1/p' delphi_edm4hep/CMakeLists.txt)
-          trialled=$(sed -n 's/^KEY4HEP_RELEASE:STRING=\(.*\)/\1/p' build/CMakeCache.txt)
-          echo "pinned=${pinned}"     >> "$GITHUB_OUTPUT"
-          echo "trialled=${trialled}" >> "$GITHUB_OUTPUT"
-          if [ -n "${trialled}" ] && [ "${trialled}" != "${pinned}" ] && [[ "${trialled}" > "${pinned}" ]]; then
-            echo "candidate=${trialled}" >> "$GITHUB_OUTPUT"
-            echo "Newer key4hep release passed: ${trialled} (pinned: ${pinned})"
+          recorded=$(tr -d '[:space:]' < .github/key4hep-production-release)
+          current=$(tr -d '[:space:]' < .key4hep-resolved)
+          echo "recorded=${recorded}" >> "$GITHUB_OUTPUT"
+          echo "current=${current}"   >> "$GITHUB_OUTPUT"
+          if [ -n "${current}" ] && [[ "${current}" > "${recorded}" ]]; then
+            echo "candidate=${current}" >> "$GITHUB_OUTPUT"
+            echo "Newer stable release passed: ${current} (recorded: ${recorded})"
           else
-            echo "candidate="            >> "$GITHUB_OUTPUT"
-            echo "Newest release (${trialled}) is the pinned one; nothing to bump."
+            echo "candidate=" >> "$GITHUB_OUTPUT"
+            echo "Current stable (${current}) is not newer than ${recorded}; nothing to do."
           fi
 
-      - name: Apply the pin bump
-        if: steps.releases.outputs.candidate != ''
+      - name: Move the production record forward
+        if: steps.cmp.outputs.candidate != ''
         run: |
-          old='${{ steps.releases.outputs.pinned }}'
-          new='${{ steps.releases.outputs.candidate }}'
-          sed -i "s/${old}/${new}/g" \
-            delphi_edm4hep/CMakeLists.txt README.md delphi_edm4hep/README.md
-          # the trial build's root-owned output must not end up in the PR
+          printf '%s\n' '${{ steps.cmp.outputs.candidate }}' \
+            > .github/key4hep-production-release
+          # the build's root-owned output must not end up in the PR
           sudo rm -rf build
 
       - name: Open bump PR
-        if: steps.releases.outputs.candidate != ''
+        if: steps.cmp.outputs.candidate != ''
         uses: peter-evans/create-pull-request@v7
         with:
           base: dev
-          branch: bump/key4hep-${{ steps.releases.outputs.candidate }}
-          title: "Bump validated key4hep release to ${{ steps.releases.outputs.candidate }}"
+          branch: bump/key4hep-${{ steps.cmp.outputs.candidate }}
+          title: "Move production key4hep release to ${{ steps.cmp.outputs.candidate }}"
           commit-message: |
-            cmake: bump validated key4hep release to ${{ steps.releases.outputs.candidate }}
+            ci: move production key4hep release to ${{ steps.cmp.outputs.candidate }}
 
-            Automated bump: the dependency canary trial-built release
-            ${{ steps.releases.outputs.candidate }} (previously validated:
-            ${{ steps.releases.outputs.pinned }}) and all tests passed.
+            The current stable release ${{ steps.cmp.outputs.candidate }}
+            (previously recorded: ${{ steps.cmp.outputs.recorded }}) built and
+            tested green.
           body: |
-            The dependency canary found a new key4hep release
-            **${{ steps.releases.outputs.candidate }}** (currently validated:
-            ${{ steps.releases.outputs.pinned }}), trial-built the converter
-            against it, and the full test suite passed
-            ([canary run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})).
+            The current stable key4hep release is
+            **${{ steps.cmp.outputs.candidate }}** (recorded production release:
+            ${{ steps.cmp.outputs.recorded }}). It built and passed the test suite
+            ([run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})).
 
-            This PR bumps the validated release record and the release strings in the
-            READMEs. Before merging, double-check the component versions
-            quoted in the top-level README's dependency matrix (EDM4hep /
-            podio / ROOT / gcc) still match the new stack.
+            This PR moves `.github/key4hep-production-release` forward.
+
+            Note that CI builds the converter and runs CLI smoke tests only — it
+            does not convert any DELPHI data, so a green run is **not** a physics
+            validation of the new stack.
           delete-branch: true
-
-      # ----- key4hep-latest badge + Pages redeploy (also on a red trial) -----
-      # The canary owns the "key4hep latest" badge: <release> · passing/failing.
-      # Pages deploys replace the whole site, so rebuild the docs and carry
-      # over the CI-owned badges (pinned key4hep, DELPHI) from the live site.
-      - name: Install doxygen
-        if: always()
-        run: sudo apt-get update -q && sudo apt-get install -y -q doxygen graphviz
-
-      - name: Build API docs
-        if: always()
-        run: doxygen docs/Doxyfile
-
-      - name: Generate badge JSON into the site
-        if: always()
-        run: |
-          if [ "${{ steps.trial.outcome }}" = "success" ]; then
-            verdict="passing"; color="brightgreen"
-          else
-            verdict="failing"; color="red"
-          fi
-          release=$(cat .key4hep-resolved 2>/dev/null || echo unknown)
-          mkdir -p docs/html/badges
-          cat > docs/html/badges/key4hep-latest.json <<EOF
-          {"schemaVersion": 1, "label": "key4hep latest", "message": "${release} · ${verdict}", "color": "${color}"}
-          EOF
-          for b in key4hep delphi; do
-            curl -sfL "https://delphi-fulldst-edm4hep.github.io/delphi-edm4hep/badges/${b}.json" \
-              -o "docs/html/badges/${b}.json" || \
-              echo '{"schemaVersion": 1, "label": "'"${b}"'", "message": "no CI run yet", "color": "lightgrey"}' \
-              > "docs/html/badges/${b}.json"
-          done
-
-      - uses: actions/upload-pages-artifact@v3
-        if: always()
-        with:
-          path: docs/html
-
-      - id: deployment
-        uses: actions/deploy-pages@v4
-        if: always()

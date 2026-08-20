@@ -12,10 +12,16 @@ concurrency:
 
 jobs:
   build-and-test:
+    name: build (${{ matrix.channel }})
     runs-on: ubuntu-latest
-    outputs:
-      key4hep: ${{ steps.versions.outputs.key4hep }}
-      delphi: ${{ steps.versions.outputs.delphi }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # production = the release recorded in .github/key4hep-production-release
+        # stable     = whatever the stable channel currently resolves to
+        channel: [production, stable]
     steps:
       - uses: actions/checkout@v4
 
@@ -29,47 +35,27 @@ jobs:
       - name: Warm cvmfs mounts
         run: ls /cvmfs/delphi.cern.ch /cvmfs/sw.hsf.org
 
-      - name: Build and test (AlmaLinux 9, pinned stacks)
+      - name: Build and test (AlmaLinux 9)
         run: |
           docker run --rm \
             -v /cvmfs:/cvmfs:shared \
             -v ${{ github.workspace }}:/repo \
             almalinux:9 \
-            bash /repo/.github/scripts/ci-build.sh
+            bash /repo/.github/scripts/ci-build.sh ${{ matrix.channel }}
 
-      # What this run actually built against, for the README badges: both
-      # releases are read from the configure cache, i.e. what the build
-      # really used (for key4hep that is the pinned release; reading the
-      # cache rather than the pin keeps the badge honest either way).
-      - name: Collect resolved dependency versions
-        id: versions
+      - name: Record the stack this run used
         if: always()
         run: |
-          key4hep=$(sed -n 's/^KEY4HEP_RELEASE:STRING=\(.*\)/\1/p' build/CMakeCache.txt 2>/dev/null || true)
-          delphi=$(sed -n 's|^DELPHI_AL9_LIB_DIR:PATH=/cvmfs/delphi.cern.ch/releases/almalinux-9-x86_64/\([^/]*\)/.*|\1|p' build/CMakeCache.txt 2>/dev/null || true)
-          echo "key4hep=${key4hep:-unknown}" >> "$GITHUB_OUTPUT"
-          echo "delphi=${delphi:-unknown}"   >> "$GITHUB_OUTPUT"
+          echo "key4hep \`${{ matrix.channel }}\` -> \`$(cat .key4hep-resolved 2>/dev/null || echo unknown)\`" \
+            >> "$GITHUB_STEP_SUMMARY"
 
-  # Build the Doxygen API docs and the shields.io endpoint JSON for the
-  # README badges ("build passing for key4hep <release>" / the concrete
-  # DELPHI release this run resolved), and deploy both to GitHub Pages as
-  # one artifact. Runs on dev only; if: always() so a failed build still
-  # turns the badges red. PR runs (incl. forks) skip this.
-  site:
-    needs: build-and-test
-    if: >-
-      always() &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      github.ref == 'refs/heads/dev'
+  # The docs build runs on every PR too, so a broken Doxyfile or a missing
+  # input is caught before merge rather than after.
+  docs-build:
+    name: docs (build)
     runs-on: ubuntu-latest
-    concurrency:
-      group: pages-deploy
     permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      contents: read          # actions/checkout
     steps:
       - uses: actions/checkout@v4
 
@@ -79,30 +65,24 @@ jobs:
       - name: Build API docs
         run: doxygen docs/Doxyfile
 
-      - name: Generate badge JSON into the site
-        run: |
-          if [ "${{ needs.build-and-test.result }}" = "success" ]; then
-            msg="build passing"; color="brightgreen"
-          else
-            msg="build failing"; color="red"
-          fi
-          mkdir -p docs/html/badges
-          cat > docs/html/badges/key4hep.json <<EOF
-          {"schemaVersion": 1, "label": "key4hep ${{ needs.build-and-test.outputs.key4hep }}", "message": "${msg}", "color": "${color}"}
-          EOF
-          cat > docs/html/badges/delphi.json <<EOF
-          {"schemaVersion": 1, "label": "DELPHI libs", "message": "${{ needs.build-and-test.outputs.delphi }} · ${msg#build }", "color": "${color}"}
-          EOF
-          # The key4hep-latest badge is owned by the dependency canary;
-          # carry the live one over so this deploy doesn't wipe it.
-          curl -sfL "https://delphi-fulldst-edm4hep.github.io/delphi-edm4hep/badges/key4hep-latest.json" \
-            -o docs/html/badges/key4hep-latest.json || \
-            echo '{"schemaVersion": 1, "label": "key4hep latest", "message": "not yet tested", "color": "lightgrey"}' \
-            > docs/html/badges/key4hep-latest.json
-
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/html
 
+  # Deploy only from dev. Deliberately does NOT check out: that keeps this
+  # job's token scoped to pages/id-token only, matching GitHub's own Pages
+  # pattern, and leaves exactly one writer to the Pages site.
+  docs-deploy:
+    name: docs (deploy)
+    needs: docs-build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
