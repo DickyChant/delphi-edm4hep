@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: build (${{ matrix.channel }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # production = the release recorded in .github/key4hep-production-release
+        # stable     = whatever the stable channel currently resolves to
+        channel: [production, stable]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mount cvmfs (DELPHI + key4hep)
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+        with:
+          cvmfs_repositories: 'delphi.cern.ch,sw.hsf.org'
+
+      # Trigger the autofs mounts on the host before handing /cvmfs to
+      # docker — binding an un-triggered autofs root gives empty dirs.
+      - name: Warm cvmfs mounts
+        run: ls /cvmfs/delphi.cern.ch /cvmfs/sw.hsf.org
+
+      - name: Build and test (AlmaLinux 9)
+        run: |
+          docker run --rm \
+            -v /cvmfs:/cvmfs:shared \
+            -v ${{ github.workspace }}:/repo \
+            almalinux:9 \
+            bash /repo/.github/scripts/ci-build.sh ${{ matrix.channel }}
+
+      - name: Record the stack this run used
+        if: always()
+        run: |
+          echo "key4hep \`${{ matrix.channel }}\` -> \`$(cat .key4hep-resolved 2>/dev/null || echo unknown)\`" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+  # The docs build runs on every PR too, so a broken Doxyfile or a missing
+  # input is caught before merge rather than after.
+  docs-build:
+    name: docs (build)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read          # actions/checkout
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install doxygen
+        run: sudo apt-get update -q && sudo apt-get install -y -q doxygen graphviz
+
+      - name: Build API docs
+        run: doxygen docs/Doxyfile
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/html
+
+  # Deploy only from dev. Deliberately does NOT check out: that keeps this
+  # job's token scoped to pages/id-token only, matching GitHub's own Pages
+  # pattern, and leaves exactly one writer to the Pages site.
+  docs-deploy:
+    name: docs (deploy)
+    needs: docs-build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

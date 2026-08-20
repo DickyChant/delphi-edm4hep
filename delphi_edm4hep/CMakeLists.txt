@@ -16,12 +16,51 @@ endif()
 
 add_compile_options(-Wall -Wextra)
 
-# key4hep dependencies. The user is expected to have sourced
-#   /cvmfs/sw.hsf.org/key4hep/setup.sh -r <release>
-# before running cmake. find_package picks up EDM4hep and podio from that.
-find_package(EDM4HEP REQUIRED)
-find_package(podio   REQUIRED)
-find_package(ROOT    REQUIRED COMPONENTS Core RIO Matrix)
+# A key4hep stack must be sourced before configuring. setup.sh sets PATH,
+# LD_LIBRARY_PATH, CMAKE_PREFIX_PATH and the compiler, and those must stay
+# live through build and ctest — CMake cannot do it for you. Configuring
+# without a stack silently picks up whatever EDM4hep/podio/ROOT happen to be
+# visible, and that mismatch only shows up at runtime. Fail here instead.
+#
+# This file deliberately does NOT name a stack release: choosing a stack is
+# the caller's job. It declares the API floors the source code needs and
+# reports what the sourced stack provided. See .github/workflows/ for the
+# release channels CI exercises.
+option(KEY4HEP_STACK_REQUIRED
+  "Fail configure when no key4hep stack has been sourced" ON)
+
+if(KEY4HEP_STACK_REQUIRED AND NOT DEFINED ENV{KEY4HEP_STACK})
+  # The release CI treats as production. Read only to make this message
+  # actionable — nothing in the build depends on its value.
+  file(STRINGS "${CMAKE_CURRENT_LIST_DIR}/../.github/key4hep-production-release"
+    _k4h_prod LIMIT_COUNT 1)
+  string(STRIP "${_k4h_prod}" _k4h_prod)
+  message(FATAL_ERROR
+    "key4hep: no stack sourced (\$KEY4HEP_STACK is unset).\n"
+    "Set up the environment first:\n"
+    "  source /cvmfs/delphi.cern.ch/setup.sh\n"
+    "  source /cvmfs/sw.hsf.org/key4hep/setup.sh -r ${_k4h_prod}\n"
+    "  unset CXXFLAGS CFLAGS LDFLAGS\n"
+    "then configure into a clean build dir.\n"
+    "${_k4h_prod} is the production release, recorded in "
+    ".github/key4hep-production-release. Any stack meeting the version floors "
+    "works: drop '-r' for the current stable release, or source "
+    "/cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh for a nightly.\n"
+    "To build against an EDM4hep/podio provided some other way, pass "
+    "-DKEY4HEP_STACK_REQUIRED=OFF.")
+endif()
+
+if(DEFINED ENV{KEY4HEP_STACK})
+  message(STATUS "key4hep stack: $ENV{KEY4HEP_STACK}")
+else()
+  message(STATUS "key4hep stack: none sourced (KEY4HEP_STACK_REQUIRED=OFF)")
+endif()
+
+find_package(EDM4HEP 1.0 REQUIRED)
+find_package(podio   1.7 REQUIRED)
+find_package(ROOT        REQUIRED COMPONENTS Core RIO Matrix)
+message(STATUS
+  "key4hep: EDM4hep ${EDM4HEP_VERSION}, podio ${podio_VERSION}, ROOT ${ROOT_VERSION}")
 
 # DELPHI almalinux-9 Fortran libraries (custom find module).
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)

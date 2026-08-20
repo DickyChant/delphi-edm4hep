@@ -28,16 +28,29 @@ mnemonic, and `<ReadableName>` uses DELPHI terminology. Positions are in
   ```sh
   source /cvmfs/sw.hsf.org/key4hep/setup.sh -r 2026-04-08
   ```
-- The DELPHI almalinux-9 Fortran libraries (PHDST / SKELANA / DSTANA …) and
-  the `delphi-analysis` C++ headers (`phdst.hpp`, `skelana/*.hpp`). The headers
-  ship as a git submodule (`extern/delphi-nanoaod`); fetch it once with
-  ```sh
-  git submodule update --init --recursive
-  ```
-  and `cmake/FindDelphiAL9.cmake` finds them automatically (no flags). Override
-  with `-DDELPHI_ANALYSIS_INC=/path/to/delphi-analysis/include` if you keep them
-  elsewhere. (Only the two PHDST-driven passes need these; `delphi_bs_fit` does
-  not.)
+  `-r 2026-04-08` is the production release, recorded in
+  `.github/key4hep-production-release`. Nothing in the build system pins it:
+  any stack meeting the version floors (EDM4hep ≥ 1.0, podio ≥ 1.7) works, so
+  drop `-r` for the current stable release or source
+  `/cvmfs/sw-nightlies.hsf.org/key4hep/setup.sh` for a nightly. Configure
+  fails immediately if no stack is sourced at all, and prints the exact
+  commands to run (`-DKEY4HEP_STACK_REQUIRED=OFF` to build against an
+  EDM4hep/podio provided some other way).
+- The DELPHI almalinux-9 Fortran libraries (PHDST / SKELANA / DSTANA …),
+  located by `cmake/FindDelphiAL9.cmake`. Source the DELPHI environment
+  (`source /cvmfs/delphi.cern.ch/setup.sh`) **before configuring**: the find
+  module pins the library directories from `$DELPHI_LIB` / `$CERN_LIB`,
+  resolving cvmfs symlinks (`latest`, `pro`) to concrete release paths so a
+  later `latest` bump can't silently change or break the build. Without the
+  env it falls back to discovery under `-DDELPHI_AL9_ROOT`; override the pins
+  directly with `-DDELPHI_AL9_LIB_DIR=...` / `-DCERN_AL9_LIB_DIR=...`.
+- The `delphi-analysis` C++ wrapper headers (`phdst/*.hpp`, `skelana/*.hpp`)
+  are vendored in-tree (`extern/delphi-analysis/`, copied from
+  [delphi-nanoaod](https://github.com/DickyChant/delphi-nanoaod) — provenance
+  in the README there), so no submodule fetch is needed. Override with
+  `-DDELPHI_ANALYSIS_INC=/path/to/delphi-analysis/include` to build against
+  an external checkout. (Only the two PHDST-driven passes need these;
+  `delphi_bs_fit` does not.)
 
 ### Compile
 
@@ -74,6 +87,26 @@ cmake --build build -j
 Pass 2 matches each fullDST event to the intermediate frame by
 `(runNumber, eventNumber)`, and matches tracks within an event by PA.TRAC
 perigee geometry (the PA index is not stable across DST levels).
+
+### Tests
+
+```sh
+ctest --test-dir build              # everything
+ctest --test-dir build -R cli_sdst  # a subset, by name regex
+```
+
+Two kinds of test:
+
+- **CLI argument-contract checks** — each pass must exit nonzero on missing
+  arguments and on a non-numeric / non-positive `-n` (declared `WILL_FAIL`,
+  so `ctest` passes iff the binary rejects). These need no data files.
+- **`tests/align_audit.py`** — audits a converted EDM4hep file for the
+  regression class where a UserData array is labelled parallel to the wrong
+  collection, or a relation (e.g. RecDqdx → Track) is left unset. It is a
+  no-op (exit 0) unless `DELPHI_EDM4HEP_SAMPLE` points at a converted file:
+  ```sh
+  DELPHI_EDM4HEP_SAMPLE=out_final.edm4hep.root ctest --test-dir build -R alignment_audit
+  ```
 
 ---
 

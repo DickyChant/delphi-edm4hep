@@ -1,0 +1,89 @@
+# Production-release tracker. CI's `production` channel builds the release
+# recorded in .github/key4hep-production-release; this workflow is what
+# advances that record. Daily it builds the current *stable* release and, if
+# that release is newer than the recorded one and everything passed, opens a
+# PR moving the record forward.
+#
+# This is a release tracker, not a breakage detector — see nightly.yml for
+# the latter.
+name: Production release bump check
+
+on:
+  schedule:
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mount cvmfs (DELPHI + key4hep)
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+        with:
+          cvmfs_repositories: 'delphi.cern.ch,sw.hsf.org'
+
+      - name: Warm cvmfs mounts
+        run: ls /cvmfs/delphi.cern.ch /cvmfs/sw.hsf.org
+
+      - name: Build and test against the current stable release
+        run: |
+          docker run --rm \
+            -v /cvmfs:/cvmfs:shared \
+            -v ${{ github.workspace }}:/repo \
+            almalinux:9 \
+            bash /repo/.github/scripts/ci-build.sh stable
+
+      - name: Compare the stable release with the production record
+        id: cmp
+        run: |
+          recorded=$(tr -d '[:space:]' < .github/key4hep-production-release)
+          current=$(tr -d '[:space:]' < .key4hep-resolved)
+          echo "recorded=${recorded}" >> "$GITHUB_OUTPUT"
+          echo "current=${current}"   >> "$GITHUB_OUTPUT"
+          if [ -n "${current}" ] && [[ "${current}" > "${recorded}" ]]; then
+            echo "candidate=${current}" >> "$GITHUB_OUTPUT"
+            echo "Newer stable release passed: ${current} (recorded: ${recorded})"
+          else
+            echo "candidate=" >> "$GITHUB_OUTPUT"
+            echo "Current stable (${current}) is not newer than ${recorded}; nothing to do."
+          fi
+
+      - name: Move the production record forward
+        if: steps.cmp.outputs.candidate != ''
+        run: |
+          printf '%s\n' '${{ steps.cmp.outputs.candidate }}' \
+            > .github/key4hep-production-release
+          # the build's root-owned output must not end up in the PR
+          sudo rm -rf build
+
+      - name: Open bump PR
+        if: steps.cmp.outputs.candidate != ''
+        uses: peter-evans/create-pull-request@v7
+        with:
+          base: dev
+          branch: bump/key4hep-${{ steps.cmp.outputs.candidate }}
+          title: "Move production key4hep release to ${{ steps.cmp.outputs.candidate }}"
+          commit-message: |
+            ci: move production key4hep release to ${{ steps.cmp.outputs.candidate }}
+
+            The current stable release ${{ steps.cmp.outputs.candidate }}
+            (previously recorded: ${{ steps.cmp.outputs.recorded }}) built and
+            tested green.
+          body: |
+            The current stable key4hep release is
+            **${{ steps.cmp.outputs.candidate }}** (recorded production release:
+            ${{ steps.cmp.outputs.recorded }}). It built and passed the test suite
+            ([run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})).
+
+            This PR moves `.github/key4hep-production-release` forward.
+
+            Note that CI builds the converter and runs CLI smoke tests only — it
+            does not convert any DELPHI data, so a green run is **not** a physics
+            validation of the new stack.
+          delete-branch: true

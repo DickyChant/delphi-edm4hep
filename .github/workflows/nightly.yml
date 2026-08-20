@@ -1,0 +1,42 @@
+# Early warning that an upstream key4hep change breaks the converter.
+# The stable channel moves every 2-4 months, so it cannot serve this role;
+# the nightly channel moves daily. Nothing is ever pinned to a nightly —
+# only ~25 nightly releases are retained on cvmfs — so this workflow never
+# opens a bump PR. It is a smoke alarm, not a release tracker.
+name: Nightly key4hep
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    name: build (nightly)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mount cvmfs (DELPHI + key4hep nightlies)
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+        with:
+          cvmfs_repositories: 'delphi.cern.ch,sw-nightlies.hsf.org'
+
+      - name: Warm cvmfs mounts
+        run: ls /cvmfs/delphi.cern.ch /cvmfs/sw-nightlies.hsf.org
+
+      - name: Build and test against the nightly stack
+        run: |
+          docker run --rm \
+            -v /cvmfs:/cvmfs:shared \
+            -v ${{ github.workspace }}:/repo \
+            almalinux:9 \
+            bash /repo/.github/scripts/ci-build.sh nightly
+
+      - name: Record the stack this run used
+        if: always()
+        run: |
+          echo "key4hep \`nightly\` -> \`$(cat .key4hep-resolved 2>/dev/null || echo unknown)\`" \
+            >> "$GITHUB_STEP_SUMMARY"
