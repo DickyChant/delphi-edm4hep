@@ -1,0 +1,97 @@
+# Daily dependency canary. Answers "how do we detect upstream breakage if we
+# pin?": the pin keeps dev reproducible, and this workflow does the chasing.
+#
+#  * Finds the newest dated key4hep release on cvmfs and compares it to the
+#    KEY4HEP_RELEASE pin in CMakeLists.txt.
+#  * Trial-builds with that release (or with the pin, if there is nothing
+#    newer — which still exercises the DELPHI cvmfs `latest`, so a DELPHI-side
+#    drift also turns this workflow red the day it happens).
+#  * If a newer release builds and tests green, opens/updates a PR bumping the
+#    pin (CMakeLists.txt + the release strings in the READMEs).
+#
+# Note: key4hep's `releases/latest` directory is NOT a valid target — it is a
+# stale remnant frozen at 2024-04-12 (EDM4hep 0.10.5); hence the dated-dir scan.
+name: Dependency canary
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mount cvmfs (DELPHI + key4hep)
+        uses: cvmfs-contrib/github-action-cvmfs@v5
+        with:
+          cvmfs_repositories: 'delphi.cern.ch,sw.hsf.org'
+
+      - name: Warm cvmfs mounts
+        run: ls /cvmfs/delphi.cern.ch /cvmfs/sw.hsf.org
+
+      - name: Compare newest key4hep release to the pin
+        id: releases
+        run: |
+          pinned=$(sed -n 's/^set(KEY4HEP_RELEASE "\([^"]*\)".*/\1/p' delphi_edm4hep/CMakeLists.txt)
+          newest=$(ls /cvmfs/sw.hsf.org/key4hep/releases/ \
+                   | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' | sort | tail -1)
+          echo "pinned=${pinned}"   >> "$GITHUB_OUTPUT"
+          echo "newest=${newest}"   >> "$GITHUB_OUTPUT"
+          if [ -n "${newest}" ] && [ "${newest}" != "${pinned}" ] && [[ "${newest}" > "${pinned}" ]]; then
+            echo "candidate=${newest}" >> "$GITHUB_OUTPUT"
+            echo "Newer key4hep release found: ${newest} (pinned: ${pinned})"
+          else
+            echo "candidate="          >> "$GITHUB_OUTPUT"
+            echo "No newer key4hep release (pinned: ${pinned}); building with the pin to canary the DELPHI side."
+          fi
+
+      - name: Trial build and test
+        run: |
+          docker run --rm \
+            -v /cvmfs:/cvmfs:shared \
+            -v ${{ github.workspace }}:/repo \
+            almalinux:9 \
+            bash /repo/.github/scripts/ci-build.sh ${{ steps.releases.outputs.candidate }}
+
+      - name: Apply the pin bump
+        if: steps.releases.outputs.candidate != ''
+        run: |
+          old='${{ steps.releases.outputs.pinned }}'
+          new='${{ steps.releases.outputs.candidate }}'
+          sed -i "s/${old}/${new}/g" \
+            delphi_edm4hep/CMakeLists.txt README.md delphi_edm4hep/README.md
+          # the trial build's root-owned output must not end up in the PR
+          sudo rm -rf build
+
+      - name: Open bump PR
+        if: steps.releases.outputs.candidate != ''
+        uses: peter-evans/create-pull-request@v7
+        with:
+          base: dev
+          branch: bump/key4hep-${{ steps.releases.outputs.candidate }}
+          title: "Bump key4hep pin to ${{ steps.releases.outputs.candidate }}"
+          commit-message: |
+            cmake: bump key4hep pin to ${{ steps.releases.outputs.candidate }}
+
+            Automated bump: the dependency canary trial-built release
+            ${{ steps.releases.outputs.candidate }} (previous pin:
+            ${{ steps.releases.outputs.pinned }}) and all tests passed.
+          body: |
+            The dependency canary found a new key4hep release
+            **${{ steps.releases.outputs.candidate }}** (current pin:
+            ${{ steps.releases.outputs.pinned }}), trial-built the converter
+            against it, and the full test suite passed
+            ([canary run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})).
+
+            This PR bumps `KEY4HEP_RELEASE` and the release strings in the
+            READMEs. Before merging, double-check the component versions
+            quoted in the top-level README's dependency matrix (EDM4hep /
+            podio / ROOT / gcc) still match the new stack.
+          delete-branch: true

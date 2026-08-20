@@ -54,6 +54,16 @@ exact releases that run built against (CI regenerates them on every push to
 When migrating the key4hep pin, update `KEY4HEP_RELEASE`, the `-r` in the
 build snippets, and this table — CI verifies the bump automatically.
 
+Pinning does not mean falling behind: a daily **dependency canary**
+(`.github/workflows/bump-check.yml`) scans cvmfs for a newer dated key4hep
+release, trial-builds the converter against it, and opens a pin-bump PR when
+the build and tests pass. On days with no new release it builds with the pin
+anyway, so drift on the DELPHI cvmfs side (which intentionally follows
+`latest`) also surfaces within a day. Do **not** chase key4hep's
+`releases/latest` by hand — that directory is a stale remnant frozen at
+2024-04-12 (EDM4hep 0.10.5) and predates every current API this converter
+uses; the dated releases are the real ones.
+
 ## License
 
 Not yet chosen. This package vendors the PHDST/SKELANA wrapper headers from
