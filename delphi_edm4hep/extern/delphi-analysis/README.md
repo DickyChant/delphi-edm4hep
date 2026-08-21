@@ -11,7 +11,7 @@ common blocks, vendored from the `delphi-analysis` package of
 
 This replaces the former `extern/delphi-nanoaod` git submodule. Only the
 headers this converter actually includes (plus their transitive includes)
-are kept — the umbrella headers (`phdst.hpp`, `skelana.hpp`), the SKELANA
+are kept — `pscbtg.hpp` was added when b-tagging output was implemented — the umbrella headers (`phdst.hpp`, `skelana.hpp`), the SKELANA
 common blocks we never read, and everything else in delphi-nanoaod
 (nanoaod writers, python, scripts) are intentionally not vendored.
 

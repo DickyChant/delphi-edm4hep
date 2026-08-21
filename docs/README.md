@@ -28,17 +28,15 @@ unset CXXFLAGS CFLAGS LDFLAGS   # MUST precede `cmake -S`; see below
 cmake -S delphi_edm4hep -B build && cmake --build build -j
 ```
 
-Two traps, both of which cost time if hit:
+One trap, and it costs time if hit: **`unset CXXFLAGS CFLAGS LDFLAGS` is not
+optional, and not a `--build`-time fix.** The DELPHI setup exports CERNLIB-era
+flags (`-ftemplate-depth-25`, `-ansi`) that CMake bakes into the cache at
+**configure** time and that break the podio/C++20 build.
 
-- **`unset CXXFLAGS CFLAGS LDFLAGS` is not optional, and not a `--build`-time
-  fix.** The DELPHI setup exports CERNLIB-era flags (`-ftemplate-depth-25`,
-  `-ansi`) that CMake bakes into the cache at **configure** time and that
-  break the podio/C++20 build.
-- **`cmake/FindDelphiAL9.cmake` hardcodes a CERNLIB version** in
-  `CERN_AL9_LIB_DIR` (`cern/2025.09.18.4-free-im/lib`). cvmfs has moved on,
-  so configuring currently needs an override, e.g.
-  `-DCERN_AL9_LIB_DIR=/cvmfs/delphi.cern.ch/releases/almalinux-9-x86_64/latest/cern/2026.06.24.1-free-im/lib`.
-  Check what is actually on cvmfs before believing either path.
+`FindDelphiAL9.cmake` discovers the DELPHI and CERNLIB lib dirs by globbing
+the cvmfs release tree and pinning the result, so a cvmfs version bump no
+longer breaks configuration. `-DDELPHI_AL9_LIB_DIR=` / `-DCERN_AL9_LIB_DIR=`
+still override if needed.
 
 ```sh
 ./build/delphi_sdst_pass  in.sdst  inter.edm4hep.root  [-n N] [--btag off|bank|recalc] [--btag-pv]
@@ -56,18 +54,26 @@ converted file. Single test: `ctest --test-dir build -R alignment_audit`.
 is index-parallel to collection Y" contracts. Add a row whenever a new
 parallel array is emitted.
 
-## The submodule is also the reference implementation
+## Vendored headers, and the reference implementation
 
-`delphi_edm4hep/extern/delphi-nanoaod` supplies `phdst.hpp` /
-`skelana/*.hpp` (the COMMON-block wrappers); without
-`git submodule update --init --recursive`, `FindDelphiAL9` fails.
+`delphi_edm4hep/extern/delphi-analysis/include/` holds the PHDST / SKELANA
+COMMON-block wrappers, vendored from `delphi-nanoaod` (there is no longer a
+git submodule). Only the headers this converter actually includes are kept,
+so **adding a new SKELANA common means vendoring its header too** — that is
+how `pscbtg.hpp` arrived with the b-tagging work. See
+`extern/delphi-analysis/README.md` for the pinned upstream commit and the
+re-copy procedure.
 
-It is also the thing to diff against when SKELANA behaviour is in question:
+`delphi-nanoaod` itself is still the thing to diff against when SKELANA
+behaviour is in question, from a separate checkout:
 
 - `config/delphi-nanoaod.yaml` — the flag and cut values this converter's
   defaults descend from;
 - `delphi-analysis/src/skelana_analysis.cpp` — the reference `user00`/`user01`
   sequence;
+- `delphi-nanoaod/src/nanoaod_writer.cpp` — note its `Btag_*` field
+  *descriptions* are copy-paste-wrong (positive-IP labelled negative); the
+  values are filled correctly;
 - `delphi-raw-nanoaod/src/raw_nanoaod_writer.cpp` — comments recording
   empirically-verified consequences of individual flags. Useful, but verify
   against the SKELANA source before relying on one: at least one of its
