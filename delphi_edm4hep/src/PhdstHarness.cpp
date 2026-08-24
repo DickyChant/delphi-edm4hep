@@ -259,18 +259,35 @@ int run(const Config& cfg) {
                           // (run,evt) entry numbers against the new readers
   g_processed.clear();
 
-  if (!std::filesystem::exists(cfg.input)) {
-    std::cerr << "harness::run: input not found: " << cfg.input << "\n";
-    return 1;
-  }
-
-  // PHDST reads its input via a TEXT file named PDLINPUT in cwd. Use
-  // an absolute path so PDLINPUT works from any working directory.
-  auto abs_input = std::filesystem::absolute(cfg.input);
+  // PHDST reads its input via a TEXT file named PDLINPUT in cwd.
   std::filesystem::remove("PDLINPUT");
-  {
-    std::ofstream pdl("PDLINPUT");
-    pdl << "FILE = " << abs_input.string() << "\n";
+  switch (cfg.input_mode) {
+    case InputMode::File: {
+      if (!std::filesystem::exists(cfg.input)) {
+        std::cerr << "harness::run: input not found: " << cfg.input << "\n";
+        return 1;
+      }
+      // Use an absolute path so PDLINPUT works from any working directory.
+      auto abs_input = std::filesystem::absolute(cfg.input);
+      std::ofstream pdl("PDLINPUT");
+      pdl << "FILE = " << abs_input.string() << "\n";
+      break;
+    }
+    case InputMode::Nickname: {
+      std::ofstream pdl("PDLINPUT");
+      pdl << "FAT = " << cfg.input_nickname << "\n";
+      break;
+    }
+    case InputMode::Pdl: {
+      if (!std::filesystem::exists(cfg.input)) {
+        std::cerr << "harness::run: pdl file not found: " << cfg.input << "\n";
+        return 1;
+      }
+      std::filesystem::copy_file(
+          cfg.input, "PDLINPUT",
+          std::filesystem::copy_options::overwrite_existing);
+      break;
+    }
   }
 
   // Drive the PHDST event loop. Empty option string -> default mode.

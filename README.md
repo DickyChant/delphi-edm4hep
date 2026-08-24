@@ -28,6 +28,12 @@ cmake --build build -j
 # pass 1: shortDST-level collections
 ./build/delphi_sdst_pass  simana.sdst  inter.edm4hep.root
 
+# pass 1, resolving a DELPHI dataset nickname instead of a local file
+./build/delphi_sdst_pass  -N short94_c2/c1-10  inter.edm4hep.root
+
+# pass 1, from a PDL file (e.g. as produced by `fatfind`)
+./build/delphi_sdst_pass  -P dataset.pdl  inter.edm4hep.root
+
 # pass 2: full-DST collections, (run,evt)-matched onto pass 1
 ./build/delphi_fdst_pass  inter.edm4hep.root  simana.fadana  final.edm4hep.root
 ```

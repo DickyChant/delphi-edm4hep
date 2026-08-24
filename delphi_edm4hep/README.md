@@ -76,6 +76,10 @@ cmake --build build -j
 # Pass 1 : shortDST -> intermediate EDM4hep (sDST_* collections)
 ./build/delphi_sdst_pass  input.sdst  out_sdst.edm4hep.root  [-n MAX_EVENTS]
 
+# Pass 1, alternative inputs instead of a local file:
+./build/delphi_sdst_pass  -N|--nickname short94_c2/c1-10  out_sdst.edm4hep.root  [-n MAX_EVENTS]
+./build/delphi_sdst_pass  -P|--pdl dataset.pdl            out_sdst.edm4hep.root  [-n MAX_EVENTS]
+
 # Pass 2 : intermediate + fullDST -> final EDM4hep (sDST_* + fDST_*)
 ./build/delphi_fdst_pass  out_sdst.edm4hep.root  input.fadana \
                           out_final.edm4hep.root  [-n MAX_EVENTS]
@@ -87,6 +91,13 @@ cmake --build build -j
 Pass 2 matches each fullDST event to the intermediate frame by
 `(runNumber, eventNumber)`, and matches tracks within an event by PA.TRAC
 perigee geometry (the PA index is not stable across DST levels).
+
+`-N`/`--nickname` resolves a DELPHI dataset nickname (e.g. `short94_c2` or
+`short94_c2/c1-10`) through PHDST's own dataset lookup instead of reading a
+local file (writes `FAT = <nickname>` to `PDLINPUT`). `-P`/`--pdl` instead
+takes a pre-built PDL file, such as one produced by `fatfind`, and copies it
+to `PDLINPUT` verbatim. These two options are mutually exclusive with the
+positional `<input.sdst>` argument.
 
 ### Tests
 
