@@ -1,0 +1,36 @@
+# Samples for the conversion-identity test. One entry = one converted file,
+# compared against a blessed reference held on lepdata-edm4hep.
+#
+# Inputs are addressed through fatfind and read from CERN Open Data:
+# data-test.sh pins DELPHI_DATA_ROOT=/eos/opendata/delphi, so nicknames resolve
+# tape -> collision-data and MCprod -> simulated-data.
+#
+# select.mode:
+#   nickname  -> delphi_sdst_pass -N <value>   (fatfind dataset; data AND mc)
+#   pdl       -> delphi_sdst_pass -P <value>   (pre-expanded PDL; escape hatch)
+#   file      -> delphi_sdst_pass <value>      (explicit path)
+#
+# max_events: -1 = whole file, otherwise the -n cap.
+
+samples:
+  - id: data_94c_short
+    kind: data
+    period: 94c
+    select: {mode: nickname, value: "short94_c2/c1-1"}
+    max_events: -1
+    note: "first file of short94_c2 -> collision-data/Y13709/Y13709.1.al"
+
+  - id: mc_94c_qqps_ral
+    kind: mc
+    period: 94c
+    select: {mode: nickname, value: "sh_qqps_r94_2l_c2/c1-1"}
+    max_events: -1
+    note: "ShortDST qqbar, sim of 94 (liq) ANA94C Fix2, RAL -> Y10060.346.al"
+
+# Cross-check of the INPUT MODES, not of the conversion. Converts one physical
+# file two ways in the same run and requires the two results to agree.
+equivalence:
+  - id: fatfind_nickname_vs_file
+    a: {mode: nickname, value: "short94_c2/c1-1"}
+    b: {mode: file, value: "/eos/opendata/delphi/collision-data/Y13709/Y13709.1.al"}
+    max_events: -1

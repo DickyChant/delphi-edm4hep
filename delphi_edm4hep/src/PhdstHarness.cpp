@@ -296,6 +296,15 @@ int run(const Config& cfg) {
   int n = 0, m = 0;
   const char opt[] = " ";
   ph::phdst_(const_cast<char*>(opt), &n, &m, std::strlen(opt));
+
+  // An empty conversion is a failure, not an empty success. Look for
+  // "error in CFOPEN" in the PHDST output above; an input path over 120
+  // characters is silently truncated.
+  if (g_n_written == 0) {
+    std::cerr << "delphi_edm4hep::harness: no events were written\n";
+    return 1;
+  }
+
   return 0;
 }
 
