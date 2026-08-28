@@ -70,7 +70,7 @@ struct Config {
 
 // Run the PHDST event loop with `cfg`. Writes a PDLINPUT in cwd per
 // cfg.input_mode (see InputMode above), drives phdst_(), blocks until
-// done. Returns process exit code (0 OK).
+// done. Returns process exit code (0 OK); 1 if no events were written.
 int run(const Config& cfg);
 
 // User-callback forwarders. The binary's extern "C" user*_ overrides
