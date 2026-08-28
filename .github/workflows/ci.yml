@@ -57,7 +57,6 @@ jobs:
           path: |
             build/delphi_sdst_pass
             build/delphi_fdst_pass
-            .key4hep-resolved
           retention-days: 5
 
   # The build stays on the GitHub-hosted runner; only the binaries are sent to
@@ -86,7 +85,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        with: { name: build, path: . }
+        with: { name: build, path: build }
       - run: chmod +x build/delphi_sdst_pass build/delphi_fdst_pass
       - name: Convert and compare against the blessed references
         run: bash .github/scripts/data-test.sh

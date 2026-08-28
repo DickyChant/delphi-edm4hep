@@ -9,8 +9,9 @@
 #   data-test.sh <id> [<id> ...]     only those samples
 #   data-test.sh --bless [<id>]      regenerate references instead
 #
-# Expects the build artifact unpacked in the workspace: build/delphi_sdst_pass
-# and .key4hep-resolved, both produced by the build job.
+# Expects the build artifact unpacked at build/ in the workspace. The key4hep
+# release is read from .github/key4hep-production-release, the same pin the
+# production build uses.
 #
 # Overrides: DELPHI_CI_WORK (scratch), DELPHI_CI_REFS (reference store).
 set -e
@@ -25,8 +26,9 @@ WORK="${DELPHI_CI_WORK:-${RUNNER_TEMP:-/tmp}/delphi-dt}"
 REFS="${DELPHI_CI_REFS:-/home/delphi-ci/refs}"
 
 [ -x "${BIN}" ] || { echo "no converter at ${BIN} - is the build artifact unpacked?" >&2; exit 1; }
-K4="$(tr -d '[:space:]' < "${REPO}/.key4hep-resolved" 2>/dev/null || true)"
-[ -n "${K4}" ] || { echo "no .key4hep-resolved in ${REPO} - it comes from the build job" >&2; exit 1; }
+PIN="${REPO}/.github/key4hep-production-release"
+K4="$(tr -d '[:space:]' < "${PIN}" 2>/dev/null || true)"
+[ -n "${K4}" ] || { echo "no key4hep release in ${PIN}" >&2; exit 1; }
 
 # `source setup.sh` with no arguments passes ours through, and key4hep then
 # warns about an unknown argument, so clear them first.
