@@ -73,6 +73,7 @@ find_package(DelphiAL9 REQUIRED)
 # linker dance because the DELPHI archives have circular symbol deps).
 add_library(delphi_edm4hep
   src/BankPrefix.cpp
+  src/BankReader.cpp
   src/CollectionWriter.cpp
   src/PerigeeMatch.cpp
   src/Helix.cpp
