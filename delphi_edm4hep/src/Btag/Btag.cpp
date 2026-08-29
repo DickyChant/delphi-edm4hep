@@ -65,23 +65,30 @@ void BtagWriter::emit()
   putParameter("BTAGCFG", "Mode",
                std::string(mode_ == BtagMode::Off    ? "off"
                          : mode_ == BtagMode::Bank   ? "bank"
-                                                     : "recalc"));
-  putParameter("BTAGCFG", "Recalculated", recalculated() ? 1 : 0);
+                                                     : "recalc"), Provenance::Custom);
+  putParameter("BTAGCFG", "Recalculated", recalculated() ? 1 : 0, Provenance::Custom);
   // These fields deliberately live under the writer's source prefix. Pass 2
   // carries the copied sDST_EVT_* identity parameters but has no fDST_EVT_*
   // domain, so sDST_EVT_BeamSpotErrorCode is not valid evidence for which
   // beamspot status governed the fDST AABTAG invocation. Serialize the live
   // current-pass value beside the b-tag payload instead.
-  putParameter("BTAGCFG", "SourcePrefix", std::string(source_tag_));
-  putParameter("BTAGCFG", "BeamSpotErrorCode", sk::IERRBS);
+  putParameter("BTAGCFG", "SourcePrefix", std::string(source_tag_), Provenance::Custom);
+  putParameter("BTAGCFG", "BeamSpotErrorCode", sk::IERRBS,
+               Provenance::Derived);
   putParameter("BTAGCFG", "PrimaryVertexPolicy",
-               std::string(provenance::primaryVertexPolicy(sk::IFLPVT)));
+               std::string(provenance::primaryVertexPolicy(sk::IFLPVT)), Provenance::Custom);
   // Retain the raw steering word as well as the stable semantic label. This
   // makes the legacy --btag-pv compatibility mode auditable without forcing
   // downstream code to know the Fortran flag convention.
-  putParameter("BTAGCFG", "IFLPVT", sk::IFLPVT);
+  putParameter("BTAGCFG", "IFLPVT", sk::IFLPVT, Provenance::Custom);
 
   if (mode_ == BtagMode::Off) return;
+
+  // BTG is a transcription of the stored bank, AABTAG a rerun of the algorithm
+  // at conversion time. The same condition picks the mnemonic and the
+  // provenance, so the two cannot disagree.
+  const Provenance prov =
+      recalculated() ? Provenance::Derived : Provenance::Transcribed;
 
   const std::string_view bank = mnemonic();
   const bool reran = recalculated();
@@ -102,15 +109,15 @@ void BtagWriter::emit()
   putParameter(bank, "ProbNegIP",
                std::vector<float>{eventProb(sk::QBTPRN(1)),
                                   eventProb(sk::QBTPRN(2)),
-                                  eventProb(sk::QBTPRN(3))});
+                                  eventProb(sk::QBTPRN(3))}, prov);
   putParameter(bank, "ProbPosIP",
                std::vector<float>{eventProb(sk::QBTPRP(1)),
                                   eventProb(sk::QBTPRP(2)),
-                                  eventProb(sk::QBTPRP(3))});
+                                  eventProb(sk::QBTPRP(3))}, prov);
   putParameter(bank, "ProbAllIP",
                std::vector<float>{eventProb(sk::QBTPRS(1)),
                                   eventProb(sk::QBTPRS(2)),
-                                  eventProb(sk::QBTPRS(3))});
+                                  eventProb(sk::QBTPRS(3))}, prov);
   // The thrust axis gets the same sentinel treatment: VFILL sets it to 2.0
   // as well, and a direction cosine can never legitimately exceed 1, so an
   // un-mapped 2.0 here would be a sentinel masquerading as data. (Caught by
@@ -119,12 +126,12 @@ void BtagWriter::emit()
   putParameter(bank, "ThrustAxis",
                std::vector<float>{eventProb(sk::QBTTHR(1)),
                                   eventProb(sk::QBTTHR(2)),
-                                  eventProb(sk::QBTTHR(3))});
+                                  eventProb(sk::QBTTHR(3))}, prov);
   // QBTTHR(4) is the thrust VALUE, not an axis component. (delphi-nanoaod
   // drops it; we keep it -- it is free and the axis alone is not enough to
   // reproduce a thrust-based hemisphere split.)
   putParameter(bank, "ThrustValue",
-               tagValid ? thrustValue(sk::QBTTHR(4)) : kNaN);
+               tagValid ? thrustValue(sk::QBTTHR(4)) : kNaN, prov);
 
   if (!reran) return;
 
@@ -149,7 +156,7 @@ void BtagWriter::emit()
                      aa::COVVX(3) * kCm2Mm2_f, aa::COVVX(4) * kCm2Mm2_f,
                      aa::COVVX(5) * kCm2Mm2_f, aa::COVVX(6) * kCm2Mm2_f});
   }
-  put(std::move(btagPv), bank, "PrimaryVertex");
+  put(std::move(btagPv), bank, "PrimaryVertex", prov);
 
   // ---- Per-track quantities (AAMAIN + AAMNVX) ------------------------
   // AABTAG's arrays are dimensioned kMaxTracks. Its NTRK common saturates at
@@ -163,17 +170,17 @@ void BtagWriter::emit()
   // BadEventCode deliberately preserves the raw AAFLAG/IBAD snapshot. It is
   // current-event status only when AlgorithmInvoked=1; on the PSFBTG beamspot
   // bypass it can be stale. Valid is the authoritative combined gate.
-  putParameter(bank, "BadEventCode",     status.badEventCode);
-  putParameter(bank, "AlgorithmInvoked", status.algorithmInvoked ? 1 : 0);
-  putParameter(bank, "Valid",            status.valid ? 1 : 0);
-  putParameter(bank, "NTracksRaw",       std::clamp(ntrk_raw, 0, aa::kMaxTracks));
-  putParameter(bank, "NTracks",         ntrk);
-  putParameter(bank, "NTracksAttached", tagValid ? aa::NATTVX() : 0);
+  putParameter(bank, "BadEventCode",     status.badEventCode, Provenance::Derived);
+  putParameter(bank, "AlgorithmInvoked", status.algorithmInvoked ? 1 : 0, Provenance::Custom);
+  putParameter(bank, "Valid",            status.valid ? 1 : 0, Provenance::Custom);
+  putParameter(bank, "NTracksRaw",       std::clamp(ntrk_raw, 0, aa::kMaxTracks), Provenance::Custom);
+  putParameter(bank, "NTracks",         ntrk, Provenance::Custom);
+  putParameter(bank, "NTracksAttached", tagValid ? aa::NATTVX() : 0, Provenance::Custom);
   // Retain the established field name for campaign compatibility. Its value
   // is deliberately conservative: 1 means the common reached capacity and
   // additional eligible tracks may (but cannot be proven to) have been lost.
   putParameter(bank, "Truncated",
-               tagValid && ntrk_raw >= aa::kMaxTracks ? 1 : 0);
+               tagValid && ntrk_raw >= aa::kMaxTracks ? 1 : 0, Provenance::Custom);
 
   // lpa -> PA-walk index, so IADTR (a ZEBRA L-address) can be resolved to
   // the Particle the Tracking domain emitted for that PA.
@@ -241,22 +248,22 @@ void BtagWriter::emit()
     momentum    .push_back(aa::PMOM  (i));
   }
 
-  put(std::move(particleIdx),  bank, "Tracks_ParticleIndex");
-  put(std::move(impRPhi),      bank, "Tracks_ImpactParRPhi");
-  put(std::move(impRPhiErr),   bank, "Tracks_ImpactParRPhiError");
-  put(std::move(impZ),         bank, "Tracks_ImpactParZ");
-  put(std::move(impZErr),      bank, "Tracks_ImpactParZError");
-  put(std::move(probRPhi),     bank, "Tracks_ProbRPhi");
-  put(std::move(probZ),        bank, "Tracks_ProbZ");
-  put(std::move(usedForTag),   bank, "Tracks_UsedForTag");
-  put(std::move(attachedToPv), bank, "Tracks_AttachedToPV");
-  put(std::move(nHitsRPhi),    bank, "Tracks_NVDHitsRPhi");
-  put(std::move(nHitsZ),       bank, "Tracks_NVDHitsZ");
-  put(std::move(nLayersRPhi),  bank, "Tracks_NVDLayersRPhi");
-  put(std::move(nLayersZ),     bank, "Tracks_NVDLayersZ");
-  put(std::move(chi2Vd),       bank, "Tracks_Chi2VD");
-  put(std::move(chi2Pv),       bank, "Tracks_Chi2PV");
-  put(std::move(momentum),     bank, "Tracks_Momentum");
+  put(std::move(particleIdx), bank, "Tracks_ParticleIndex", prov);
+  put(std::move(impRPhi), bank, "Tracks_ImpactParRPhi", prov);
+  put(std::move(impRPhiErr), bank, "Tracks_ImpactParRPhiError", prov);
+  put(std::move(impZ), bank, "Tracks_ImpactParZ", prov);
+  put(std::move(impZErr), bank, "Tracks_ImpactParZError", prov);
+  put(std::move(probRPhi), bank, "Tracks_ProbRPhi", prov);
+  put(std::move(probZ), bank, "Tracks_ProbZ", prov);
+  put(std::move(usedForTag), bank, "Tracks_UsedForTag", prov);
+  put(std::move(attachedToPv), bank, "Tracks_AttachedToPV", prov);
+  put(std::move(nHitsRPhi), bank, "Tracks_NVDHitsRPhi", prov);
+  put(std::move(nHitsZ), bank, "Tracks_NVDHitsZ", prov);
+  put(std::move(nLayersRPhi), bank, "Tracks_NVDLayersRPhi", prov);
+  put(std::move(nLayersZ), bank, "Tracks_NVDLayersZ", prov);
+  put(std::move(chi2Vd), bank, "Tracks_Chi2VD", prov);
+  put(std::move(chi2Pv), bank, "Tracks_Chi2PV", prov);
+  put(std::move(momentum), bank, "Tracks_Momentum", prov);
 }
 
 }  // namespace delphi_edm4hep::btag
