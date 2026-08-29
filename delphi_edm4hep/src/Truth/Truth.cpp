@@ -166,7 +166,7 @@ void TruthGenWriter::emit() {
     }
   }
 
-  put(std::move(mc), "LUJ", "GenParticles");
+  put(std::move(mc), "LUJ", "GenParticles", Provenance::Derived);
   ctx_.gen_truth = std::move(result);
 }
 
@@ -176,7 +176,7 @@ void TruthRecoLinkWriter::emit() {
 
   // Need both upstream writers' outputs.
   if (!ctx_.gen_truth || !ctx_.tracking) {
-    put(std::move(links), "TBL", "RecoToGen");   // emit empty + return
+    put(std::move(links), "TBL", "RecoToGen", Provenance::Transcribed);   // emit empty + return
     return;
   }
   const auto& gen      = *ctx_.gen_truth;
@@ -205,7 +205,7 @@ void TruthRecoLinkWriter::emit() {
     link.setWeight(1.0f);
   }
 
-  put(std::move(links), "TBL", "RecoToGen");
+  put(std::move(links), "TBL", "RecoToGen", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::truth

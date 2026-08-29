@@ -142,8 +142,48 @@ protected:
   template <typename T>
   void putParameter(std::string_view bank,
                     std::string_view key,
+                    T&& value,
+                    Provenance prov) {
+    auto name = makeName(bank, key);
+    noteProvenance(name, prov);
+    frame_.putParameter(std::move(name), std::forward<T>(value));
+  }
+
+  // Scaffolding for writers not yet migrated. Remove with the three-argument
+  // put() once every writer states its provenance.
+  template <typename T>
+  void putParameter(std::string_view bank,
+                    std::string_view key,
                     T&& value) {
     frame_.putParameter(makeName(bank, key), std::forward<T>(value));
+  }
+
+  // A run of parameters sharing one bank tag and one provenance, so the
+  // provenance is stated once for the group rather than at every parameter:
+  //
+  //   auto stored = parameters("EVT", Provenance::Transcribed);
+  //   stored("runNumber", ph::IIIRUN);
+  //   stored("date",      ph::IIIDAT);
+  class ParameterGroup {
+  public:
+    ParameterGroup(CollectionWriter& writer,
+                   std::string_view bank,
+                   Provenance prov)
+      : writer_(writer), bank_(bank), prov_(prov) {}
+
+    template <typename T>
+    void operator()(std::string_view key, T&& value) const {
+      writer_.putParameter(bank_, key, std::forward<T>(value), prov_);
+    }
+
+  private:
+    CollectionWriter& writer_;
+    std::string_view  bank_;
+    Provenance        prov_;
+  };
+
+  ParameterGroup parameters(std::string_view bank, Provenance prov) {
+    return ParameterGroup(*this, bank, prov);
   }
 };
 

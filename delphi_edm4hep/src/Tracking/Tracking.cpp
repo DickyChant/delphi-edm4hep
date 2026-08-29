@@ -255,12 +255,12 @@ void TrackingWriter::emit()
 
   // Push all collections into the Frame via the base class's put().
   // Handles in `result` remain valid afterwards.
-  put(std::move(trkCol),    "TRAC", "Tracks");
-  put(std::move(pfoCol),    "MAIN", "Particles");
-  put(std::move(lvlockCol), "VECP", "LVLOCK");
-  put(std::move(d0PvCol),   "TRAC", "d0PV");
-  put(std::move(z0PvCol),   "TRAC", "z0PV");
-  put(std::move(d0BsCol),   "TRAC", "d0BS");
+  put(std::move(trkCol),    "TRAC", "Tracks", Provenance::Derived);
+  put(std::move(pfoCol),    "MAIN", "Particles", Provenance::Derived);
+  put(std::move(lvlockCol), "VECP", "LVLOCK", Provenance::Derived);
+  put(std::move(d0PvCol),   "TRAC", "d0PV", Provenance::Derived);
+  put(std::move(z0PvCol),   "TRAC", "z0PV", Provenance::Derived);
+  put(std::move(d0BsCol),   "TRAC", "d0BS", Provenance::Derived);
 
   // Hand off to downstream writers via the shared context.
   ctx_.tracking = std::move(result);

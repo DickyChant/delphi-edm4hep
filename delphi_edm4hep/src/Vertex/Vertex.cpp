@@ -399,15 +399,15 @@ void VertexWriter::emit()
   }
 
   // ----- Push everything into the frame via the base put() -----
-  put(std::move(d0pvCol),    "PV",  "trackD0PV");
-  put(std::move(z0pvCol),    "PV",  "trackZ0PV");
-  put(std::move(d0pvFlag),   "PV",  "trackImpactFlag");
-  put(std::move(pvCol),      "PV",  "PrimaryVertex");
-  put(std::move(vtxCol),     "PV",  "Vertices");
-  put(std::move(statusBits), "PV",  "Vertices_StatusBits");
-  put(std::move(bspCol),     "BSP", "BeamSpot");
-  put(std::move(v0Col),      "V0",  "V0Candidates");
-  put(std::move(phcCol),     "PHC", "PhotonConversions");
+  put(std::move(d0pvCol),    "PV",  "trackD0PV", Provenance::Custom);
+  put(std::move(z0pvCol),    "PV",  "trackZ0PV", Provenance::Custom);
+  put(std::move(d0pvFlag),   "PV",  "trackImpactFlag", Provenance::Custom);
+  put(std::move(pvCol),      "PV",  "PrimaryVertex", Provenance::Transcribed);
+  put(std::move(vtxCol),     "PV",  "Vertices", Provenance::Transcribed);
+  put(std::move(statusBits), "PV",  "Vertices_StatusBits", Provenance::Transcribed);
+  put(std::move(bspCol),     "BSP", "BeamSpot", Provenance::Derived);
+  put(std::move(v0Col),      "V0",  "V0Candidates", Provenance::Transcribed);
+  put(std::move(phcCol),     "PHC", "PhotonConversions", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::vertex

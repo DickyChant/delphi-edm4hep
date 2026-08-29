@@ -1,8 +1,13 @@
 // EventWriter — implementation.
 //
-// Reads per-event scalars from the SKELANA / PHDST commons populated
-// by PSBEG and writes them into the Frame as named parameters under
-// "<source_tag>_EVT_*". No bank walking — pure common-block reads.
+// Reads per-event scalars from the SKELANA / PHDST commons populated by PSBEG
+// and writes them into the Frame as named parameters under "<source>_EVT_*".
+// No bank walking — pure common-block reads.
+//
+// The parameters fall into three groups by origin, declared separately below:
+// values copied from the DST pilot record, values SKELANA counts or sums for
+// itself, and the beam spot, which comes from an external database rather
+// than from the DST at all.
 
 #include "delphi_edm4hep/Event/Event.h"
 
@@ -22,41 +27,56 @@ namespace delphi_edm4hep::event {
 void EventWriter::emit() {
   constexpr float kCm2Mm = 10.0f;
 
-  // PHCIII run-level identifiers.
-  putParameter("EVT", "runNumber",  ph::IIIRUN);
-  putParameter("EVT", "eventNumber", ph::IIIEVT);
-  putParameter("EVT", "fileSeq",    ph::IIFILE);
-  putParameter("EVT", "date",       ph::IIIDAT);   // yymmdd
-  putParameter("EVT", "time",       ph::IIITIM);   // hhmmss
-  putParameter("EVT", "fillNumber", ph::IIFILL);
-  putParameter("EVT", "experiment", ph::IIIEXP);
+  // Pilot-record words, written when the DST was produced.
+  auto stored = parameters("EVT", Provenance::Transcribed);
+  stored("runNumber",   ph::IIIRUN);
+  stored("eventNumber", ph::IIIEVT);
+  stored("fileSeq",     ph::IIFILE);
+  stored("date",        ph::IIIDAT);   // yymmdd
+  stored("time",        ph::IIITIM);   // hhmmss
+  stored("fillNumber",  ph::IIFILL);
+  stored("experiment",  ph::IIIEXP);
+  stored("dstVersion",  sk::ISVER);
 
-  // PSCEVT hadronic-event tag + multiplicities + total energies.
-  putParameter("EVT", "dstVersion",     sk::ISVER);
-  putParameter("EVT", "hadronicTagTeam4", sk::IHAD4);
-  putParameter("EVT", "nChargedTeam4",  sk::NCTR4);
-  putParameter("EVT", "nCharged",       sk::NCTRK);
-  putParameter("EVT", "nNeutral",       sk::NNTRK);
-  putParameter("EVT", "ECMS",           sk::ECMAS);
-  putParameter("EVT", "EChargedTotal",  sk::ECHAR);
-  putParameter("EVT", "ENeutralEM",     sk::EMNEU);
-  putParameter("EVT", "ENeutralHad",    sk::EHNEU);
+  // Centre-of-mass energy from the DANA pilot blocklet. SKELANA substitutes
+  // 91.250 GeV when that blocklet is absent, which at LEP2 would be wrong by
+  // more than a factor of two; check BeamSpotErrorCode and the energy itself
+  // before relying on it.
+  stored("ECMS", sk::ECMAS);
 
-  // PSCBSP beam-spot position (cm) -> mm.
-  putParameter("EVT", "BeamSpotX",      sk::XYZBS(1) * kCm2Mm);
-  putParameter("EVT", "BeamSpotY",      sk::XYZBS(2) * kCm2Mm);
-  putParameter("EVT", "BeamSpotZ",      sk::XYZBS(3) * kCm2Mm);
-  putParameter("EVT", "BeamSpotSigmaX", sk::DXYZBS(1) * kCm2Mm);
-  putParameter("EVT", "BeamSpotSigmaY", sk::DXYZBS(2) * kCm2Mm);
-  putParameter("EVT", "BeamSpotSigmaZ", sk::DXYZBS(3) * kCm2Mm);
-  putParameter("EVT", "BeamSpotErrorCode", sk::IERRBS);
-
-  // Per-event B-field (Tesla) + GeV/cm conversion factor.
-  // pT [GeV/c] = bgevcm / |omega_DELPHI[1/cm]|.
+  // Per-event solenoid field and the curvature-to-momentum factor, both from
+  // the pilot record. pT [GeV/c] = BFieldGevPerCm / |omega_DELPHI [1/cm]|.
   float btesla = 0.f, bgevcm = 0.f;
   bpilot_(&btesla, &bgevcm);
-  putParameter("EVT", "BField",         btesla);
-  putParameter("EVT", "BFieldGevPerCm", bgevcm);
+  stored("BField",         btesla);
+  stored("BFieldGevPerCm", bgevcm);
+
+  // Multiplicities and summed energies counted by SKELANA over the PA chain
+  // under cuts hard-coded in PSHEVT — a momentum, track-length, impact-
+  // parameter and polar-angle selection independent of IFLCUT and of the
+  // LVLOCK track selection. Two events with the same nCharged can therefore
+  // disagree with a count made from MAIN_Particles and LVLOCK.
+  auto counted = parameters("EVT", Provenance::Derived);
+  counted("hadronicTagTeam4", sk::IHAD4);
+  counted("nChargedTeam4",    sk::NCTR4);
+  counted("nCharged",         sk::NCTRK);
+  counted("nNeutral",         sk::NNTRK);
+  counted("EChargedTotal",    sk::ECHAR);
+  counted("ENeutralEM",       sk::EMNEU);
+  counted("ENeutralHad",      sk::EHNEU);
+
+  // Beam spot from the per-processing database under $DELPHI_DAT, selected by
+  // the DSTQID tag and looked up per run and cartridge — not from the DST.
+  // For simulation it is instead the generated interaction point plus a
+  // Gaussian smear, so it follows the event rather than describing a beam.
+  auto beamspot = parameters("EVT", Provenance::Derived);
+  beamspot("BeamSpotX",      sk::XYZBS(1) * kCm2Mm);
+  beamspot("BeamSpotY",      sk::XYZBS(2) * kCm2Mm);
+  beamspot("BeamSpotZ",      sk::XYZBS(3) * kCm2Mm);
+  beamspot("BeamSpotSigmaX", sk::DXYZBS(1) * kCm2Mm);
+  beamspot("BeamSpotSigmaY", sk::DXYZBS(2) * kCm2Mm);
+  beamspot("BeamSpotSigmaZ", sk::DXYZBS(3) * kCm2Mm);
+  beamspot("BeamSpotErrorCode", sk::IERRBS);
 }
 
 }  // namespace delphi_edm4hep::event
