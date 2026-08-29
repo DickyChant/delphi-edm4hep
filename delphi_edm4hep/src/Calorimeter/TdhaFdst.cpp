@@ -77,7 +77,7 @@ void TdhaFdstWriter::emit()
     }
   });
 
-  put(std::move(col), "TDHA", "HcalTimeHits");
+  put(std::move(col), "TDHA", "HcalTimeHits", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::tdha_fdst

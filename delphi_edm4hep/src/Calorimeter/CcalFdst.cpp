@@ -55,7 +55,7 @@ void CcalFdstWriter::emit()
     }
   });
 
-  put(std::move(col), "CCAL", "Showers");
+  put(std::move(col), "CCAL", "Showers", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::ccal_fdst

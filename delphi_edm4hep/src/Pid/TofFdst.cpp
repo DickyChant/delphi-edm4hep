@@ -37,7 +37,7 @@ void TofFdstWriter::emit()
   // upstream) and the sDST_MAIN_Particles collection (loaded by the
   // harness). Emit empty collection if upstream isn't ready.
   if (!ctx_.fdst_pa_to_sdst_particle) {
-    put(std::move(col), "TOF", "TimeOfFlight");
+    put(std::move(col), "TOF", "TimeOfFlight", Provenance::Transcribed);
     return;
   }
   const auto& pa_to_particle = *ctx_.fdst_pa_to_sdst_particle;
@@ -64,7 +64,7 @@ void TofFdstWriter::emit()
     pid.setParticle(fdst_particles[particle_idx]);
   });
 
-  put(std::move(col), "TOF", "TimeOfFlight");
+  put(std::move(col), "TOF", "TimeOfFlight", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::tof_fdst

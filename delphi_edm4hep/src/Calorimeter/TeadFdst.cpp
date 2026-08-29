@@ -39,15 +39,15 @@ void TeadFdstWriter::emit()
 
   const int LDTOP = ph::LDTOP;
   if (LDTOP <= 0) {
-    put(std::move(tof_col), "TEAD", "TOFHits");
-    put(std::move(hof_col), "TEAD", "HOFHits");
+    put(std::move(tof_col), "TEAD", "TOFHits", Provenance::Transcribed);
+    put(std::move(hof_col), "TEAD", "HOFHits", Provenance::Transcribed);
     return;
   }
 
   const int ltead = ph::LQ(LDTOP - 10);
   if (ltead <= 0) {
-    put(std::move(tof_col), "TEAD", "TOFHits");
-    put(std::move(hof_col), "TEAD", "HOFHits");
+    put(std::move(tof_col), "TEAD", "TOFHits", Provenance::Transcribed);
+    put(std::move(hof_col), "TEAD", "HOFHits", Provenance::Transcribed);
     return;
   }
 
@@ -81,8 +81,8 @@ void TeadFdstWriter::emit()
     hit.setPosition({ X * kCm2Mm, Y * kCm2Mm, Z * kCm2Mm });
   }
 
-  put(std::move(tof_col), "TEAD", "TOFHits");
-  put(std::move(hof_col), "TEAD", "HOFHits");
+  put(std::move(tof_col), "TEAD", "TOFHits", Provenance::Transcribed);
+  put(std::move(hof_col), "TEAD", "HOFHits", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::tead_fdst

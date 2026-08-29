@@ -75,8 +75,8 @@ void TeStateMergeWriter::emit()
   edm4hep::ParticleIDCollection fq_out;
 
   if (!ctx_.fdst_pa_to_sdst_track || !ctx_.fdst_pa_to_sdst_particle) {
-    put(std::move(trk_out), "TRAC", "Tracks");
-    put(std::move(fq_out),  "TRAC", "Tracks_FitQuality");
+    put(std::move(trk_out), "TRAC", "Tracks", Provenance::Transcribed);
+    put(std::move(fq_out),  "TRAC", "Tracks_FitQuality", Provenance::Transcribed);
     return;
   }
   const auto& pa_to_track    = *ctx_.fdst_pa_to_sdst_track;
@@ -233,8 +233,8 @@ void TeStateMergeWriter::emit()
     }
   }
 
-  put(std::move(trk_out), "TRAC", "Tracks");
-  put(std::move(fq_out),  "TRAC", "Tracks_FitQuality");
+  put(std::move(trk_out), "TRAC", "Tracks", Provenance::Transcribed);
+  put(std::move(fq_out),  "TRAC", "Tracks_FitQuality", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::te_merge

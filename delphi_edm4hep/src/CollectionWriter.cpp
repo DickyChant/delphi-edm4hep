@@ -54,17 +54,24 @@ void noteProvenance(std::string_view name, Provenance prov) {
 void reportProvenance() {
   if (g_seen.empty()) return;
 
-  std::size_t transcribed = 0, derived = 0;
+  std::size_t transcribed = 0, derived = 0, custom = 0;
   std::cout << "delphi_edm4hep: provenance summary\n";
   for (const auto& [name, prov] : g_seen) {
-    const bool is_derived = (prov == Provenance::Derived);
-    is_derived ? ++derived : ++transcribed;
-    const bool mismatch = is_derived && isBankMnemonic(bankField(name));
-    std::cout << "  " << (is_derived ? "derived    " : "transcribed")
-              << "  " << name << (mismatch ? "   [bank mnemonic]" : "") << "\n";
+    const char* label = "transcribed";
+    switch (prov) {
+      case Provenance::Transcribed: ++transcribed; break;
+      case Provenance::Derived:     ++derived; label = "derived    "; break;
+      case Provenance::Custom:      ++custom;  label = "custom     "; break;
+    }
+    // A bank mnemonic asserts stored DST content, so anything not
+    // transcribed is wearing a name it has not earned.
+    const bool mismatch = prov != Provenance::Transcribed
+                          && isBankMnemonic(bankField(name));
+    std::cout << "  " << label << "  " << name
+              << (mismatch ? "   [bank mnemonic]" : "") << "\n";
   }
   std::cout << "  " << transcribed << " transcribed, " << derived
-            << " derived\n";
+            << " derived, " << custom << " custom\n";
 }
 
 }  // namespace delphi_edm4hep

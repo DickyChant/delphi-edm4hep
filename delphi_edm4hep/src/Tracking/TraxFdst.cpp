@@ -36,7 +36,7 @@ void TraxFdstWriter::emit()
   edm4hep::ParticleIDCollection col;
 
   if (!ctx_.fdst_pa_to_sdst_particle) {
-    put(std::move(col), "TRAX", "ExtrapPoints");
+    put(std::move(col), "TRAX", "ExtrapPoints", Provenance::Transcribed);
     return;
   }
   const auto& pa_to_particle = *ctx_.fdst_pa_to_sdst_particle;
@@ -82,7 +82,7 @@ void TraxFdstWriter::emit()
     }
   });
 
-  put(std::move(col), "TRAX", "ExtrapPoints");
+  put(std::move(col), "TRAX", "ExtrapPoints", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::trax_fdst

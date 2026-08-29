@@ -34,9 +34,9 @@ void SdstPaExtrasWriter::emit()
   edm4hep::ParticleIDCollection mufiCol;
 
   if (!ctx_.tracking) {
-    put(std::move(photCol), "PHOT", "PhotonID");
-    put(std::move(odhiCol), "ODHI", "OuterDetector");
-    put(std::move(mufiCol), "MUFI", "RefitMuon");
+    put(std::move(photCol), "PHOT", "PhotonID", Provenance::Transcribed);
+    put(std::move(odhiCol), "ODHI", "OuterDetector", Provenance::Transcribed);
+    put(std::move(mufiCol), "MUFI", "RefitMuon", Provenance::Transcribed);
     return;
   }
   const auto& tracking = *ctx_.tracking;
@@ -82,9 +82,9 @@ void SdstPaExtrasWriter::emit()
     }
   });
 
-  put(std::move(photCol), "PHOT", "PhotonID");
-  put(std::move(odhiCol), "ODHI", "OuterDetector");
-  put(std::move(mufiCol), "MUFI", "RefitMuon");
+  put(std::move(photCol), "PHOT", "PhotonID", Provenance::Transcribed);
+  put(std::move(odhiCol), "ODHI", "OuterDetector", Provenance::Transcribed);
+  put(std::move(mufiCol), "MUFI", "RefitMuon", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::sdst_pa_extras

@@ -65,13 +65,15 @@ struct EventContext {
 
 // Where a collection's values came from.
 //
-//   Transcribed  read from a ZEBRA bank word through PHDST (LPHPA / IQ / Q).
+//   Transcribed  the stored DST value, read from a ZEBRA bank word through
+//                PHDST. Unit conversion and basis change still count as
+//                transcription: the same measurement, represented differently.
 //   Derived      produced by SKELANA at conversion time and read from a PSC*
-//                common — a refit, a re-clustering or a recomputed tag, not a
-//                stored DST quantity.
+//                common — a refit, a re-clustering or a recomputed tag.
+//   Custom       computed by this converter. Not a DELPHI quantity at all.
 //
-// Every put() states one. A collection that would mix the two must be split.
-enum class Provenance { Transcribed, Derived };
+// Every put() states one. A collection that would mix them must be split.
+enum class Provenance { Transcribed, Derived, Custom };
 
 // Record a collection's provenance for the end-of-job summary. Called by
 // put(); no output is written to the file.

@@ -79,7 +79,7 @@ void HcalFdstWriter::emit()
     }
   });
 
-  put(std::move(tow_col), "HCAL", "Towers");
+  put(std::move(tow_col), "HCAL", "Towers", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::hcal_fdst

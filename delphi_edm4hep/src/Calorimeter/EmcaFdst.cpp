@@ -114,8 +114,8 @@ void EmcaFdstWriter::emit()
     }
   });
 
-  put(std::move(hpc_col),  "EMCA", "HPCClusters");
-  put(std::move(femc_col), "EMCA", "FEMCLayers");
+  put(std::move(hpc_col),  "EMCA", "HPCClusters", Provenance::Transcribed);
+  put(std::move(femc_col), "EMCA", "FEMCLayers", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::emca_fdst

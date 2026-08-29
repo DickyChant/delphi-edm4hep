@@ -40,8 +40,8 @@ void MtpcFdstWriter::emit()
   edm4hep::RecDqdxCollection    dqdx_col;
 
   if (!ctx_.fdst_pa_to_sdst_particle) {
-    put(std::move(pid_col),  "MTPC", "dEdxExtended");
-    put(std::move(dqdx_col), "MTPC", "dEdx_RecDqdx");
+    put(std::move(pid_col),  "MTPC", "dEdxExtended", Provenance::Transcribed);
+    put(std::move(dqdx_col), "MTPC", "dEdx_RecDqdx", Provenance::Transcribed);
     return;
   }
   const auto& pa_to_particle = *ctx_.fdst_pa_to_sdst_particle;
@@ -99,8 +99,8 @@ void MtpcFdstWriter::emit()
     for (const auto& trk : particle.getTracks()) { dq.setTrack(trk); break; }
   });
 
-  put(std::move(pid_col),  "MTPC", "dEdxExtended");
-  put(std::move(dqdx_col), "MTPC", "dEdx_RecDqdx");
+  put(std::move(pid_col),  "MTPC", "dEdxExtended", Provenance::Transcribed);
+  put(std::move(dqdx_col), "MTPC", "dEdx_RecDqdx", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::mtpc_fdst

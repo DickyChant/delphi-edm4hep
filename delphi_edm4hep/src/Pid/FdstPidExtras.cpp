@@ -45,9 +45,9 @@ void FdstPidExtrasWriter::emit()
   edm4hep::ParticleIDCollection tdidCol;
 
   if (!ctx_.fdst_pa_to_sdst_particle) {
-    put(std::move(muCol),   "MU",   "MuonChambers");
-    put(std::move(elCol),   "EL",   "ElectronExtra");
-    put(std::move(tdidCol), "TDID", "DriftCalib");
+    put(std::move(muCol),   "MU",   "MuonChambers", Provenance::Transcribed);
+    put(std::move(elCol),   "EL",   "ElectronExtra", Provenance::Transcribed);
+    put(std::move(tdidCol), "TDID", "DriftCalib", Provenance::Transcribed);
     return;
   }
   const auto& pa_to_particle = *ctx_.fdst_pa_to_sdst_particle;
@@ -104,9 +104,9 @@ void FdstPidExtrasWriter::emit()
     }
   });
 
-  put(std::move(muCol),   "MU",   "MuonChambers");
-  put(std::move(elCol),   "EL",   "ElectronExtra");
-  put(std::move(tdidCol), "TDID", "DriftCalib");
+  put(std::move(muCol),   "MU",   "MuonChambers", Provenance::Transcribed);
+  put(std::move(elCol),   "EL",   "ElectronExtra", Provenance::Transcribed);
+  put(std::move(tdidCol), "TDID", "DriftCalib", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::fdst_pid_extras
