@@ -74,9 +74,9 @@ void VdHitsWriter::emit()
     }
   }
 
-  put(std::move(pointsCol), "TDVD", "VDPoints");
-  put(std::move(hitsCol),   "TDVD", "VDHits");
-  put(std::move(trkIdxCol), "TDVD", "VDHits_TrackIndex");
+  put(std::move(pointsCol), "TDVD", "VDPoints", Provenance::Transcribed);
+  put(std::move(hitsCol),   "TDVD", "VDHits", Provenance::Transcribed);
+  put(std::move(trkIdxCol), "TDVD", "VDHits_TrackIndex", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::vd_hits

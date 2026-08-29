@@ -42,9 +42,9 @@ void PidExtrasSdstWriter::emit()
   edm4hep::ParticleIDCollection pi0Col;
 
   if (!ctx_.tracking) {
-    put(std::move(altCol),    "HAID", "AltTags");
-    put(std::move(dedxVdCol), "HAID", "dEdxVD");
-    put(std::move(pi0Col),    "PHOT", "Pi0ID");
+    put(std::move(altCol),    "HAID", "AltTags", Provenance::Derived);
+    put(std::move(dedxVdCol), "HAID", "dEdxVD", Provenance::Transcribed);
+    put(std::move(pi0Col),    "PHOT", "Pi0ID", Provenance::Transcribed);
     return;
   }
   const auto& tracking = *ctx_.tracking;
@@ -104,9 +104,9 @@ void PidExtrasSdstWriter::emit()
     }
   }
 
-  put(std::move(altCol),    "HAID", "AltTags");
-  put(std::move(dedxVdCol), "HAID", "dEdxVD");
-  put(std::move(pi0Col),    "PHOT", "Pi0ID");
+  put(std::move(altCol),    "HAID", "AltTags", Provenance::Derived);
+  put(std::move(dedxVdCol), "HAID", "dEdxVD", Provenance::Transcribed);
+  put(std::move(pi0Col),    "PHOT", "Pi0ID", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::pid_extras_sdst

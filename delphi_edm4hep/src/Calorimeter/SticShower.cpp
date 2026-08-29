@@ -45,7 +45,7 @@ void SticShowerWriter::emit()
     clu.addToShapeParameters(sk::QSTIC(6, j));   // Si-vertex position
   }
 
-  put(std::move(col), bank, "Showers");
+  put(std::move(col), bank, "Showers", Provenance::Derived);
 }
 
 }  // namespace delphi_edm4hep::stic_shower

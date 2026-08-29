@@ -57,11 +57,11 @@ void ParticleIdWriter::emit()
   if (!ctx_.tracking) {
     // No tracks emitted upstream — still emit empty collections so
     // the schema remains stable across events.
-    put(std::move(dedxCol), "HAID", "dEdx");
-    put(std::move(dqdxCol), "HAID", "dEdx_RecDqdx");
-    put(std::move(muonCol), "MUID", "MuonID");
-    put(std::move(elecCol), "ELID", "ElectronID");
-    put(std::move(hadrCol), "HAID", "HadronID");
+    put(std::move(dedxCol), "HAID", "dEdx", Provenance::Derived);
+    put(std::move(dqdxCol), "HAID", "dEdx_RecDqdx", Provenance::Derived);
+    put(std::move(muonCol), "MUID", "MuonID", Provenance::Transcribed);
+    put(std::move(elecCol), "ELID", "ElectronID", Provenance::Transcribed);
+    put(std::move(hadrCol), "HAID", "HadronID", Provenance::Transcribed);
     return;
   }
   const auto& tracking = *ctx_.tracking;
@@ -196,11 +196,11 @@ void ParticleIdWriter::emit()
     }
   }
 
-  put(std::move(dedxCol), "HAID", "dEdx");
-  put(std::move(dqdxCol), "HAID", "dEdx_RecDqdx");
-  put(std::move(muonCol), "MUID", "MuonID");
-  put(std::move(elecCol), "ELID", "ElectronID");
-  put(std::move(hadrCol), "HAID", "HadronID");
+  put(std::move(dedxCol), "HAID", "dEdx", Provenance::Derived);
+  put(std::move(dqdxCol), "HAID", "dEdx_RecDqdx", Provenance::Derived);
+  put(std::move(muonCol), "MUID", "MuonID", Provenance::Transcribed);
+  put(std::move(elecCol), "ELID", "ElectronID", Provenance::Transcribed);
+  put(std::move(hadrCol), "HAID", "HadronID", Provenance::Transcribed);
 }
 
 // Pass-2 PID (TOF, MTPC-extended, TE FitQuality companion) will live in
