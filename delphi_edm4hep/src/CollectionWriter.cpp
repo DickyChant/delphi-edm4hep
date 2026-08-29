@@ -1,0 +1,70 @@
+// Provenance registry.
+//
+// Collects the source of every collection emitted during a job and prints a
+// summary at the end. The summary flags collections whose values SKELANA
+// produced but whose name carries a DST bank mnemonic, since that naming
+// implies a transcription.
+
+#include "delphi_edm4hep/CollectionWriter.h"
+
+#include <algorithm>
+#include <iostream>
+#include <map>
+#include <string>
+
+namespace delphi_edm4hep {
+
+namespace {
+
+// Collection name -> provenance, first writer wins. Collections are emitted
+// once per event, so this deduplicates across the job.
+std::map<std::string, Provenance, std::less<>> g_seen;
+
+// PA extra-module (blocklet) names accepted by PHDST's LPHPA, plus the
+// event-level bank mnemonics used in collection names. A name built from one
+// of these asserts that its values are stored DST content.
+constexpr std::string_view kBankMnemonics[] = {
+  "BSP",  "CCAL", "EL",   "ELID", "ELTR", "EMCA", "EMNC", "HAID", "HCAL",
+  "HCMU", "HCNC", "HCRO", "LUJ",  "MAIN", "MRIC", "MTPC", "MU",   "MUFI",
+  "MUID", "ODHI", "PHC",  "PHOT", "SSTC", "STIC", "TBL",  "TDHA", "TDID",
+  "TDVD", "TEAD", "TEFA", "TEFB", "TEID", "TEOD", "TERB", "TERF", "TEST",
+  "TETP", "TEVF", "TOF",  "TRAC", "TRAX", "V0",
+};
+
+// Extract the "<bank>" field of "<source>_<bank>_<readable>".
+std::string_view bankField(std::string_view name) {
+  const auto first = name.find('_');
+  if (first == std::string_view::npos) return {};
+  const auto second = name.find('_', first + 1);
+  if (second == std::string_view::npos) return {};
+  return name.substr(first + 1, second - first - 1);
+}
+
+bool isBankMnemonic(std::string_view bank) {
+  return std::find(std::begin(kBankMnemonics), std::end(kBankMnemonics), bank)
+         != std::end(kBankMnemonics);
+}
+
+}  // namespace
+
+void noteProvenance(std::string_view name, Provenance prov) {
+  g_seen.emplace(std::string(name), prov);
+}
+
+void reportProvenance() {
+  if (g_seen.empty()) return;
+
+  std::size_t transcribed = 0, derived = 0;
+  std::cout << "delphi_edm4hep: provenance summary\n";
+  for (const auto& [name, prov] : g_seen) {
+    const bool is_derived = (prov == Provenance::Derived);
+    is_derived ? ++derived : ++transcribed;
+    const bool mismatch = is_derived && isBankMnemonic(bankField(name));
+    std::cout << "  " << (is_derived ? "derived    " : "transcribed")
+              << "  " << name << (mismatch ? "   [bank mnemonic]" : "") << "\n";
+  }
+  std::cout << "  " << transcribed << " transcribed, " << derived
+            << " derived\n";
+}
+
+}  // namespace delphi_edm4hep

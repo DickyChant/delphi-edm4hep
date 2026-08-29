@@ -12,6 +12,7 @@
 #include "delphi_edm4hep/PhdstHarness.h"
 
 #include "delphi_edm4hep/BtagMode.h"
+#include "delphi_edm4hep/CollectionWriter.h"
 
 #include "phdst/functions.hpp"   // ph::PHSET, phdst_, ph::IIIRUN etc.
 #include "phdst/phciii.hpp"
@@ -322,6 +323,7 @@ void on_user99() noexcept {
     guardCallback("user99 finalize hook", [] { g_cfg.on_finalize(); });
   }
   finishWriterNoexcept("user99 writer finalization");
+  guardCallback("user99 provenance summary", [] { reportProvenance(); });
 
   // The canonical success footer is consumed by campaign audits. Never emit
   // it for a failed/partial job, even though run() will also return nonzero.

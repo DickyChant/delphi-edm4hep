@@ -63,6 +63,23 @@ struct EventContext {
   std::optional<std::vector<int>> fdst_pa_to_sdst_particle;
 };
 
+// Where a collection's values came from.
+//
+//   Transcribed  read from a ZEBRA bank word through PHDST (LPHPA / IQ / Q).
+//   Derived      produced by SKELANA at conversion time and read from a PSC*
+//                common — a refit, a re-clustering or a recomputed tag, not a
+//                stored DST quantity.
+//
+// Every put() states one. A collection that would mix the two must be split.
+enum class Provenance { Transcribed, Derived };
+
+// Record a collection's provenance for the end-of-job summary. Called by
+// put(); no output is written to the file.
+void noteProvenance(std::string_view name, Provenance prov);
+
+// Print the provenance summary. Call once at end of job.
+void reportProvenance();
+
 class CollectionWriter {
 public:
   CollectionWriter(podio::Frame& frame,
@@ -95,8 +112,21 @@ protected:
   }
 
   // Move a freshly-built collection into the frame under
-  // "<source>_<bank>_<readable>". Returns the const reference podio
-  // returns, for callers that need to cross-reference the in-frame copy.
+  // "<source>_<bank>_<readable>". `prov` states where the values came from;
+  // see Provenance. Returns the const reference podio returns, for callers
+  // that need to cross-reference the in-frame copy.
+  template <typename Coll>
+  const Coll& put(Coll&& coll,
+                  std::string_view bank,
+                  std::string_view readable,
+                  Provenance prov) {
+    auto name = makeName(bank, readable);
+    noteProvenance(name, prov);
+    return frame_.put(std::move(coll), std::move(name));
+  }
+
+  // Scaffolding for domains not yet migrated to the four-argument form.
+  // Remove once every writer states its provenance.
   template <typename Coll>
   const Coll& put(Coll&& coll,
                   std::string_view bank,
