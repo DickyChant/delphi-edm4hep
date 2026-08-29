@@ -8,6 +8,7 @@
 #include "delphi_edm4hep/CollectionWriter.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <iostream>
 #include <map>
 #include <string>
@@ -47,8 +48,27 @@ bool isBankMnemonic(std::string_view bank) {
 
 }  // namespace
 
+const char* label(Provenance prov) {
+  switch (prov) {
+    case Provenance::Derived: return "derived";
+    case Provenance::Custom:  return "custom";
+    default:                  return "transcribed";
+  }
+}
+
 void noteProvenance(std::string_view name, Provenance prov) {
   g_seen.emplace(std::string(name), prov);
+}
+
+ProvenanceRecord provenanceRecord() {
+  ProvenanceRecord record;
+  record.collections.reserve(g_seen.size());
+  record.sources.reserve(g_seen.size());
+  for (const auto& [name, prov] : g_seen) {
+    record.collections.push_back(name);
+    record.sources.emplace_back(label(prov));
+  }
+  return record;
 }
 
 void reportProvenance() {
@@ -57,18 +77,17 @@ void reportProvenance() {
   std::size_t transcribed = 0, derived = 0, custom = 0;
   std::cout << "delphi_edm4hep: provenance summary\n";
   for (const auto& [name, prov] : g_seen) {
-    const char* label = "transcribed";
     switch (prov) {
       case Provenance::Transcribed: ++transcribed; break;
-      case Provenance::Derived:     ++derived; label = "derived    "; break;
-      case Provenance::Custom:      ++custom;  label = "custom     "; break;
+      case Provenance::Derived:     ++derived;     break;
+      case Provenance::Custom:      ++custom;      break;
     }
     // A bank mnemonic asserts stored DST content, so anything not
     // transcribed is wearing a name it has not earned.
     const bool mismatch = prov != Provenance::Transcribed
                           && isBankMnemonic(bankField(name));
-    std::cout << "  " << label << "  " << name
-              << (mismatch ? "   [bank mnemonic]" : "") << "\n";
+    std::printf("  %-11s  %s%s\n", label(prov), name.c_str(),
+                mismatch ? "   [bank mnemonic]" : "");
   }
   std::cout << "  " << transcribed << " transcribed, " << derived
             << " derived, " << custom << " custom\n";

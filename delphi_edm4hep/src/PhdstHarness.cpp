@@ -322,6 +322,19 @@ void on_user99() noexcept {
   if (g_cfg.on_finalize) {
     guardCallback("user99 finalize hook", [] { g_cfg.on_finalize(); });
   }
+  // Provenance is identical for every event, so it goes into a single
+  // metadata frame rather than being repeated per event. Written before the
+  // writer is finalized.
+  guardCallback("user99 metadata frame", [] {
+    if (!g_writer) return;
+    const auto record = provenanceRecord();
+    if (record.collections.empty()) return;
+    podio::Frame meta;
+    meta.putParameter("provenance_collection", record.collections);
+    meta.putParameter("provenance_source",     record.sources);
+    g_writer->writeFrame(meta, "metadata");
+  });
+
   finishWriterNoexcept("user99 writer finalization");
   guardCallback("user99 provenance summary", [] { reportProvenance(); });
 

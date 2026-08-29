@@ -35,6 +35,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace delphi_edm4hep {
 
@@ -75,12 +76,19 @@ struct EventContext {
 // Every put() states one. A collection that would mix them must be split.
 enum class Provenance { Transcribed, Derived, Custom };
 
-// Record a collection's provenance for the end-of-job summary. Called by
-// put(); no output is written to the file.
+// Record a collection's provenance. Called by put() and putParameter().
 void noteProvenance(std::string_view name, Provenance prov);
 
 // Print the provenance summary. Call once at end of job.
 void reportProvenance();
+
+// The recorded provenance, as two parallel vectors: collection names and
+// their source. Written once per job into the metadata frame.
+struct ProvenanceRecord {
+  std::vector<std::string> collections;
+  std::vector<std::string> sources;
+};
+ProvenanceRecord provenanceRecord();
 
 class CollectionWriter {
 public:
@@ -127,14 +135,6 @@ protected:
     return frame_.put(std::move(coll), std::move(name));
   }
 
-  // Scaffolding for domains not yet migrated to the four-argument form.
-  // Remove once every writer states its provenance.
-  template <typename Coll>
-  const Coll& put(Coll&& coll,
-                  std::string_view bank,
-                  std::string_view readable) {
-    return frame_.put(std::move(coll), makeName(bank, readable));
-  }
 
   // Frame-parameter equivalent. Name is "<source>_<bank>_<key>".
   // Type T must be one of podio's supported parameter types
@@ -149,14 +149,6 @@ protected:
     frame_.putParameter(std::move(name), std::forward<T>(value));
   }
 
-  // Scaffolding for writers not yet migrated. Remove with the three-argument
-  // put() once every writer states its provenance.
-  template <typename T>
-  void putParameter(std::string_view bank,
-                    std::string_view key,
-                    T&& value) {
-    frame_.putParameter(makeName(bank, key), std::forward<T>(value));
-  }
 
   // A run of parameters sharing one bank tag and one provenance, so the
   // provenance is stated once for the group rather than at every parameter:

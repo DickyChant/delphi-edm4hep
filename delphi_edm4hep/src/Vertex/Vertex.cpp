@@ -129,12 +129,17 @@ void VertexWriter::emit()
   // Need tracking output for V0 / PhotonConv -> Particle relations.
   if (!ctx_.tracking) {
     // Still emit empty collections so downstream schema is stable.
-    put(edm4hep::VertexCollection{},           "PV",  "PrimaryVertex");
-    put(edm4hep::VertexCollection{},           "PV",  "Vertices");
-    put(podio::UserDataCollection<std::int32_t>{}, "PV",  "Vertices_StatusBits");
-    put(edm4hep::VertexCollection{},           "BSP", "BeamSpot");
-    put(edm4hep::VertexCollection{},           "V0",  "V0Candidates");
-    put(edm4hep::VertexCollection{},           "PHC", "PhotonConversions");
+    put(edm4hep::VertexCollection{}, "PV", "PrimaryVertex",
+        Provenance::Transcribed);
+    put(edm4hep::VertexCollection{}, "PV", "Vertices",
+        Provenance::Transcribed);
+    put(podio::UserDataCollection<std::int32_t>{}, "PV", "Vertices_StatusBits",
+        Provenance::Transcribed);
+    put(edm4hep::VertexCollection{}, "BSP", "BeamSpot", Provenance::Derived);
+    put(edm4hep::VertexCollection{}, "V0", "V0Candidates",
+        Provenance::Transcribed);
+    put(edm4hep::VertexCollection{}, "PHC", "PhotonConversions",
+        Provenance::Transcribed);
     return;
   }
   const auto& tracking = *ctx_.tracking;
