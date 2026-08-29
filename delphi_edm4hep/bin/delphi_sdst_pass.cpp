@@ -4,6 +4,8 @@
 // edm4hep file containing the sDST_* collections.
 //
 // Usage: delphi_sdst_pass <input.sdst> <output.edm4hep.root> [-n MAX]
+//        delphi_sdst_pass -N|--nickname <nickname> <output.edm4hep.root> [-n MAX]
+//        delphi_sdst_pass -P|--pdl <pdlinput> <output.edm4hep.root> [-n MAX]
 
 #include "delphi_edm4hep/CollectionWriter.h"   // EventContext
 #include "delphi_edm4hep/Btag/Btag.h"
@@ -26,6 +28,8 @@
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <string>
+#include <vector>
 
 namespace harness = delphi_edm4hep::harness;
 namespace dom     = delphi_edm4hep;
@@ -44,8 +48,12 @@ extern "C" {
 static void usage(const char* argv0) {
   std::cerr
     << "usage: " << argv0
-    << " <input.sdst> <output.edm4hep.root> [-n MAX_EVENTS]"
-       " [--btag off|bank|recalc] [--btag-pv]\n";
+    << " <input.sdst> <output.edm4hep.root> [-n MAX_EVENTS]\n"
+    << "       " << argv0
+    << " -N|--nickname <nickname> <output.edm4hep.root> [-n MAX_EVENTS]\n"
+    << "       " << argv0
+    << " -P|--pdl <pdlinput> <output.edm4hep.root> [-n MAX_EVENTS]\n"
+    << "   options: [--btag off|bank|recalc] [--btag-pv]\n";
 }
 
 // Parse a strictly-positive integer for -n; error + usage + exit(1) on
@@ -77,26 +85,58 @@ static delphi_edm4hep::BtagMode parseBtag(const char* s, const char* argv0) {
 }
 
 int main(int argc, char** argv) {
-  if (argc < 3) { usage(argv[0]); return 1; }
+  if (argc < 2) { usage(argv[0]); return 1; }
 
   harness::Config cfg;
-  cfg.input  = argv[1];
-  cfg.output = argv[2];
+  std::vector<std::string> positional;
+  bool have_input_mode = false;
 
-  for (int i = 3; i < argc; ++i) {
-    if (std::strcmp(argv[i], "-n") == 0 && i + 1 < argc) {
+  for (int i = 1; i < argc; ++i) {
+    const std::string arg = argv[i];
+    if ((arg == "-N" || arg == "--nickname") && i + 1 < argc) {
+      if (have_input_mode) {
+        std::cerr << "error: only one of <input.sdst>, -N/--nickname,"
+                     " -P/--pdl may be given\n";
+        usage(argv[0]);
+        return 1;
+      }
+      cfg.input_mode     = harness::InputMode::Nickname;
+      cfg.input_nickname = argv[++i];
+      have_input_mode    = true;
+    } else if ((arg == "-P" || arg == "--pdl") && i + 1 < argc) {
+      if (have_input_mode) {
+        std::cerr << "error: only one of <input.sdst>, -N/--nickname,"
+                     " -P/--pdl may be given\n";
+        usage(argv[0]);
+        return 1;
+      }
+      cfg.input_mode  = harness::InputMode::Pdl;
+      cfg.input       = argv[++i];
+      have_input_mode = true;
+    } else if (arg == "-n" && i + 1 < argc) {
       cfg.max_events = parseMaxEvents(argv[++i], argv[0]);
-    } else if (std::strcmp(argv[i], "--btag") == 0 && i + 1 < argc) {
+    } else if (arg == "--btag" && i + 1 < argc) {
       cfg.btag = parseBtag(argv[++i], argv[0]);
-    } else if (std::strcmp(argv[i], "--btag-pv") == 0) {
+    } else if (arg == "--btag-pv") {
       // Let AABTAG's vertex replace the DELANA one in PSCVTX (IFLPVT=1).
       // Off by default -- see BtagMode.h.
       cfg.btag_pv = delphi_edm4hep::BtagPrimaryVertex::Replace;
-    } else {
-      std::cerr << "unknown option: " << argv[i] << "\n";
+    } else if (!arg.empty() && arg[0] == '-') {
+      std::cerr << "unknown option: " << arg << "\n";
       usage(argv[0]);
       return 1;
+    } else {
+      positional.push_back(arg);
     }
+  }
+
+  if (have_input_mode) {
+    if (positional.size() != 1) { usage(argv[0]); return 1; }
+    cfg.output = positional[0];
+  } else {
+    if (positional.size() != 2) { usage(argv[0]); return 1; }
+    cfg.input  = positional[0];
+    cfg.output = positional[1];
   }
 
   // Per-event dispatch: Event scalars first, then Truth gen-particles

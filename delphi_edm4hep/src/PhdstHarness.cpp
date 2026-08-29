@@ -354,36 +354,19 @@ int run(const Config& cfg) {
                           // (run,evt) entry numbers against the new readers
   g_processed.clear();
 
-  if (!std::filesystem::exists(cfg.input)) {
-    std::cerr << "harness::run: input not found: " << cfg.input << "\n";
-    return 1;
-  }
-
-  // PHDST reads its input via a fixed-format text file named PDLINPUT in cwd.
-  // Long absolute paths are silently truncated by the legacy parser (and can
-  // turn a valid input into a zero-event job), so put a short, process-unique
-  // symlink in cwd and write only that relative name to PDLINPUT.
+  // PHDST reads its input from a fixed-format text file named PDLINPUT in cwd.
+  // Refuse to replace one we did not create; the cleanup below removes ours.
   std::error_code path_error;
-  const auto abs_input = std::filesystem::absolute(cfg.input, path_error);
-  if (path_error) {
-    std::cerr << "harness::run: cannot resolve input path " << cfg.input
-              << ": " << path_error.message() << "\n";
+  const auto pdl_status = std::filesystem::symlink_status("PDLINPUT", path_error);
+  if (path_error == std::errc::no_such_file_or_directory) {
+    path_error.clear();
+  } else if (path_error) {
+    std::cerr << "harness::run: cannot inspect PDLINPUT: "
+              << path_error.message() << "\n";
     return 1;
-  }
-  const auto input_link = std::filesystem::path(
-      ".phdst_input_" + std::to_string(static_cast<long long>(::getpid())));
-  if (std::filesystem::exists(input_link, path_error) || path_error) {
-    std::cerr << "harness::run: short input link already exists or cannot be "
-                 "inspected: "
-              << input_link;
-    if (path_error) std::cerr << ": " << path_error.message();
-    std::cerr << "\n";
-    return 1;
-  }
-  std::filesystem::create_symlink(abs_input, input_link, path_error);
-  if (path_error) {
-    std::cerr << "harness::run: cannot create short input link " << input_link
-              << " -> " << abs_input << ": " << path_error.message() << "\n";
+  } else if (pdl_status.type() != std::filesystem::file_type::not_found) {
+    std::cerr << "harness::run: PDLINPUT already exists in "
+              << std::filesystem::current_path() << "; remove it and retry\n";
     return 1;
   }
 
@@ -393,30 +376,84 @@ int run(const Config& cfg) {
     ~InputFileCleanup() {
       std::error_code ignored;
       if (remove_pdl_input) std::filesystem::remove("PDLINPUT", ignored);
-      std::filesystem::remove(link, ignored);
+      if (!link.empty()) std::filesystem::remove(link, ignored);
     }
-  } cleanup{input_link};
+  } cleanup;
 
-  const auto pdl_status = std::filesystem::symlink_status("PDLINPUT", path_error);
-  if (path_error == std::errc::no_such_file_or_directory) {
-    path_error.clear();
-  } else if (path_error) {
-    std::cerr << "harness::run: cannot inspect PDLINPUT: "
-              << path_error.message() << "\n";
-    return 1;
-  } else if (pdl_status.type() != std::filesystem::file_type::not_found) {
-    std::cerr << "harness::run: refusing to replace existing PDLINPUT\n";
-    return 1;
-  }
-  {
-    std::ofstream pdl("PDLINPUT");
-    if (!pdl) {
-      std::cerr << "harness::run: cannot create PDLINPUT in "
-                << std::filesystem::current_path() << "\n";
-      return 1;
+  std::ofstream pdl;
+  switch (cfg.input_mode) {
+    case InputMode::File: {
+      if (!std::filesystem::exists(cfg.input)) {
+        std::cerr << "harness::run: input not found: " << cfg.input << "\n";
+        return 1;
+      }
+      const auto abs_input = std::filesystem::absolute(cfg.input, path_error);
+      if (path_error) {
+        std::cerr << "harness::run: cannot resolve input path " << cfg.input
+                  << ": " << path_error.message() << "\n";
+        return 1;
+      }
+      // The legacy parser truncates paths over 120 characters, which turns a
+      // valid input into a zero-event job. Point PDLINPUT at a short
+      // process-unique symlink instead of the real path.
+      const std::filesystem::path link(
+          ".phdst_input_" + std::to_string(static_cast<long long>(::getpid())));
+      if (std::filesystem::exists(link, path_error) || path_error) {
+        std::cerr << "harness::run: short input link already exists or cannot "
+                     "be inspected: " << link;
+        if (path_error) std::cerr << ": " << path_error.message();
+        std::cerr << "\n";
+        return 1;
+      }
+      std::filesystem::create_symlink(abs_input, link, path_error);
+      if (path_error) {
+        std::cerr << "harness::run: cannot create short input link " << link
+                  << " -> " << abs_input << ": " << path_error.message()
+                  << "\n";
+        return 1;
+      }
+      cleanup.link = link;
+
+      pdl.open("PDLINPUT");
+      if (!pdl) {
+        std::cerr << "harness::run: cannot create PDLINPUT in "
+                  << std::filesystem::current_path() << "\n";
+        return 1;
+      }
+      cleanup.remove_pdl_input = true;
+      pdl << "FILE = " << link.string() << "\n";
+      break;
     }
-    cleanup.remove_pdl_input = true;
-    pdl << "FILE = " << input_link.string() << "\n";
+    case InputMode::Nickname: {
+      pdl.open("PDLINPUT");
+      if (!pdl) {
+        std::cerr << "harness::run: cannot create PDLINPUT in "
+                  << std::filesystem::current_path() << "\n";
+        return 1;
+      }
+      cleanup.remove_pdl_input = true;
+      pdl << "FAT = " << cfg.input_nickname << "\n";
+      break;
+    }
+    case InputMode::Pdl: {
+      if (!std::filesystem::exists(cfg.input)) {
+        std::cerr << "harness::run: pdl file not found: " << cfg.input << "\n";
+        return 1;
+      }
+      std::filesystem::copy_file(cfg.input, "PDLINPUT",
+                                 std::filesystem::copy_options::none,
+                                 path_error);
+      if (path_error) {
+        std::cerr << "harness::run: cannot copy " << cfg.input
+                  << " to PDLINPUT: " << path_error.message() << "\n";
+        return 1;
+      }
+      cleanup.remove_pdl_input = true;
+      break;
+    }
+  }
+  if (cfg.input_mode != InputMode::Pdl) {
+    pdl.close();
     if (!pdl) {
       std::cerr << "harness::run: cannot write PDLINPUT\n";
       return 1;

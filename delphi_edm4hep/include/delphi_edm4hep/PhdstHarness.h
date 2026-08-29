@@ -22,6 +22,7 @@
 
 #include <filesystem>
 #include <functional>
+#include <string>
 #include <vector>
 
 namespace delphi_edm4hep::harness {
@@ -36,8 +37,21 @@ using EventHook = std::function<void(podio::Frame& frame, int run, int evt)>;
 using InitHook     = std::function<void()>;
 using FinalizeHook = std::function<void()>;
 
+// How `run()` builds PDLINPUT (PHDST's cwd input directive file):
+//   File     — `input` is a Delphi .sdst/.fadana/.al file; writes a
+//              "FILE = <abs path>" directive.
+//   Nickname — `input_nickname` is a DELPHI dataset nickname (e.g.
+//              "short94_c2" or "short94_c2/c1-10"); writes a
+//              "FAT = <nickname>" directive so PHDST's own dataset
+//              lookup resolves it.
+//   Pdl      — `input` is a pre-built PDL file (e.g. from `fatfind`);
+//              copied verbatim to PDLINPUT.
+enum class InputMode { File, Nickname, Pdl };
+
 struct Config {
-  std::filesystem::path input;            // Delphi .sdst / .fadana / .al
+  std::filesystem::path input;            // File: Delphi .sdst/.fadana/.al; Pdl: path to the PDL file to copy
+  std::string           input_nickname;   // Nickname: the DELPHI dataset nickname
+  InputMode             input_mode = InputMode::File;
   std::filesystem::path output;           // edm4hep output (podio writes)
   std::filesystem::path input_edm4hep;    // pass-2 only: intermediate to copy through; empty for pass 1
   // pass-2 only: ADDITIONAL intermediates whose (run,evt) indices are
@@ -64,10 +78,11 @@ struct Config {
   FinalizeHook on_finalize;
 };
 
-// Run the PHDST event loop with `cfg`. Creates a short cwd-local symlink to
-// cfg.input, writes that relative name to PDLINPUT (the legacy fixed-format
-// parser truncates long absolute paths), drives phdst_(), and blocks until
-// done. Returns 0 only when at least one event was written.
+// Run the PHDST event loop with `cfg`. Writes a PDLINPUT in cwd per
+// cfg.input_mode (see InputMode above), drives phdst_(), and blocks until
+// done. File mode points PDLINPUT at a short cwd-local symlink rather than
+// the real path, because the legacy fixed-format parser truncates long ones.
+// Returns 0 only when at least one event was written.
 int run(const Config& cfg);
 
 // User-callback forwarders. The binary's extern "C" user*_ overrides
