@@ -79,11 +79,11 @@ void PidHybridWriter::emit()
     }
   }
 
-  put(std::move(haid_out), "HAID", "HadronID");
-  put(std::move(muid_out), "MUID", "MuonID");
-  put(std::move(elid_out), "ELID", "ElectronID");
-  put(std::move(dedx_out), "HAID", "dEdx");
-  put(std::move(dqdx_out), "HAID", "dEdx_RecDqdx");
+  put(std::move(haid_out), "HAID", "HadronID", Provenance::Transcribed);
+  put(std::move(muid_out), "MUID", "MuonID", Provenance::Transcribed);
+  put(std::move(elid_out), "ELID", "ElectronID", Provenance::Transcribed);
+  put(std::move(dedx_out), "HAID", "dEdx", Provenance::Derived);
+  put(std::move(dqdx_out), "HAID", "dEdx_RecDqdx", Provenance::Derived);
 }
 
 }  // namespace delphi_edm4hep::pid_hybrid

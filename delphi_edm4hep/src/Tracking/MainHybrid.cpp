@@ -145,11 +145,11 @@ void MainHybridWriter::emit()
   cloneVerticesWithRepointedParticles(sdst_v0,  v0_out,  main_out);
   cloneVerticesWithRepointedParticles(sdst_phc, phc_out, main_out);
 
-  put(std::move(main_out), "MAIN", "Particles");
-  put(std::move(pv_out),   "PV",   "PrimaryVertex");
-  put(std::move(vtx_out),  "PV",   "Vertices");
-  put(std::move(v0_out),   "V0",   "V0Candidates");
-  put(std::move(phc_out),  "PHC",  "PhotonConversions");
+  put(std::move(main_out), "MAIN", "Particles", Provenance::Derived);
+  put(std::move(pv_out),   "PV",   "PrimaryVertex", Provenance::Transcribed);
+  put(std::move(vtx_out),  "PV",   "Vertices", Provenance::Transcribed);
+  put(std::move(v0_out),   "V0",   "V0Candidates", Provenance::Transcribed);
+  put(std::move(phc_out),  "PHC",  "PhotonConversions", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::main_hybrid

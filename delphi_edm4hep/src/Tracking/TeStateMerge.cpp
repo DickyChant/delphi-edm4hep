@@ -75,7 +75,7 @@ void TeStateMergeWriter::emit()
   edm4hep::ParticleIDCollection fq_out;
 
   if (!ctx_.fdst_pa_to_sdst_track || !ctx_.fdst_pa_to_sdst_particle) {
-    put(std::move(trk_out), "TRAC", "Tracks", Provenance::Transcribed);
+    put(std::move(trk_out), "TRAC", "Tracks", Provenance::Derived);
     put(std::move(fq_out),  "TRAC", "Tracks_FitQuality", Provenance::Transcribed);
     return;
   }
@@ -233,7 +233,7 @@ void TeStateMergeWriter::emit()
     }
   }
 
-  put(std::move(trk_out), "TRAC", "Tracks", Provenance::Transcribed);
+  put(std::move(trk_out), "TRAC", "Tracks", Provenance::Derived);
   put(std::move(fq_out),  "TRAC", "Tracks_FitQuality", Provenance::Transcribed);
 }
 

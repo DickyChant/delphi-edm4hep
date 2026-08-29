@@ -34,7 +34,7 @@ void TblHybridWriter::emit()
     dl.setTo(sl.getTo());
   }
 
-  put(std::move(out), "TBL", "RecoToGen");
+  put(std::move(out), "TBL", "RecoToGen", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::tbl_hybrid

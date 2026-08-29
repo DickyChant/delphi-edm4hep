@@ -41,8 +41,8 @@ void ShowerHybridWriter::emit()
   edm4hep::ClusterCollection emnc_out, hcnc_out;
   cloneShowers(frame_.get<edm4hep::ClusterCollection>("sDST_EMNC_Showers"), emnc_out);
   cloneShowers(frame_.get<edm4hep::ClusterCollection>("sDST_HCNC_Showers"), hcnc_out);
-  put(std::move(emnc_out), "EMNC", "Showers");
-  put(std::move(hcnc_out), "HCNC", "Showers");
+  put(std::move(emnc_out), "EMNC", "Showers", Provenance::Transcribed);
+  put(std::move(hcnc_out), "HCNC", "Showers", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::shower_hybrid
