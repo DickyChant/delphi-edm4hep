@@ -178,6 +178,12 @@ Per-event scalars stored as podio Frame parameters:
 
 - Identifiers: `runNumber`, `eventNumber`, `fileSeq`, `date` (yymmdd),
   `time` (hhmmss), `fillNumber` (LEP fill), `experiment`, `dstVersion`.
+- Era: `dstProcessingTag` (the DSTQID identifier `YYLN` — two-digit year,
+  DELANA processing letter, short/mini DST number, e.g. `94C2`) and
+  `pxdstVersion`. Together with `dstVersion` (`ISVER`) these identify which
+  calibration SKELANA applied: the first two characters of the processing tag
+  pick the RICH refractive index, and the PXDST version selects between
+  algorithm generations.
 - Event topology (team-4 reconstruction): `hadronicTagTeam4` (hadronic-Z
   flag), `nChargedTeam4`, `nCharged`, `nNeutral`.
 - Energies (GeV): `ECMS` (centre-of-mass), `EChargedTotal`, `ENeutralEM`,
@@ -271,11 +277,23 @@ Per-event scalars stored as podio Frame parameters:
   (`FLAGG` = `KGRIC(5)`, RING/VETO quality word carried as a float; read
   via `int(round(v))`), `[13..16]` the same four quantities for the liquid
   radiator, `[17]` liquid flag (`FLAGL` = `KLRIC(5)`, same convention).
-- `sDST_HAID_AltTags` (algType 40) — alternate hadron-ID tag tables, 26
-  integer tags: NEWTAG π/K/p/heavy `[0..3]`, track-selection `[4..7]`,
-  RICH-probability `[8..13]`, dE/dx-probability `[14..19]`, combined RICH+TPC
-  `[20..25]`. Each tag: −1 = no info, 0 = not this species, 1/2/3 =
-  loose/standard/tight.
+- Recomputed hadron-ID tag tables, one collection per SKELANA routine. Each
+  tag: −1 = no info, 0 = not this species, 1/2/3 = loose/standard/tight. A
+  row is emitted for a track when at least one of its tags is not −1.
+  - `sDST_XNEWTAG_RichTags` (algType 41) — RICH ring/veto tags. `params`:
+    π/K/p/heavy `[0..3]`, matching track-quality acceptance `[4..7]`.
+  - `sDST_XNEWPRO_RichTags` (algType 42) — RICH RIBMEAN probability tags.
+    `params`: π/K/p/heavy/electron `[0..4]`, selection flag `[5]`
+    (bit 1 liquid OK, bit 2 gas OK).
+  - `sDST_RPRODO_DedxTags` (algType 43) / `sDST_RPRODE_DedxTags` (algType 44)
+    — TPC dE/dx probability tags. RPRODE superseded RPRODO at PXDST version
+    333; the version word of the event selects one, and only that one is
+    emitted, so the collection name states which ran. `params`:
+    π/K/p/heavy/electron `[0..4]`, quality flag `[5]` (1 = more than 30 TPC
+    wires and within 2.5 s.d. of a hypothesis).
+  - `sDST_RPROCO_CombinedTags` (algType 45) — combined RICH and dE/dx tags.
+    `params`: π/K/p/heavy/electron `[0..4]`, selection flag `[5]`
+    (bit 1 liquid OK, bit 2 gas OK, bit 3 TPC OK).
 - `sDST_HAID_dEdxVD` (algType 7) — VD-only dE/dx. `params`: `[0]` VD dE/dx,
   `[1]` number of VD hits used.
 - `sDST_MUID_MuonID` (algType 2) — `[0]` muon tag (MUCAL2: 1 very-loose …

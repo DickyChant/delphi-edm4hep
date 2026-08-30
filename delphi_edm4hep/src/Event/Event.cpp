@@ -12,12 +12,32 @@
 #include "delphi_edm4hep/Event/Event.h"
 
 #include "phdst/phciii.hpp"
+#include "phdst/uxcom.hpp"      // IQ
+#include "phdst/uxlink.hpp"     // LDTOP
 #include "skelana/pscbsp.hpp"
 #include "skelana/pscevt.hpp"
+
+#include <cstddef>
+#include <string>
 
 // PHGEN BPILOT subroutine (current event's solenoid B in Tesla,
 // curvature-to-momentum factor in GeV/cm). No header wrapper.
 extern "C" void bpilot_(float* btesla, float* bgevcm);
+
+// DSTQID (dstana) returns the DST processing identifier as "YYLN": two-digit
+// year, DELANA processing letter, short/mini DST number. gfortran passes the
+// character length as a hidden trailing argument.
+extern "C" void dstqid_(char* tag, std::size_t len);
+
+namespace {
+std::string processingTag() {
+  char buf[4] = {};
+  dstqid_(buf, sizeof(buf));
+  std::string tag(buf, sizeof(buf));
+  tag.erase(tag.find_last_not_of(' ') + 1);
+  return tag;
+}
+}  // namespace
 
 namespace ph = phdst;
 namespace sk = skelana;
@@ -37,6 +57,12 @@ void EventWriter::emit() {
   stored("fillNumber",  ph::IIFILL);
   stored("experiment",  ph::IIIEXP);
   stored("dstVersion",  sk::ISVER);
+
+  // Era identifiers. The processing tag selects the calibration SKELANA uses —
+  // its first two characters pick the RICH refractive index — and the PXDST
+  // version selects between algorithm generations.
+  stored("dstProcessingTag", processingTag());
+  stored("pxdstVersion",     ph::LDTOP > 0 ? ph::IQ(ph::LDTOP + 3) : 0);
 
   // Centre-of-mass energy from the DANA pilot blocklet. SKELANA substitutes
   // 91.250 GeV when that blocklet is absent, which at LEP2 would be wrong by
