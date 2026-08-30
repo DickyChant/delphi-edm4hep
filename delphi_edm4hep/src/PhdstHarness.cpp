@@ -255,12 +255,13 @@ static void on_user02_impl() {
   const std::pair<int, int> key{ph::IIIRUN, ph::IIIEVT};
   if (!g_processed.insert(key).second) return;
 
-  // First-event-empty skip: DELSIM's event 1 is a setup record with no
-  // PV chain; we drop it so the output event count == # physics events.
-  if (g_n_seen == 1) {
-    const bool no_pv_chain = (ph::LDTOP <= 0) || (ph::LQ(ph::LDTOP - 1) == 0);
-    if (no_pv_chain) return;
-  }
+  // Records with no DST bank are not events. File headers and end-of-run
+  // trailers reach this callback too, and can appear mid-file.
+  if (ph::LDTOP <= 0) return;
+
+  // DELSIM's event 1 is a setup record that has a DST bank but no PV chain;
+  // drop it so the output event count equals the number of physics events.
+  if (g_n_seen == 1 && ph::LQ(ph::LDTOP - 1) == 0) return;
 
   podio::Frame frame;
 

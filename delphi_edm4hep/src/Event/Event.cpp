@@ -11,6 +11,7 @@
 
 #include "delphi_edm4hep/Event/Event.h"
 
+#include "phdst/functions.hpp"  // IPHPIC
 #include "phdst/phciii.hpp"
 #include "phdst/uxcom.hpp"      // IQ
 #include "phdst/uxlink.hpp"     // LDTOP
@@ -18,6 +19,7 @@
 #include "skelana/pscevt.hpp"
 
 #include <cstddef>
+#include <stdexcept>
 #include <string>
 
 // PHGEN BPILOT subroutine (current event's solenoid B in Tesla,
@@ -29,6 +31,9 @@ extern "C" void bpilot_(float* btesla, float* bgevcm);
 // character length as a hidden trailing argument.
 extern "C" void dstqid_(char* tag, std::size_t len);
 
+namespace ph = phdst;
+namespace sk = skelana;
+
 namespace {
 std::string processingTag() {
   char buf[4] = {};
@@ -37,14 +42,48 @@ std::string processingTag() {
   tag.erase(tag.find_last_not_of(' ') + 1);
   return tag;
 }
-}  // namespace
 
-namespace ph = phdst;
-namespace sk = skelana;
+// Refuse the event, naming it. A writer that throws aborts the job through the
+// harness's callback guard, which marks the partial output unpublishable.
+[[noreturn]] void refuse(const std::string& what) {
+  throw std::runtime_error(what + " (run " + std::to_string(ph::IIIRUN)
+                           + ", event " + std::to_string(ph::IIIEVT) + ')');
+}
+
+// The beam energy and the beam spot each have a failure mode SKELANA does not
+// report: it substitutes a value and carries on, and the substitute reaches the
+// output looking like a measurement.
+void checkEventIsUsable() {
+  // Without the DANA pilot blocklet the centre-of-mass energy is not read but
+  // set to 91.250 GeV (skelana.car:2743-2748). That substitution cannot be
+  // recognised from the energy itself — 91.250 is also the true stored value
+  // for LEP1 simulation — so test for the blocklet.
+  if (ph::IPHPIC("DANA", 0) <= 0) {
+    refuse("DANA pilot blocklet absent, so the centre-of-mass energy would be "
+           "SKELANA's 91.250 GeV fallback rather than a stored value");
+  }
+
+  // EBEAM = ECMAS/2 is both a track cut and a denominator in SKELANA; at zero
+  // it rejects every charged track.
+  if (sk::ECMAS <= 0.f) {
+    refuse("centre-of-mass energy is " + std::to_string(sk::ECMAS) + " GeV");
+  }
+
+  // VDBSPT returns without setting IERRBS when it cannot open the
+  // per-processing .DB file (vdbeam.car:1167-1171), leaving the position at the
+  // origin with no error raised, so BeamSpotErrorCode alone cannot be trusted.
+  if (sk::XYZBS(1) == 0.f && sk::XYZBS(2) == 0.f && sk::XYZBS(3) == 0.f) {
+    refuse("beam spot is exactly (0,0,0); the per-processing .DB lookup did "
+           "not produce a position");
+  }
+}
+}  // namespace
 
 namespace delphi_edm4hep::event {
 
 void EventWriter::emit() {
+  checkEventIsUsable();
+
   constexpr float kCm2Mm = 10.0f;
 
   // Pilot-record words, written when the DST was produced.
