@@ -266,9 +266,21 @@ Per-event scalars stored as podio Frame parameters:
 
 **Particle identification** (all ParticleID; `setParticle` → `sDST_MAIN_Particles`)
 
-- `sDST_HAID_dEdx` (algType 1) — TPC truncated-mean dE/dx.
-  `params`: `[0]` dE/dx (MIP-normalised), `[1]` σ. Also emitted in EDM4hep's
-  typed `RecDqdx` form as `sDST_HAID_dEdx_RecDqdx` (type 1).
+- `sDST_GETDEDX_Dedx` / `sDST_BBDXGET_Dedx` (algType 1) — TPC truncated-mean
+  dE/dx, named for the routine that produced it. BBDXGET replaced GETDEDX at
+  PXDST version 333; the version word of the event selects one, and only that
+  one is emitted. `params`: `[0]` dE/dx (MIP-normalised), `[1]` σ, `[2]` quality
+  flag (−1 no information, 0 poor … 4 perfect; requiring > 1 is the usual cut).
+  Also emitted in EDM4hep's typed `RecDqdx` form as `..._DedxRecDqdx` (type 1).
+
+  On the BBDXGET path the wire count reported through `sDST_HAID_HadronID` and
+  the dE/dx tag collections is the *untruncated* count scaled by 0.8 — an
+  estimate of the wires entering the truncated mean, not a count of them. At
+  LEP1 (GETDEDX) it is a true count. Take care when comparing a wire-count cut
+  across eras.
+
+  The quality flag is recovered by this converter: SKELANA computes it and
+  discards it, so it is not available to a SKELANA analysis.
 - `sDST_HAID_HadronID` (algType 4) — combined hadron ID, 18 params:
   `[0]` kaon-RICH tag, `[1]` proton-RICH, `[2]` pion-RICH, `[3]` kaon-dE/dx,
   `[4]` proton-dE/dx, `[5]` combined kaon likelihood, `[6]` combined proton

@@ -23,6 +23,10 @@
 #include "skelana/pscmud.hpp"
 #include "skelana/pscvec.hpp"   // sk::LVPART, sk::NVECP
 
+#include "delphi_edm4hep/internal/PaWalk.h"
+#include "phdst/uxcom.hpp"       // IQ
+#include "phdst/uxlink.hpp"      // LDTOP
+
 #include <edm4hep/MutableParticleID.h>
 #include <edm4hep/ParticleIDCollection.h>
 #include <edm4hep/Quantity.h>
@@ -31,10 +35,20 @@
 
 #include <limits>
 #include <string>
+#include <vector>
 
+namespace ph = phdst;
 namespace sk = skelana;
 
 namespace delphi_edm4hep::particleid {
+
+extern "C" {
+// BBDXGET reads the MTPC module: measured dE/dx, gap size, untruncated wire
+// count and method. BBDXER returns the expected error and, in IQUAL, a quality
+// flag. Both live in dstana (dedxid.car).
+void  bbdxget_(int* lpa, float* dedx, float* gap, int* nwir, int* nmeth);
+float bbdxer_(float* dedxth, float* gap, int* nwir, int* nmeth, int* iqual);
+}
 
 namespace {
 
@@ -43,6 +57,55 @@ constexpr std::int32_t kAlgoDedx     = 1;
 constexpr std::int32_t kAlgoMuon     = 2;
 constexpr std::int32_t kAlgoElectron = 3;
 constexpr std::int32_t kAlgoHadronID = 4;
+
+// PXDST version at or above which SKELANA runs BBDXGET in place of GETDEDX.
+constexpr int kBbdxMinPxdst = 333;
+
+// BBDXGET replaced GETDEDX at PXDST version 333. Both fill PSCDEX; SKELANA runs
+// whichever matches the version word of the event, so the collection is named
+// for the one that ran. On the BBDXGET path KDEDX(3) is the untruncated wire
+// count scaled by 0.8, an estimate of the wires entering the truncated mean
+// rather than a count of them.
+const char* dedxAlgo() {
+  const bool bbdx = ph::LDTOP > 0 && ph::IQ(ph::LDTOP + 3) >= kBbdxMinPxdst;
+  return bbdx ? "BBDXGET" : "GETDEDX";
+}
+
+// dE/dx quality flag per emitted Particle: -1 no information, 0 poor .. 4
+// perfect. dedxid.car:1137 advises requiring > 1.
+//
+// SKELANA computes this flag at skelana.car:3886 and then discards it, so it is
+// recomputed here from the same inputs. The result is indexed by Particle, not
+// by track, because the PA walk and the VECP loop reach the same particles
+// through different orderings.
+std::vector<int> dedxQuality(const tracking::Output& tracking)
+{
+  std::vector<int> quality(tracking.particle_handles.size(), -1);
+
+  pawalk::forEachPA([&](int lpa, int paIdx) {
+    // PAs that produced no Particle have nothing to attach a flag to.
+    if (paIdx >= static_cast<int>(tracking.pa_to_particle.size())) return;
+    const int p = tracking.pa_to_particle[paIdx];
+    if (p < 0) return;
+
+    // Measured dE/dx, gap size, untruncated wire count and method, all read
+    // from the MTPC module of this PA.
+    float dedx = -1.f, gap = 0.f;
+    int   nwir = 0, nmeth = 0;
+    bbdxget_(&lpa, &dedx, &gap, &nwir, &nmeth);
+
+    // BBDXGET reports -1 when the track has no dE/dx measurement.
+    if (dedx <= 0.f || nwir < 1) return;
+
+    // The return value is the expected error, which SKELANA already stores as
+    // QDEDX(5); the flag returned alongside it is what is taken here.
+    int iqual = -1;
+    bbdxer_(&dedx, &gap, &nwir, &nmeth, &iqual);
+    quality[p] = iqual;
+  });
+
+  return quality;
+}
 
 }  // namespace
 
@@ -57,14 +120,15 @@ void ParticleIdWriter::emit()
   if (!ctx_.tracking) {
     // No tracks emitted upstream — still emit empty collections so
     // the schema remains stable across events.
-    put(std::move(dedxCol), "HAID", "dEdx", Provenance::Derived);
-    put(std::move(dqdxCol), "HAID", "dEdx_RecDqdx", Provenance::Derived);
+    put(std::move(dedxCol), dedxAlgo(), "Dedx", Provenance::Derived);
+    put(std::move(dqdxCol), dedxAlgo(), "DedxRecDqdx", Provenance::Derived);
     put(std::move(muonCol), "MUID", "MuonID", Provenance::Transcribed);
     put(std::move(elecCol), "ELID", "ElectronID", Provenance::Transcribed);
     put(std::move(hadrCol), "HAID", "HadronID", Provenance::Transcribed);
     return;
   }
   const auto& tracking = *ctx_.tracking;
+  const std::vector<int> quality = dedxQuality(tracking);
 
   // Helper: create a per-particle PID row of the given algorithmType,
   // attach to the matching Particle, and return the row for parameter
@@ -108,6 +172,8 @@ void ParticleIdWriter::emit()
         auto pid = makePid(dedxCol, i, kAlgoDedx);
         pid.addToParameters(dedx);
         pid.addToParameters(sigma);
+        pid.addToParameters(
+            static_cast<float>(quality[tracking.vecp_to_particle[i]]));
 
         // RecDqdx parallel form (FCC-style consumers consume the typed
         // Quantity rather than ParticleID parameters[]). Type=1 marks
@@ -196,8 +262,8 @@ void ParticleIdWriter::emit()
     }
   }
 
-  put(std::move(dedxCol), "HAID", "dEdx", Provenance::Derived);
-  put(std::move(dqdxCol), "HAID", "dEdx_RecDqdx", Provenance::Derived);
+  put(std::move(dedxCol), dedxAlgo(), "Dedx", Provenance::Derived);
+  put(std::move(dqdxCol), dedxAlgo(), "DedxRecDqdx", Provenance::Derived);
   put(std::move(muonCol), "MUID", "MuonID", Provenance::Transcribed);
   put(std::move(elecCol), "ELID", "ElectronID", Provenance::Transcribed);
   put(std::move(hadrCol), "HAID", "HadronID", Provenance::Transcribed);
