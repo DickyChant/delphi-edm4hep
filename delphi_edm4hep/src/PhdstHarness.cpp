@@ -333,6 +333,13 @@ void on_user99() noexcept {
     podio::Frame meta;
     meta.putParameter("provenance_collection", record.collections);
     meta.putParameter("provenance_source",     record.sources);
+
+    // The SKELANA track selection this file was produced with. IFLCUT names
+    // the cut table (1 old SKELANA, 2 May-98 tuning, 3 April-99 tuning; the
+    // tables are in the README). IFLSTR = 11 means rejected tracks are flagged
+    // in VECP_LVLOCK, not removed.
+    meta.putParameter("skelana_IFLCUT", sk::IFLCUT);
+    meta.putParameter("skelana_IFLSTR", sk::IFLSTR);
     g_writer->writeFrame(meta, "metadata");
   });
 

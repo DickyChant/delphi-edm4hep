@@ -3,7 +3,9 @@
 // Walks the PA chain (LDTOP-1 -> per-PV -> per-PA), emitting:
 //   <tag>_TRAC_Tracks       (Track + TrackState[AtIP] + 5x5 helix-basis cov)
 //   <tag>_MAIN_Particles    (charged + neutral; 4-mom from sk::VECP)
-//   <tag>_VECP_LVLOCK       (UserData int32 parallel; -1 for neutrals)
+//   <tag>_VECP_LVLOCK       (UserData int32 parallel to _MAIN_Particles)
+//   <tag>_MAIN_ReconstructionCode (UserData int32 parallel to _MAIN_Particles)
+//   <tag>_MAIN_TrackLength  (UserData float parallel to _MAIN_Particles, cm)
 //   <tag>_TRAC_d0PV / z0PV / d0BS  (UserData float; from sk::QTRAC(38..40))
 //
 // No shape moments, no sigma calibration, no perigee-momentum fallback —
@@ -67,6 +69,8 @@ void TrackingWriter::emit()
   edm4hep::TrackCollection                 trkCol;
   edm4hep::ReconstructedParticleCollection pfoCol;
   podio::UserDataCollection<std::int32_t>  lvlockCol;
+  podio::UserDataCollection<std::int32_t>  codeCol;
+  podio::UserDataCollection<float>         lengthCol;
   podio::UserDataCollection<float>         d0PvCol;
   podio::UserDataCollection<float>         z0PvCol;
   podio::UserDataCollection<float>         d0BsCol;
@@ -133,6 +137,22 @@ void TrackingWriter::emit()
   // 4-momentum). Logged once per event below so the degradation is loud.
   int n_zero_mom_charged = 0;
 
+  // Per-particle words running parallel to <tag>_MAIN_Particles.
+  //
+  //   LVLOCK  selection verdict; 0 = selected. Neutrals are selected too
+  //           (PSHSNT, with the per-table calorimeter thresholds), so they
+  //           carry a real verdict rather than a sentinel.
+  //   code    PXPHOT reconstruction code, IQ(LPA+3) bits 19-25. SKELANA reads
+  //           it to reject VD-only tracks (75 with z, 77 without z, VFT-only
+  //           from ISVER 107) and ID+VD-only tracks without z (72).
+  //   length  track length in cm, the one selection quantity that cannot be
+  //           reconstructed from the other emitted collections.
+  auto push_particle_words = [&](int vecp_i, int lpa, int lmain) {
+    lvlockCol.push_back(vecp_i >= 1 ? sk::LVLOCK(vecp_i) : -1);
+    codeCol.push_back((ph::IQ(lpa + 3) >> 18) & 0x7F);
+    lengthCol.push_back(lmain > 0 ? ph::Q(lmain + 9) : 0.f);
+  };
+
   forEachPA([&](int lpa, int paIdx) {
     // PA.MAIN: per-track summary. Charge code at Q(LMAIN+8):
     //   0 = neutral, 1 = positive, 2 = negative, 3 = undefined.
@@ -154,10 +174,9 @@ void TrackingWriter::emit()
       npfo.setMass  (sk::VECP(5, vecp_i));
       npfo.setCharge(0.f);
       record_particle(npfo, vecp_i, paIdx);
-      // Neutrals have no Track. LVLOCK is parallel to Particles (so it gets
-      // the -1 sentinel here); d0PV/z0PV/d0BS are parallel to Tracks
-      // (charged-only), so they are intentionally NOT pushed for neutrals.
-      lvlockCol.push_back(-1);
+      // d0PV/z0PV/d0BS are parallel to Tracks (charged-only) and so are not
+      // pushed for neutrals; the per-particle words are.
+      push_particle_words(vecp_i, lpa, lmain);
       return;
     }
 
@@ -239,7 +258,7 @@ void TrackingWriter::emit()
 
     // LVLOCK: per-VECP track-quality bitmask. -1 sentinel if no VECP
     // match. Stored as int32 so bit 32 (REMCLU overlap) is preserved.
-    lvlockCol.push_back(vecp_i >= 1 ? sk::LVLOCK(vecp_i) : -1);
+    push_particle_words(vecp_i, lpa, lmain);
 
     // BS/PV-corrected impact parameters from sk::QTRAC(38..40, vecp_i).
     // PSCTRA indexes by the charged-VECP ordinal which matches vecp_i
@@ -257,7 +276,9 @@ void TrackingWriter::emit()
   // Handles in `result` remain valid afterwards.
   put(std::move(trkCol),    "TRAC", "Tracks", Provenance::Derived);
   put(std::move(pfoCol),    "MAIN", "Particles", Provenance::Derived);
-  put(std::move(lvlockCol), "VECP", "LVLOCK", Provenance::Derived);
+  put(std::move(lvlockCol), "VECP", "LVLOCK",             Provenance::Derived);
+  put(std::move(codeCol),   "MAIN", "ReconstructionCode", Provenance::Transcribed);
+  put(std::move(lengthCol), "MAIN", "TrackLength",        Provenance::Transcribed);
   put(std::move(d0PvCol),   "TRAC", "d0PV", Provenance::Derived);
   put(std::move(z0PvCol),   "TRAC", "z0PV", Provenance::Derived);
   put(std::move(d0BsCol),   "TRAC", "d0BS", Provenance::Derived);
