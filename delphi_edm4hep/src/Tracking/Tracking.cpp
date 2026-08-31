@@ -222,6 +222,13 @@ void TrackingWriter::emit()
       }
     }
 
+    // Extrapolation states for this PA, decoded by TraxWriter.
+    if (ctx_.trax && paIdx < static_cast<int>(ctx_.trax->pa_to_states.size())) {
+      for (const auto& st : ctx_.trax->pa_to_states[paIdx]) {
+        trk.addToTrackStates(st);
+      }
+    }
+
     // chi2 / ndf from PA.MAIN. +26/+27 (with VD) preferred, fallback to
     // +16/+17 (without VD). SKELANA sanitises ndf to [0, 1000].
     float chi2_vd = ph::Q(lmain + 26);

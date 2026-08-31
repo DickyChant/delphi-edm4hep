@@ -27,6 +27,7 @@
 // Data-only headers (no writer classes) so this header doesn't pull
 // CollectionWriter back in transitively.
 #include "delphi_edm4hep/Tracking/TrackElementData.h" // track_elements::Output
+#include "delphi_edm4hep/Tracking/TraxData.h"         // trax::Output
 #include "delphi_edm4hep/Tracking/TrackingData.h"   // tracking::Output
 #include "delphi_edm4hep/Truth/TruthData.h"      // truth::GenParticleResult
 
@@ -53,20 +54,24 @@ struct EventContext {
   // mother track to the track elements from the same PA.
   std::optional<track_elements::Output> track_elements;
 
-  // Set by TrackingWriter; consumed by VertexWriter, CalorimeterWriter,
-  // ParticleIdWriter, and (pass 2) the TE-merge writers.
+  // Set by TraxWriter; consumed by the track writers, which append the
+  // extrapolation states to the track built from the same PA.
+  std::optional<trax::Output> trax;
+
+  // Set by TrackingWriter; consumed by VertexWriter, CalorimeterWriter and
+  // ParticleIdWriter, and by particleForPa() in pass 1.
   std::optional<tracking::Output> tracking;
 
   // Pass-2 only: per-fDST-PA index -> sDST_TRAC_Tracks index, or -1
   // if no perigee-match. Built by MatchProvenanceWriter from the
-  // fDST PA-chain walk; consumed by TeStateMergeWriter to find the
-  // sDST Track to clone-and-extend.
+  // fDST PA-chain walk; consumed by TrackHybridWriter to find the
+  // sDST Track to clone and extend.
   std::optional<std::vector<int>> fdst_pa_to_sdst_track;
 
   // Pass-2 only: per-fDST-PA index -> sDST_MAIN_Particles index, or
   // -1 if no match / unmatched. Built by MatchProvenanceWriter
-  // alongside fdst_pa_to_sdst_track; consumed by TofWriter,
-  // MtpcFdstWriter, etc. for their ParticleID setParticle() linkage.
+  // alongside fdst_pa_to_sdst_track; consumed through particleForPa() by
+  // the writers that link a ParticleID to its particle.
   std::optional<std::vector<int>> fdst_pa_to_sdst_particle;
 };
 

@@ -153,6 +153,7 @@ int main(int argc, char** argv) {
     // TrackElements decodes the PA.TE* modules and must run before
     // TrackHybrid, which links each cloned track to them.
     track_elements::TrackElementsWriter(frame, ctx, "fDST").emit();
+    trax::TraxWriter                (frame, ctx, "fDST").emit();
     track_hybrid::TrackHybridWriter (frame, ctx, "fDST").emit();
     emca::EmcaWriter       (frame, ctx, "fDST").emit();
     hcal_fdst::HcalFdstWriter       (frame, ctx, "fDST").emit();
@@ -176,7 +177,6 @@ int main(int argc, char** argv) {
     // inconsistent with the PidHybrid-repointed clones. (MU/EL/TDID + TOF + MTPC + TRAX.)
     tof::TofWriter         (frame, ctx, "fDST").emit();
     mtpc::MtpcWriter              (frame, ctx, "fDST").emit();
-    trax::TraxWriter       (frame, ctx, "fDST").emit();
     pa_pid_extras::PaPidExtrasWriter(frame, ctx, "fDST").emit();
     pid_hybrid::PidHybridWriter     (frame, ctx, "fDST").emit();
     tbl_hybrid::TblHybridWriter     (frame, ctx, "fDST").emit();

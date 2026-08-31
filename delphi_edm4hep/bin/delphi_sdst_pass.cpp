@@ -161,6 +161,7 @@ int main(int argc, char** argv) {
     // TrackElements runs before Tracking so the mother tracks can link to
     // the track elements while they are still mutable.
     dom::track_elements::TrackElementsWriter(frame, ctx, "sDST").emit();
+    dom::trax::TraxWriter                  (frame, ctx, "sDST").emit();
     dom::tracking::TrackingWriter      (frame, ctx, "sDST").emit();
     dom::truth::TruthRecoLinkWriter    (frame, ctx, "sDST").emit();
     dom::vertex::VertexWriter          (frame, ctx, "sDST").emit();
@@ -182,7 +183,6 @@ int main(int argc, char** argv) {
     dom::pa_pid_extras::PaPidExtrasWriter(frame, ctx, "sDST").emit();
     dom::emca::EmcaWriter                (frame, ctx, "sDST").emit();
     dom::tdha::TdhaWriter                (frame, ctx, "sDST").emit();
-    dom::trax::TraxWriter                (frame, ctx, "sDST").emit();
     // B-tagging. After Tracking (needs ctx.tracking to resolve AABTAG's
     // PA addresses onto emitted Particles); no-op unless --btag was given.
     // fulldst=false: on a shortDST, SKELANA honours IFLBTG=1 as a bank read.

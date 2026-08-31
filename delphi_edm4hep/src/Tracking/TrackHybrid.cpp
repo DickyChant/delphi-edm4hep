@@ -4,6 +4,7 @@
 
 #include <edm4hep/MutableTrack.h>
 #include <edm4hep/TrackCollection.h>
+#include <edm4hep/TrackState.h>
 
 #include <cstddef>
 #include <vector>
@@ -12,9 +13,11 @@ namespace delphi_edm4hep::track_hybrid {
 
 namespace {
 
-// Clone the scalar / vector fields of a Track and its existing TrackStates.
-// Cross-collection relations are not copied: the fDST track gets its own,
-// pointing at the fDST track elements.
+// Clone the scalar / vector fields of a Track. Only the AtIP state is copied:
+// the extrapolation states belong to the pass that decoded them, and pass 2
+// appends its own from the fullDST, which carries far more of them.
+// Cross-collection relations are not copied either: the fDST track gets its
+// own, pointing at the fDST track elements.
 void cloneTrackShallow(edm4hep::MutableTrack dst, const edm4hep::Track& src) {
   dst.setType   (src.getType());
   dst.setChi2   (src.getChi2());
@@ -22,7 +25,9 @@ void cloneTrackShallow(edm4hep::MutableTrack dst, const edm4hep::Track& src) {
   dst.setNholes (src.getNholes());
   for (auto n : src.getSubdetectorHitNumbers())  dst.addToSubdetectorHitNumbers(n);
   for (auto n : src.getSubdetectorHoleNumbers()) dst.addToSubdetectorHoleNumbers(n);
-  for (auto ts : src.getTrackStates())           dst.addToTrackStates(ts);
+  for (auto ts : src.getTrackStates()) {
+    if (ts.location == edm4hep::TrackState::AtIP) dst.addToTrackStates(ts);
+  }
 }
 
 }  // namespace
@@ -62,6 +67,12 @@ void TrackHybridWriter::emit()
       if (paIdx < static_cast<int>(te.pa_to_plane_hits.size())) {
         for (const auto& hit : te.pa_to_plane_hits[paIdx]) {
           out.addToTrackerHits(hit);
+        }
+      }
+      if (ctx_.trax &&
+          paIdx < static_cast<int>(ctx_.trax->pa_to_states.size())) {
+        for (const auto& st : ctx_.trax->pa_to_states[paIdx]) {
+          out.addToTrackStates(st);
         }
       }
     }

@@ -41,17 +41,6 @@ constexpr std::array<TeModule, 8> kTeModules{{
   {"TEFB", false}, {"TERF", false}, {"TEST", false}, {"TEVF", true },
 }};
 
-// PA.MAIN word +8 is the charge code: 1 positive, 2 negative. Helix wants the
-// DELPHI sign convention, which is opposite to the charge.
-int conversionCharge(int lpa) {
-  const int lmain = pawalk::lphpa("MAIN", lpa);
-  if (lmain <= 0) return 0;
-  const int code = static_cast<int>(std::lround(ph::Q(lmain + 8)));
-  if (code == 1) return -1;
-  if (code == 2) return +1;
-  return 0;
-}
-
 }  // namespace
 
 void TrackElementsWriter::emit()
@@ -74,7 +63,7 @@ void TrackElementsWriter::emit()
       out.pa_to_segments.resize(paIdx + 1);
       out.pa_to_plane_hits.resize(paIdx + 1);
     }
-    const int charge = conversionCharge(lpa);
+    const int charge = pawalk::conversionCharge(lpa);
 
     for (std::size_t m = 0; m < n; ++m) {
       const int lte = pawalk::lphpa(kTeModules[m].name, lpa);

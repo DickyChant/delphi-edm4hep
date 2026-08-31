@@ -267,11 +267,29 @@ Per-event scalars stored as podio Frame parameters:
 **Tracks & particles**
 
 - `sDST_TRAC_Tracks` (Track) — one charged track per reconstructed charged
-  particle. A single `AtIP` TrackState carries the perigee helix
-  (`D0` = −ε with DELPHI→LCIO sign flip, `Z0`, `phi`, `omega`, `tanLambda`)
+  particle. An `AtIP` TrackState carries the perigee helix
+  (`D0` = −ε with DELPHI→EDM4hep sign flip, `Z0`, `phi`, `omega`, `tanLambda`)
   with the 5×5 covariance obtained by inverting the DELPHI weight matrix and
   rotating into helix parameters. `chi2`/`ndf` are the with-VD fit when
-  available, else the without-VD fit.
+  available, else the without-VD fit. `tracks` and `trackerHits` link to the
+  track elements from the same PA; further TrackStates carry the
+  extrapolations below.
+
+  > **Extrapolation states.** `PA.TRAX` holds the track extrapolated onto its
+  > own first measured point and a set of named detector surfaces, ordered by
+  > increasing R in the barrel and |Z| in the endcap. Each becomes a TrackState
+  > whose `referencePoint` is the extrapolated point and `phi`/`tanLambda` the
+  > direction there; `D0` and `Z0` are zero at that point by construction.
+  >
+  > `location` distinguishes them: `AtFirstHit` is the track's first measured
+  > point, `AtCalorimeter` the HPC, HAB, HAF and EMF crossings, and `AtOther`
+  > the TOF and muon-chamber surfaces. EDM4hep has no field for the detector
+  > itself, so an individual surface is identified by radius — they are well
+  > separated, and the ordering above is the physical crossing order.
+  >
+  > Covariance is present only where DELPHI stored one: on the first measured
+  > point for essentially every track, and on the muon surfaces when the track
+  > has an associated MU signal. Elsewhere it is zero.
 - `sDST_TRAC_d0PV`, `sDST_TRAC_z0PV`, `sDST_TRAC_d0BS` (UserData&lt;float&gt;) —
   impact parameters of each track w.r.t. the primary vertex (`d0PV`, `z0PV`)
   and the beam spot (`d0BS`), mm; parallel to `sDST_TRAC_Tracks` (charged
@@ -535,24 +553,6 @@ Per-event scalars stored as podio Frame parameters:
   `[2]` TE descriptor word, `[3]` ndf, `[4]` χ², `[5]` track length (cm),
   `[6]` number of stored covariance entries. (`[0]` and `[1]` let you recover
   momentum from the state's `omega` without external lookups.)
-- `<tag>_TRAX_ExtrapPoints` (ParticleID, algType 20) — one entry per track
-  extrapolation surface; `params`: `[0]` detector id, `[1]` measurement code
-  (0 plane / 1 cylinder), `[2..4]` reference point (mm), `[5]` θ, `[6]` φ,
-  `[7]` 1/P, `[8..22]` the 15-element (5×5) covariance. The covariance is
-  written only for the muon-chamber surfaces, and only when the track has an
-  associated MU signal; elsewhere those words are zero.
-
-  > **`params[0]` is a TANAGRA detector ID**, from the fixed list `PXTRAX`
-  > writes (`pxdst34.car:15991-15994`); names from TANAGRA's own table
-  > (`tanagra322.car:12164-12176`, where `NMCFL`/`IDMFL` are parallel by array
-  > index rather than by ID, so the ID is `IDMOD(index)`):
-  >
-  > | id | 0 | 9 | 11 | 13 | 14 | 17 | 22 | 26 | 30 |
-  > |---|---|---|---|---|---|---|---|---|---|
-  > | | first measured point | HPC | TOF | HAB | MUB | MUS | HAF | EMF | MUF |
-  >
-  > Points come ordered by increasing R in the barrel and |Z| in the endcap,
-  > so `0, 9, 11, 13, 14, 17` then `26, 22, 30` is the physical crossing order.
 - `fDST_TOF_TimeOfFlight` (ParticleID, algType 5) — `[0]` time of flight (ns),
   `[1]` σ_t (ns).
 - `fDST_MTPC_dEdxExtended` (ParticleID, algType 6) + `fDST_MTPC_dEdx_RecDqdx` —
@@ -769,7 +769,7 @@ parameters. Named factories convert *into* the canonical EDM4hep helix basis
 
 ```cpp
 Helix::fromPerigee(d0,z0,theta,phi,1/R, weightMatrix)   // PA.TRAC / PA.ELTR
-Helix::fromTrackElement(c1,c2,c3,theta,phi,1/P, invPt, cov, q, B)  // PA.TE* / PA.TRAX
+Helix::fromTrackElement(c1,c2,c3,theta,phi,1/P, invPt, cylindrical, cov, q, B)  // PA.TE* / PA.TRAX
 Helix::fromHelix(D0,phi,omega,Z0,tanLambda)
    -> .params() / .cov() / .momentum(B,q) / .toTrackState(location)
 ```
