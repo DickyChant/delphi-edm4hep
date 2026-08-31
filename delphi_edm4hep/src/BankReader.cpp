@@ -10,6 +10,12 @@ std::optional<Record> find(int lpa, const char* name) {
   return Record(name, address);
 }
 
+std::optional<Record> Record::subRecord(const char* name, int n) const {
+  const int address = pawalk::lphpa(name, address_, n);
+  if (address <= 0) return std::nullopt;
+  return Record(name, address);
+}
+
 std::optional<Record> findFirst(int lpa,
                                 std::initializer_list<const char*> names) {
   for (const char* name : names) {

@@ -4,7 +4,13 @@
 // encode the sub-detector:
 //   bit 0 = HPC   (EMNC, idet 9)
 //   bit 1 = FEMC  (EMNC, idet 26)
-//   bit 2 = HCAL  (HCNC)
+//   bit 2 = HCAL  (HCNC or HCAL module)
+//
+// Hadron showers come from two modules, and which the production wrote is a
+// per-processing choice: HCNC(23), HCAL(3), or both. Both are emitted. Where
+// both are present HCNC supersedes HCAL — it is HCAL re-associated by HACCOR
+// (ecorrxx.car:273, "HCNC module overwrites module 3 info"). The README
+// states the consequence for analysis.
 //
 // One collection per source module. Charged/neutral is not split here — it
 // is inferable from the owning Particle's `clusters` relation.
@@ -42,14 +48,18 @@ constexpr std::int32_t kTypeBitHCAL = 0x04;
 constexpr int kIdetHPC = 9;
 constexpr int kIdetEMF = 26;
 
-// Shower header, words +1..+4: energy (GeV), then x, y, z (cm).
+// Defensive bound on the per-shower layer count. Both modules document
+// layers 1..4.
+constexpr int kMaxHcalLayers = 200;
+
+// Shower header: energy (GeV) at word `e`, then x, y, z (cm).
 void setHeaderEnergyPosition(edm4hep::MutableCluster clu,
-                             const banks::Record& shower) {
-  clu.setEnergy(shower.real(1));
+                             const banks::Record& shower, int e) {
+  clu.setEnergy(shower.real(e));
   clu.setPosition({
-    static_cast<float>(shower.real(2) * kCm2Mm),
-    static_cast<float>(shower.real(3) * kCm2Mm),
-    static_cast<float>(shower.real(4) * kCm2Mm),
+    static_cast<float>(shower.real(e + 1) * kCm2Mm),
+    static_cast<float>(shower.real(e + 2) * kCm2Mm),
+    static_cast<float>(shower.real(e + 3) * kCm2Mm),
   });
 }
 
@@ -81,7 +91,7 @@ void walkEMNC(int lpa,
   for (int ns = 0; ns < nshowr; ++ns) {
     auto clu = cluCol.create();
     clu.setType(type_bit);
-    setHeaderEnergyPosition(clu, shower);
+    setHeaderEnergyPosition(clu, shower, 1);
 
     int stride = 4;               // FEMC carries no layer detail here
 
@@ -128,14 +138,11 @@ void walkHCNC(int lpa,
   const int nshowr = hcnc->integer(2);
   if (nshowr <= 0) return;
 
-  // Defensive bound on the per-shower layer count.
-  constexpr int kMaxHcalLayers = 200;
-
   auto shower = hcnc->subRecord(2);
   for (int ns = 0; ns < nshowr; ++ns) {
     auto clu = cluCol.create();
     clu.setType(kTypeBitHCAL);
-    setHeaderEnergyPosition(clu, shower);
+    setHeaderEnergyPosition(clu, shower, 1);
 
     // +5 = layer hits. Each hit is two words:
     //   +5 + 2n - 1   energy
@@ -155,12 +162,50 @@ void walkHCNC(int lpa,
   }
 }
 
+// Hadronic showers from the HCAL module. Same content as walkHCNC at
+// different offsets, so the emitted fields match. Showers are named
+// sub-records rather than a fixed stride (PSHHAC, skelana.car:3504).
+void walkHCAL(int lpa,
+              edm4hep::MutableReconstructedParticle pfo,
+              edm4hep::ClusterCollection& cluCol)
+{
+  const auto hcal = banks::find(lpa, "HCAL");
+  if (!hcal) return;
+
+  // Module word +2 = number of showers.
+  const int nshowr = hcal->integer(2);
+
+  for (int ns = 1; ns <= nshowr; ++ns) {
+    const auto shower = hcal->subRecord("HCAL.SHOWER", ns);
+    if (!shower) break;
+
+    auto clu = cluCol.create();
+    clu.setType(kTypeBitHCAL);
+    setHeaderEnergyPosition(clu, *shower, 3);
+
+    // +10 = layers hit, +11 = layer bit pattern. Each hit is two words:
+    //   +11 + 2n - 1   energy
+    //   +11 + 2n       1000 * layer + active channels in that layer
+    const int nlay = shower->integer(10);
+    if (nlay > 0 && nlay < kMaxHcalLayers) {
+      for (int nl = 1; nl <= nlay; ++nl) {
+        clu.addToSubdetectorEnergies(shower->real(11 + 2 * nl - 1));
+        clu.addToShapeParameters(
+            static_cast<float>(shower->integer(11 + 2 * nl) / 1000));
+      }
+    }
+
+    pfo.addToClusters(clu);
+  }
+}
+
 }  // namespace
 
 void CalorimeterWriter::emit()
 {
   edm4hep::ClusterCollection emncCol;
   edm4hep::ClusterCollection hcncCol;
+  edm4hep::ClusterCollection hcalCol;
 
   if (ctx_.tracking) {
     const auto& tracking = *ctx_.tracking;
@@ -172,6 +217,7 @@ void CalorimeterWriter::emit()
 
       walkEMNC(lpa, pfo, emncCol);
       walkHCNC(lpa, pfo, hcncCol);
+      walkHCAL(lpa, pfo, hcalCol);
     });
   }
 
@@ -179,6 +225,7 @@ void CalorimeterWriter::emit()
   // tracking ran.
   put(std::move(emncCol), "EMNC", "Showers", Provenance::Transcribed);
   put(std::move(hcncCol), "HCNC", "Showers", Provenance::Transcribed);
+  put(std::move(hcalCol), "HCAL", "Showers", Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::calorimeter

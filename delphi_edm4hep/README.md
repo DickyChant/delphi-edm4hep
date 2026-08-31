@@ -260,9 +260,44 @@ Per-event scalars stored as podio Frame parameters:
 - `sDST_EMNC_Showers` (Cluster) — electromagnetic showers (HPC barrel and FEMC
   endcap, distinguished by `type` bits 0/1); `energy`, `position`, and the
   per-layer energy profile in `subdetectorEnergies`.
-- `sDST_HCNC_Showers` (Cluster) — hadron-calorimeter showers (`type` bit 2);
-  per-hit energies in `subdetectorEnergies`, the parallel layer indices in
-  `shapeParameters`.
+- `sDST_HCNC_Showers` / `sDST_HCAL_Showers` (Cluster) — hadron-calorimeter
+  showers (`type` bit 2); per-hit energies in `subdetectorEnergies`, the
+  parallel layer indices in `shapeParameters`. **Both are always emitted and
+  either may be empty — see the note below before using them.**
+
+> **Hadron calorimetry — which collection to read**
+>
+> DELPHI wrote the hadron calorimetry in two PA modules, and *which ones are on
+> the file is a per-processing choice*, not an era or format property. There is
+> no version word that predicts it: 95D1 and 96F1 share both `ISVER` (105) and
+> PXDST version (336) yet differ. Both collections are therefore always
+> emitted, and either may be empty.
+>
+> | processing | `HCNC` | `HCAL` |
+> |---|---|---|
+> | 94B3 | filled | filled |
+> | 92E2, 94C2, 95C2, 95D1 | filled | empty |
+> | 96F1, 97E2, 98C2, 98D1 | filled | filled |
+> | 99C1, 99D1, 99E1, A0C1, A0E1 | empty | filled |
+>
+> `HCNC(23)` is written during shortDST production: `HCAL(3)`'s hits after
+> HACFIX, re-associated between charged tracks and neutrals by HACCOR, with
+> recovered neutral showers added. `HCAL(3)` is the uncorrected parent copied
+> down from DELANA. **Where both are filled they are not duplicates, and
+> `HCNC` is the one to use** — that is the precedence DELPHI's own code
+> applies (`PSHHAC`; `ECORR`, *"HCNC module overwrites module 3 info"*).
+>
+> The difference is not small: in 94B3 the leading-shower energy agrees on only
+> 83 of 1912 overlapping tracks, mean |ΔE| 0.6 GeV and up to 65 GeV; in 96F1 on
+> 580 of 618, mean |ΔE| 0.18 GeV.
+>
+> **From the 1999 processings onward only `HCAL` is written.** What that means
+> for the HACCOR correction on those files is not established here: `HCNC` is
+> the module HACCOR produces and it is absent, but whether the correction is
+> reflected elsewhere on the file has not been determined. An analysis spanning
+> 1998 and 1999 should not assume the two years carry the same quantity. The
+> table lists every processing measured; for one not listed, check which
+> collections are populated rather than inferring from the year.
 
 **Particle identification** (all ParticleID; `setParticle` → `sDST_MAIN_Particles`)
 
@@ -414,9 +449,9 @@ originals described in §2.2.
 - `fDST_PV_PrimaryVertex`, `fDST_PV_Vertices`, `fDST_V0_V0Candidates`,
   `fDST_PHC_PhotonConversions` — `particles` re-pointed to `fDST_MAIN_Particles`.
 - `fDST_HAID_HadronID`, `fDST_MUID_MuonID`, `fDST_ELID_ElectronID`,
-  `fDST_HAID_dEdx` (+ `_RecDqdx`) — `setParticle` re-pointed to
-  `fDST_MAIN_Particles`.
-- `fDST_EMNC_Showers`, `fDST_HCNC_Showers` — shower clones.
+  `fDST_<algo>_Dedx` (+ `_DedxRecDqdx`) — `setParticle` re-pointed to
+  `fDST_MAIN_Particles`. `<algo>` mirrors pass 1 (BBDXGET or GETDEDX).
+- `fDST_EMNC_Showers`, `fDST_HCNC_Showers`, `fDST_HCAL_Showers` — shower clones.
 - `fDST_TBL_RecoToGen` — `from` re-pointed to `fDST_MAIN_Particles`.
 
 ### 2.5 B-tagging (`--btag`, opt-in)

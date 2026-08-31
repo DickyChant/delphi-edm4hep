@@ -37,6 +37,12 @@ public:
   // sub-records — showers, layers — that follow a module header.
   Record subRecord(int n) const { return Record(name_, address_ + n); }
 
+  // The `n`-th sub-record `name` inside this module, counted from 1.
+  // Sub-records are named "<MODULE>.<PART>" and are located by the Fortran
+  // lookup rather than by stepping a stride. Empty when `n` exceeds the
+  // number present.
+  std::optional<Record> subRecord(const char* name, int n) const;
+
 private:
   std::string_view name_;
   int              address_;

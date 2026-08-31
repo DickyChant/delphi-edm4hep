@@ -1,7 +1,8 @@
-// Calorimeter domain: EMNC (label 22) + HCNC (label 23) on sDST.
+// Calorimeter domain: EMNC (label 22) + HCNC (label 23) / HCAL (label 3) on sDST.
 // CalorimeterWriter reads ctx_.tracking and emits:
 //   <tag>_EMNC_Showers   ECAL (HPC bit 0 / EMF bit 1 in Cluster.type)
-//   <tag>_HCNC_Showers   HCAL (bit 2)
+//   <tag>_HCNC_Showers   HCAL (bit 2), HACCOR-corrected
+//   <tag>_HCAL_Showers   HCAL (bit 2), as reconstructed
 // Sets Particle.clusters on each owner Particle via tracking.pa_to_particle.
 
 #pragma once
