@@ -30,6 +30,7 @@
 #include "delphi_edm4hep/Tracking/TrackingData.h"   // tracking::Output
 #include "delphi_edm4hep/Truth/TruthData.h"      // truth::GenParticleResult
 
+#include <edm4hep/ReconstructedParticleCollection.h>
 #include <podio/Frame.h>
 
 #include <optional>
@@ -64,7 +65,7 @@ struct EventContext {
 
   // Pass-2 only: per-fDST-PA index -> sDST_MAIN_Particles index, or
   // -1 if no match / unmatched. Built by MatchProvenanceWriter
-  // alongside fdst_pa_to_sdst_track; consumed by TofFdstWriter,
+  // alongside fdst_pa_to_sdst_track; consumed by TofWriter,
   // MtpcFdstWriter, etc. for their ParticleID setParticle() linkage.
   std::optional<std::vector<int>> fdst_pa_to_sdst_particle;
 };
@@ -111,6 +112,21 @@ protected:
   podio::Frame&    frame_;
   EventContext&    ctx_;
   std::string_view source_tag_;
+
+  // The reconstructed particle this PA belongs to, or empty if it has none.
+  //
+  // `paIdx` is the PA's position in the event's PA-chain walk
+  // (pawalk::forEachPA) -- the index every writer shares.
+  //
+  // The two passes establish the mapping differently. Pass 1 knows it
+  // directly: TrackingWriter created the particles from this same walk, so the
+  // index maps straight through. Pass 2 reads a fullDST, whose PA chain is a
+  // different set of tracks, and recovers the correspondence by matching
+  // perigees onto the pass-1 tracks -- a match that can fail.
+  //
+  // A writer that runs in both passes asks here rather than choosing a map
+  // itself, so it never has to know which pass it is in.
+  std::optional<edm4hep::ReconstructedParticle> particleForPa(int paIdx) const;
 
   // Build a canonical collection / parameter name
   // "<source_tag>_<bank>_<readable>". Single allocation.

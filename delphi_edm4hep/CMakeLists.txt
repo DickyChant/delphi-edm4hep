@@ -88,22 +88,22 @@ add_library(delphi_edm4hep
   src/Pid/ParticleId.cpp
   src/Truth/Truth.cpp
   src/Tracking/MatchProvenance.cpp
-  src/Pid/TofFdst.cpp
-  src/Pid/MtpcFdst.cpp
+  src/Pid/Tof.cpp
+  src/Pid/Mtpc.cpp
   src/Tracking/TrackHybrid.cpp
-  src/Calorimeter/EmcaFdst.cpp
+  src/Calorimeter/Emca.cpp
   src/Calorimeter/HcalFdst.cpp
   src/Calorimeter/TeadFdst.cpp
   src/Tracking/MainHybrid.cpp
   src/Pid/PidHybrid.cpp
   src/Calorimeter/ShowerHybrid.cpp
   src/Truth/TblHybrid.cpp
-  src/Pid/FdstPidExtras.cpp
-  src/Calorimeter/TdhaFdst.cpp
+  src/Pid/PaPidExtras.cpp
+  src/Calorimeter/Tdha.cpp
   src/Pid/SdstPaExtras.cpp
   src/Calorimeter/SticShower.cpp
   src/Tracking/EltrSdst.cpp
-  src/Tracking/TraxFdst.cpp
+  src/Tracking/Trax.cpp
   src/Tracking/VdHits.cpp
   src/Pid/PidExtrasSdst.cpp
   src/Calorimeter/CcalFdst.cpp

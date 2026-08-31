@@ -1,4 +1,4 @@
-// EmcaFdstWriter — pass-2 implementation.
+// EmcaWriter — implementation. Runs in both passes.
 //
 // PA.EMCA bank layout (per shower, header at show_ofs):
 //   show_ofs+1   len  (length in words of this shower record)
@@ -13,7 +13,7 @@
 // internal::hpc::padDecode → (E, layer, X, Y, Z, sigma_z).
 // FEMC layers are (energy, packed=layer*1000+nhits).
 
-#include "delphi_edm4hep/Calorimeter/EmcaFdst.h"
+#include "delphi_edm4hep/Calorimeter/Emca.h"
 
 #include "delphi_edm4hep/internal/HpcPadDecoder.h"
 #include "delphi_edm4hep/internal/PaWalk.h"
@@ -26,7 +26,7 @@
 
 namespace ph = phdst;
 
-namespace delphi_edm4hep::emca_fdst {
+namespace delphi_edm4hep::emca {
 
 namespace {
 
@@ -38,7 +38,7 @@ constexpr int   kNwdFEMC  = 2;
 
 }  // namespace
 
-void EmcaFdstWriter::emit()
+void EmcaWriter::emit()
 {
   edm4hep::CalorimeterHitCollection hpc_col;
   edm4hep::CalorimeterHitCollection femc_col;
@@ -118,4 +118,4 @@ void EmcaFdstWriter::emit()
   put(std::move(femc_col), "EMCA", "FEMCLayers", Provenance::Transcribed);
 }
 
-}  // namespace delphi_edm4hep::emca_fdst
+}  // namespace delphi_edm4hep::emca

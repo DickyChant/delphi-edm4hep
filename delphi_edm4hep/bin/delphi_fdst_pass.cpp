@@ -14,22 +14,22 @@
 #include "delphi_edm4hep/BtagMode.h"
 #include "delphi_edm4hep/PhdstHarness.h"
 #include "delphi_edm4hep/Calorimeter/CcalFdst.h"
-#include "delphi_edm4hep/Calorimeter/EmcaFdst.h"
-#include "delphi_edm4hep/Pid/FdstPidExtras.h"
+#include "delphi_edm4hep/Calorimeter/Emca.h"
+#include "delphi_edm4hep/Pid/PaPidExtras.h"
 #include "delphi_edm4hep/Calorimeter/HcalFdst.h"
 #include "delphi_edm4hep/Tracking/MainHybrid.h"
 #include "delphi_edm4hep/Tracking/MatchProvenance.h"
-#include "delphi_edm4hep/Pid/MtpcFdst.h"
+#include "delphi_edm4hep/Pid/Mtpc.h"
 #include "delphi_edm4hep/Pid/PidHybrid.h"
 #include "delphi_edm4hep/Calorimeter/ShowerHybrid.h"
 #include "delphi_edm4hep/Calorimeter/SticShower.h"
 #include "delphi_edm4hep/Truth/TblHybrid.h"
-#include "delphi_edm4hep/Calorimeter/TdhaFdst.h"
+#include "delphi_edm4hep/Calorimeter/Tdha.h"
 #include "delphi_edm4hep/Tracking/TrackElements.h"
 #include "delphi_edm4hep/Tracking/TrackHybrid.h"
-#include "delphi_edm4hep/Tracking/TraxFdst.h"
+#include "delphi_edm4hep/Tracking/Trax.h"
 #include "delphi_edm4hep/Calorimeter/TeadFdst.h"
-#include "delphi_edm4hep/Pid/TofFdst.h"
+#include "delphi_edm4hep/Pid/Tof.h"
 
 #include <charconv>
 #include <cstdlib>
@@ -154,10 +154,10 @@ int main(int argc, char** argv) {
     // TrackHybrid, which links each cloned track to them.
     track_elements::TrackElementsWriter(frame, ctx, "fDST").emit();
     track_hybrid::TrackHybridWriter (frame, ctx, "fDST").emit();
-    emca_fdst::EmcaFdstWriter       (frame, ctx, "fDST").emit();
+    emca::EmcaWriter       (frame, ctx, "fDST").emit();
     hcal_fdst::HcalFdstWriter       (frame, ctx, "fDST").emit();
     tead_fdst::TeadFdstWriter       (frame, ctx, "fDST").emit();
-    tdha_fdst::TdhaFdstWriter       (frame, ctx, "fDST").emit();
+    tdha::TdhaWriter       (frame, ctx, "fDST").emit();
     stic_shower::SticShowerWriter   (frame, ctx, "fDST").emit();
     ccal_fdst::CcalFdstWriter       (frame, ctx, "fDST").emit();
     // ShowerHybrid clones sDST_EMNC/HCNC_Showers into fDST_* and must run
@@ -174,10 +174,10 @@ int main(int argc, char** argv) {
     // MainHybrid creates it. They previously ran earlier and linked to the
     // pass-1 sDST_MAIN_Particles, leaving final-file PID->particle relations
     // inconsistent with the PidHybrid-repointed clones. (MU/EL/TDID + TOF + MTPC + TRAX.)
-    tof_fdst::TofFdstWriter         (frame, ctx, "fDST").emit();
-    mtpc_fdst::MtpcFdstWriter       (frame, ctx, "fDST").emit();
-    trax_fdst::TraxFdstWriter       (frame, ctx, "fDST").emit();
-    fdst_pid_extras::FdstPidExtrasWriter(frame, ctx, "fDST").emit();
+    tof::TofWriter         (frame, ctx, "fDST").emit();
+    mtpc::MtpcWriter              (frame, ctx, "fDST").emit();
+    trax::TraxWriter       (frame, ctx, "fDST").emit();
+    pa_pid_extras::PaPidExtrasWriter(frame, ctx, "fDST").emit();
     pid_hybrid::PidHybridWriter     (frame, ctx, "fDST").emit();
     tbl_hybrid::TblHybridWriter     (frame, ctx, "fDST").emit();
     // B-tagging. fulldst=true: SKELANA recalculates for ANY IFLBTG > 0 on

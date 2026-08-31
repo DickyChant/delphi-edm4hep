@@ -1,4 +1,4 @@
-// TraxFdstWriter — pass-2 implementation.
+// TraxWriter — implementation. Runs in both passes.
 //
 // PA.TRAX (label 20) layout (longdes §3.04, verified vs the legacy
 // delphi_fdst_pad_dump TRAX reader):
@@ -8,8 +8,21 @@
 //     +3..+5 c1,c2,c3   +6 θ   +7 φ   +8 1/P
 //     +9..+(8+min(15,n_words-9))  cov (5x5 lower-tri)
 //   bank length from IPHREQ(1) bounds the walk.
+//
+// The detector each extrapolation point belongs to is a TANAGRA detector ID,
+// written by PXTRAX from a fixed list (pxdst34.car:15991-15994):
+//
+//     0  first measured point (the TKR itself, one per track)
+//     9  HPC     13  HAB (HCAL barrel)     22  HAF (HCAL endcap)
+//    11  TOF     14  MUB                   26  EMF (FEMC)
+//                17  MUS                   30  MUF
+//
+// The names come from TANAGRA's own table, tanagra322.car:12164-12176 -- note
+// NMCFL and IDMFL there are parallel by array index, not by ID, so the ID is
+// IDMOD(index). Points are ordered by increasing R in the barrel and |Z| in
+// the endcap.
 
-#include "delphi_edm4hep/Tracking/TraxFdst.h"
+#include "delphi_edm4hep/Tracking/Trax.h"
 
 #include "delphi_edm4hep/internal/PaWalk.h"
 
@@ -23,7 +36,7 @@
 
 namespace ph = phdst;
 
-namespace delphi_edm4hep::trax_fdst {
+namespace delphi_edm4hep::trax {
 
 namespace {
 constexpr std::int32_t kAlgoTrax  = 20;
@@ -31,28 +44,16 @@ constexpr float        kCm2Mm     = 10.f;
 constexpr int          kMaxPoints = 12;   // generous; realistic ~5
 }  // namespace
 
-void TraxFdstWriter::emit()
+void TraxWriter::emit()
 {
   edm4hep::ParticleIDCollection col;
 
-  if (!ctx_.fdst_pa_to_sdst_particle) {
-    put(std::move(col), "TRAX", "ExtrapPoints", Provenance::Transcribed);
-    return;
-  }
-  const auto& pa_to_particle = *ctx_.fdst_pa_to_sdst_particle;
-  // fDST_MAIN_Particles (created by MainHybrid, which now runs BEFORE this
-  // writer): link the relation to the fDST clones, 1:1 by particle_idx with
-  // sDST_MAIN_Particles. (TraxFdstWriter moved after MainHybrid for this.)
-  const auto& fdst_particles =
-    frame_.get<edm4hep::ReconstructedParticleCollection>("fDST_MAIN_Particles");
 
   pawalk::forEachPA([&](int lpa, int paIdx) {
     const int ltrax = pawalk::lphpa("TRAX", lpa);
     if (ltrax <= 0) return;
-    if (paIdx >= static_cast<int>(pa_to_particle.size())) return;
-    const int particle_idx = pa_to_particle[paIdx];
-    if (particle_idx < 0 ||
-        particle_idx >= static_cast<int>(fdst_particles.size())) return;
+    const auto particle = particleForPa(paIdx);
+    if (!particle) return;
 
     const int blen   = pawalk::iphreq(1);
     const int lend   = ltrax + blen;
@@ -76,7 +77,7 @@ void TraxFdstWriter::emit()
       const int ncov = std::max(0, std::min(15, n_words - 9));
       for (int k = 0; k < 15; ++k)
         pid.addToParameters(k < ncov ? ph::Q(lpt + 9 + k) : 0.f);
-      pid.setParticle(fdst_particles[particle_idx]);
+      pid.setParticle(*particle);
 
       lpt += n_words;
     }
@@ -85,4 +86,4 @@ void TraxFdstWriter::emit()
   put(std::move(col), "TRAX", "ExtrapPoints", Provenance::Transcribed);
 }
 
-}  // namespace delphi_edm4hep::trax_fdst
+}  // namespace delphi_edm4hep::trax

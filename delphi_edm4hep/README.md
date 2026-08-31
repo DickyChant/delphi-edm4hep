@@ -131,6 +131,66 @@ Two kinds of test:
 
 ## 2. Output collections
 
+### 2.0 Module availability
+
+Which PA modules a file carries is a **per-processing choice**. It does not
+follow the year, the DST version word, or the `short`/`xshort` catalogue
+nickname — `94B3` is catalogued as a shortDST yet carries the extended
+inventory, while `97E2` lacks `SSTC` that its neighbours have. A collection is
+therefore emitted whether or not its module is present, and is simply empty
+when it is not: the set of collections never varies between samples.
+
+Measured, one file per processing, 300 events each (fullDST 200). A dash means
+the module was absent from that sample, which is weaker evidence for a rare
+module than for a common one.
+
+| module | 92E2 | 94B3 | 94C2 | 95C2 | 95D1 | 96F1 | 97E2 | 98C2 | 99C1 | 99D1 | A0C1 | fDST |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `EL` | – | y | – | – | – | y | – | – | – | – | – | y |
+| `ELID` | y | y | y | y | y | y | y | y | y | y | y | – |
+| `ELTR` | y | y | y | y | y | y | y | y | y | y | y | – |
+| `EMCA` | – | y | – | – | – | y | y | y | y | y | y | y |
+| `EMNC` | y | y | y | y | y | y | y | y | y | y | y | – |
+| `HAID` | y | y | y | y | y | y | y | y | y | y | y | – |
+| `HCAL` | – | y | – | – | – | y | y | y | y | y | y | y |
+| `HCMU` | – | – | – | – | – | – | – | – | y | y | y | – |
+| `HCNC` | y | y | y | y | y | y | y | y | – | – | – | – |
+| `HCRO` | – | – | – | – | y | y | y | y | y | y | y | – |
+| `MAIN` | y | y | y | y | y | y | y | y | y | y | y | y |
+| `MRIC` | – | y | – | – | – | y | – | y | y | y | y | y |
+| `MTPC` | y | y | y | – | y | y | y | y | y | y | y | y |
+| `MU` | – | y | – | – | – | y | – | – | – | – | – | y |
+| `MUFI` | – | y | – | – | – | y | y | y | y | y | y | – |
+| `MUID` | y | y | y | y | y | y | y | y | y | y | y | – |
+| `ODHI` | y | y | y | y | y | y | y | y | y | y | y | – |
+| `PHOT` | y | y | y | y | y | y | y | y | y | y | y | – |
+| `SAT` | y | – | – | – | – | – | – | – | – | – | – | – |
+| `SSTC` | – | y | y | y | y | y | – | y | y | y | y | – |
+| `STIC` | – | y | – | – | – | y | y | y | y | y | y | y |
+| `TDHA` | – | y | – | – | – | y | – | – | – | – | – | y |
+| `TDID` | – | y | – | – | – | y | y | y | y | y | y | y |
+| `TEFA` | – | y | – | – | – | y | y | y | y | y | y | y |
+| `TEFB` | – | y | – | – | – | y | y | y | y | y | y | y |
+| `TEID` | – | y | – | – | – | y | y | y | y | y | y | y |
+| `TEOD` | – | y | – | – | – | y | y | y | y | y | y | y |
+| `TERF` | – | – | – | – | – | – | y | y | y | y | y | y |
+| `TEST` | – | – | – | – | – | – | y | y | y | y | y | – |
+| `TETP` | – | y | – | – | – | y | y | y | y | y | y | y |
+| `TEVF` | – | – | – | – | – | – | y | y | y | y | y | – |
+| `TOF` | – | y | – | – | – | y | y | y | y | y | y | y |
+| `TRAC` | y | y | y | y | y | y | y | y | y | y | y | y |
+| `TRAX` | – | – | – | – | – | y | – | – | – | – | – | y |
+
+Two families are visible. Modules with label < 22 (`EMCA`, `HCAL`, `STIC`,
+`TOF`, `TDID`, `MU`, `EL`, `TRAX`, the `TE*` family) are produced at earlier
+processing stages and copied down, so they appear on the fullDST and on the
+files that kept them. Labels 22–40 (`EMNC`, `HCNC`, `MUID`, `ELID`, `HAID`,
+`SSTC`, `ODHI`, `PHOT`, `HCRO`, `MUFI`) are created during shortDST
+production, which is why the fullDST column is blank for them.
+
+`SAT` appears only in 1992 — the luminosity monitor STIC replaced in 1994.
+
+
 This section is self-contained — it describes the physical content of every
 collection and the meaning/units of every field, so the original DELPHI bank
 documentation is not needed to use the output.
@@ -475,10 +535,24 @@ Per-event scalars stored as podio Frame parameters:
   `[2]` TE descriptor word, `[3]` ndf, `[4]` χ², `[5]` track length (cm),
   `[6]` number of stored covariance entries. (`[0]` and `[1]` let you recover
   momentum from the state's `omega` without external lookups.)
-- `fDST_TRAX_ExtrapPoints` (ParticleID, algType 20) — one entry per track
+- `<tag>_TRAX_ExtrapPoints` (ParticleID, algType 20) — one entry per track
   extrapolation surface; `params`: `[0]` detector id, `[1]` measurement code
   (0 plane / 1 cylinder), `[2..4]` reference point (mm), `[5]` θ, `[6]` φ,
-  `[7]` 1/P, `[8..22]` the 15-element (5×5) covariance.
+  `[7]` 1/P, `[8..22]` the 15-element (5×5) covariance. The covariance is
+  written only for the muon-chamber surfaces, and only when the track has an
+  associated MU signal; elsewhere those words are zero.
+
+  > **`params[0]` is a TANAGRA detector ID**, from the fixed list `PXTRAX`
+  > writes (`pxdst34.car:15991-15994`); names from TANAGRA's own table
+  > (`tanagra322.car:12164-12176`, where `NMCFL`/`IDMFL` are parallel by array
+  > index rather than by ID, so the ID is `IDMOD(index)`):
+  >
+  > | id | 0 | 9 | 11 | 13 | 14 | 17 | 22 | 26 | 30 |
+  > |---|---|---|---|---|---|---|---|---|---|
+  > | | first measured point | HPC | TOF | HAB | MUB | MUS | HAF | EMF | MUF |
+  >
+  > Points come ordered by increasing R in the barrel and |Z| in the endcap,
+  > so `0, 9, 11, 13, 14, 17` then `26, 22, 30` is the physical crossing order.
 - `fDST_TOF_TimeOfFlight` (ParticleID, algType 5) — `[0]` time of flight (ns),
   `[1]` σ_t (ns).
 - `fDST_MTPC_dEdxExtended` (ParticleID, algType 6) + `fDST_MTPC_dEdx_RecDqdx` —

@@ -1,4 +1,5 @@
-// TraxFdst domain — pass-2 only.
+// Trax domain — runs in both passes: PA.TRAX is on the XSDST as well as the
+// fullDST.
 //
 // PA.TRAX (label 20) carries a track's extrapolation points (one per
 // detector surface) — each a helix-parameter snapshot (c1,c2,c3,θ,φ,1/P)
@@ -21,12 +22,12 @@
 
 #include "delphi_edm4hep/CollectionWriter.h"
 
-namespace delphi_edm4hep::trax_fdst {
+namespace delphi_edm4hep::trax {
 
-class TraxFdstWriter : public CollectionWriter {
+class TraxWriter : public CollectionWriter {
 public:
   using CollectionWriter::CollectionWriter;
   void emit() override;
 };
 
-}  // namespace delphi_edm4hep::trax_fdst
+}  // namespace delphi_edm4hep::trax

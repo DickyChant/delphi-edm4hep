@@ -48,6 +48,46 @@ bool isBankMnemonic(std::string_view bank) {
 
 }  // namespace
 
+std::optional<edm4hep::ReconstructedParticle>
+CollectionWriter::particleForPa(int paIdx) const {
+  // Pass 1. TrackingWriter set ctx_.tracking earlier in this event, and its
+  // pa_to_particle is indexed by the same PA-walk position.
+  if (ctx_.tracking) {
+    const auto& t = *ctx_.tracking;
+    // The map stops at the last PA Tracking looked at, so a higher index is
+    // simply absent rather than an error.
+    if (paIdx < 0 || paIdx >= static_cast<int>(t.pa_to_particle.size())) {
+      return std::nullopt;
+    }
+    // -1 marks a PA that yielded no particle -- Tracking skips those it cannot
+    // give a momentum.
+    const int i = t.pa_to_particle[paIdx];
+    if (i < 0) return std::nullopt;
+    return t.particle_handles[i];
+  }
+
+  // Pass 2. ctx_.tracking is unset here because TrackingWriter does not run;
+  // MatchProvenanceWriter supplies the perigee match instead, whose entries
+  // index the fDST particles cloned from pass 1.
+  if (ctx_.fdst_pa_to_sdst_particle) {
+    const auto& map = *ctx_.fdst_pa_to_sdst_particle;
+    if (paIdx < 0 || paIdx >= static_cast<int>(map.size())) return std::nullopt;
+    // -1 marks a fullDST PA whose perigee matched no pass-1 track.
+    const int i = map[paIdx];
+    if (i < 0) return std::nullopt;
+    const auto& particles =
+      frame_.get<edm4hep::ReconstructedParticleCollection>("fDST_MAIN_Particles");
+    // Guard the clone being shorter than the map: better to return nothing
+    // than to link the wrong particle.
+    if (i >= static_cast<int>(particles.size())) return std::nullopt;
+    return particles[i];
+  }
+
+  // Neither map is present -- the writer is running before Tracking or
+  // MatchProvenance, or on an event where they produced nothing.
+  return std::nullopt;
+}
+
 const char* label(Provenance prov) {
   switch (prov) {
     case Provenance::Derived: return "derived";

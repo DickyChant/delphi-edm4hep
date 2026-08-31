@@ -1,4 +1,5 @@
-// MtpcFdst domain — pass-2 only.
+// Mtpc domain — runs in both passes: PA.MTPC is on the shortDST, the XSDST
+// and the fullDST alike.
 //
 // Reads PA.MTPC (module 7) v1.04+ extended format from the fDST PA
 // chain. Emits TWO collections:
@@ -16,12 +17,12 @@
 
 #include "delphi_edm4hep/CollectionWriter.h"
 
-namespace delphi_edm4hep::mtpc_fdst {
+namespace delphi_edm4hep::mtpc {
 
-class MtpcFdstWriter : public CollectionWriter {
+class MtpcWriter : public CollectionWriter {
 public:
   using CollectionWriter::CollectionWriter;
   void emit() override;
 };
 
-}  // namespace delphi_edm4hep::mtpc_fdst
+}  // namespace delphi_edm4hep::mtpc

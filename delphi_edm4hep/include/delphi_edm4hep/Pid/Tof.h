@@ -1,4 +1,5 @@
-// TofFdst domain — pass-2 only.
+// Tof domain — runs in both passes: PA.TOF is on the XSDST as well as the
+// fullDST.
 //
 // Walks the fDST PA chain, extracts per-track TOF time + sigma from
 // PA.TOF (module 9), and emits a ParticleID collection linked to the
@@ -16,12 +17,12 @@
 
 #include "delphi_edm4hep/CollectionWriter.h"
 
-namespace delphi_edm4hep::tof_fdst {
+namespace delphi_edm4hep::tof {
 
-class TofFdstWriter : public CollectionWriter {
+class TofWriter : public CollectionWriter {
 public:
   using CollectionWriter::CollectionWriter;
   void emit() override;
 };
 
-}  // namespace delphi_edm4hep::tof_fdst
+}  // namespace delphi_edm4hep::tof

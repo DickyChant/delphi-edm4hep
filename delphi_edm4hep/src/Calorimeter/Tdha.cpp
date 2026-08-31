@@ -1,4 +1,4 @@
-// TdhaFdstWriter — pass-2 implementation.
+// TdhaWriter — implementation. Runs in both passes.
 //
 // PA.TDHA (label 11) layout (longdes §3.04, verified vs the legacy
 // delphi_fdst_pad_dump TDHA reader):
@@ -11,7 +11,7 @@
 //       base+1 X/R, base+2 Y/Rφ, base+3 Z, base+4 energy
 //   next layer at ofs += layer_len.
 
-#include "delphi_edm4hep/Calorimeter/TdhaFdst.h"
+#include "delphi_edm4hep/Calorimeter/Tdha.h"
 
 #include "delphi_edm4hep/internal/PaWalk.h"
 
@@ -23,7 +23,7 @@
 
 namespace ph = phdst;
 
-namespace delphi_edm4hep::tdha_fdst {
+namespace delphi_edm4hep::tdha {
 
 namespace {
 constexpr float kCm2Mm = 10.f;
@@ -31,7 +31,7 @@ constexpr int   kMaxLayerLen = 200;
 constexpr int   kMaxNtd      = 200;
 }  // namespace
 
-void TdhaFdstWriter::emit()
+void TdhaWriter::emit()
 {
   edm4hep::CalorimeterHitCollection col;
 
@@ -80,4 +80,4 @@ void TdhaFdstWriter::emit()
   put(std::move(col), "TDHA", "HcalTimeHits", Provenance::Transcribed);
 }
 
-}  // namespace delphi_edm4hep::tdha_fdst
+}  // namespace delphi_edm4hep::tdha

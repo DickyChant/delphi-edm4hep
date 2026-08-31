@@ -19,6 +19,12 @@
 #include "delphi_edm4hep/Pid/SdstPaExtras.h"
 #include "delphi_edm4hep/Calorimeter/SticShower.h"
 #include "delphi_edm4hep/Tracking/VdHits.h"
+#include "delphi_edm4hep/Calorimeter/Emca.h"
+#include "delphi_edm4hep/Calorimeter/Tdha.h"
+#include "delphi_edm4hep/Pid/Mtpc.h"
+#include "delphi_edm4hep/Pid/PaPidExtras.h"
+#include "delphi_edm4hep/Pid/Tof.h"
+#include "delphi_edm4hep/Tracking/Trax.h"
 #include "delphi_edm4hep/Tracking/TrackElements.h"
 #include "delphi_edm4hep/Tracking/Tracking.h"
 #include "delphi_edm4hep/Truth/Truth.h"
@@ -167,6 +173,16 @@ int main(int argc, char** argv) {
     // §3.3 deferred PSC commons: VD hits + VECP-indexed PID extras.
     dom::vd_hits::VdHitsWriter             (frame, ctx, "sDST").emit();
     dom::pid_extras_sdst::PidExtrasSdstWriter(frame, ctx, "sDST").emit();
+
+    // PA modules that are on the (X)shortDST as well as the fullDST. Each is
+    // empty when its module is absent, which depends on the processing rather
+    // than on the era -- see the availability table in the README.
+    dom::mtpc::MtpcWriter                (frame, ctx, "sDST").emit();
+    dom::tof::TofWriter                  (frame, ctx, "sDST").emit();
+    dom::pa_pid_extras::PaPidExtrasWriter(frame, ctx, "sDST").emit();
+    dom::emca::EmcaWriter                (frame, ctx, "sDST").emit();
+    dom::tdha::TdhaWriter                (frame, ctx, "sDST").emit();
+    dom::trax::TraxWriter                (frame, ctx, "sDST").emit();
     // B-tagging. After Tracking (needs ctx.tracking to resolve AABTAG's
     // PA addresses onto emitted Particles); no-op unless --btag was given.
     // fulldst=false: on a shortDST, SKELANA honours IFLBTG=1 as a bank read.
