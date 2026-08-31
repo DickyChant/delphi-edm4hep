@@ -343,6 +343,12 @@ Per-event scalars stored as podio Frame parameters:
     (bit 1 liquid OK, bit 2 gas OK, bit 3 TPC OK).
 - `sDST_HAID_dEdxVD` (algType 7) — VD-only dE/dx. `params`: `[0]` VD dE/dx,
   `[1]` number of VD hits used.
+
+  > **Empty from the 1999 processings** — the VD dE/dx sub-block of `HAID(26)` is
+  > not written there (`IDATV = 0` in the packed size word `Q(LHAID+2)`), and it is
+  > not recoverable: the routine that computes it needs VD pulse heights, which the
+  > shortDST does not carry. From 1996 the per-hit VD signal-to-noise ratio is
+  > available instead, in `eDep` on `sDST_TDVD_VDHits` / `_VDPoints`.
 - `sDST_MUID_MuonID` (algType 2) — `[0]` muon tag (MUCAL2: 1 very-loose …
   4 tight, 5 HCAL), `[1]` global χ² of the very-loose refit, `[2]` hit pattern.
 - `sDST_ELID_ElectronID` (algType 3) — `[0]` electron tag (0 not run, 1 not-e,
