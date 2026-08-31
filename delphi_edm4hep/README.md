@@ -221,6 +221,20 @@ Per-event scalars stored as podio Frame parameters:
   mask; bit 1 marks track-selection failure and bit 32 multi-vertex/REMCLU
   locking. Other bits are preserved without reinterpretation; −1 for
   neutrals. Parallel to `sDST_MAIN_Particles`.
+- `sDST_MAIN_ReconstructionCode` (UserData&lt;int32&gt;) — raw PXPHOT code,
+  parallel to `sDST_MAIN_Particles`.
+
+  > **A code describing how the track was reconstructed** — e.g. 75 = VD-only
+  > with Z, 72 = ID+VD-only without Z, 120 = incoming track to a hadronic
+  > interaction. Stored raw, as DELPHI wrote it.
+  >
+  > **Its meaning is not portable between processings.** Which codes appear at
+  > all was a production choice: 76 occurs only in 1999–2000, and 77 is absent
+  > from 97E2 and 98C2 but common either side. DELPHI changed convention part
+  > way through, keyed on `sDST_EVT_dstProcessingTag` (new from `96`) — use
+  > that, not `sDST_EVT_dstVersion`, to decide how to read the code.
+- `sDST_MAIN_TrackLength` (UserData&lt;float&gt;) — track length in cm, parallel
+  to `sDST_MAIN_Particles`.
 - `sDST_MAIN_Particles` (ReconstructedParticle) — charged and neutral
   particles. The 4-momentum and mass come from the SKELANA combined-momentum
   vector (mass-hypothesis aware). `charge` = +1/−1 from the DELPHI charge code;
