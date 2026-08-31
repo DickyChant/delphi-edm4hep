@@ -100,7 +100,7 @@ void TrackElementsWriter::emit()
 
         const auto helix = Helix::fromTrackElement(
             te.coord[0], te.coord[1], te.coord[2], te.theta, te.phi,
-            te.invP, te.invPt, te.cov, charge, B);
+            te.invP, te.invPt, te.is_cylindrical, te.cov, charge, B);
 
         auto state = helix.toTrackState(edm4hep::TrackState::AtOther);
         // A track element measures a point and a direction, never an impact

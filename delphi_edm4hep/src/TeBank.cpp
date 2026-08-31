@@ -16,10 +16,14 @@ constexpr int kTerFixedWords = 10;
 
 // Map from descriptor bit (1-indexed) to TE-basis field index (0..5).
 // Returns -1 if the bit doesn't contribute to the 6-component basis.
+//
+// The measured coordinates are the stored triple minus the one the surface
+// fixes (exx.car:5045-5055): a cylinder fixes R, leaving (R*Phi, z), while a
+// plane fixes z, leaving (x, y).
 int basisIndexForBit(int bit, bool cylindrical) {
   switch (bit) {
-    case 6:  return 0;
-    case 7:  return cylindrical ? 2 : 1;
+    case 6:  return cylindrical ? 1 : 0;   // R*Phi on a cylinder, x on a plane
+    case 7:  return cylindrical ? 2 : 1;   // z         "          y     "
     case 8:  return 3;
     case 9:  return 4;
     case 10: return 5;

@@ -66,6 +66,25 @@ TMatrixD teJacobian(double theta, double phi, double invP,
   return J;
 }
 
+// Cylindrical -> Cartesian for the coordinate triple and its covariance.
+// Stored as (R, R*Phi, z), so the point's azimuth is Phi = (R*Phi)/R and
+//   x = R cos Phi,  y = R sin Phi,  z = z.
+// R is fixed by the surface, so the free coordinates are (R*Phi, z) at TE-basis
+// indices 1 and 2. Their derivatives are
+//   dx/d(R*Phi) = -sin Phi,  dy/d(R*Phi) = cos Phi,  dz/dz = 1,
+// the congruence applied to the covariance below; angles and 1/p pass through.
+TMatrixD cylToCartJacobian(double Phi) {
+  TMatrixD J(6, 6);
+  J.Zero();
+  J(0, 1) = -std::sin(Phi);
+  J(1, 1) =  std::cos(Phi);
+  J(2, 2) = 1.0;
+  J(3, 3) = 1.0;   // theta
+  J(4, 4) = 1.0;   // phi
+  J(5, 5) = 1.0;   // 1/p
+  return J;
+}
+
 TMatrixDSym covFromArray(const CovMatrix6& cov) {
   TMatrixDSym out(6);
   for (int i = 0; i < 6; ++i)
@@ -126,12 +145,39 @@ Helix Helix::fromPerigee(float d0, float z0, float theta, float phi,
 
 Helix Helix::fromTrackElement(double c1, double c2, double c3,
                               double theta, double phi, double invP,
-                              bool invPt,
+                              bool invPt, bool cylindrical,
                               const CovMatrix6& teCov,
                               int charge, double B) {
   Helix h;
-  h.refPoint_ = { static_cast<float>(c1 * kCm2Mm),
-                  static_cast<float>(c2 * kCm2Mm),
+
+  // On a cylinder the stored triple is (R, R*Phi, z); convert it, and its
+  // covariance, into the Cartesian basis the helix Jacobian expects. Phi is
+  // undefined on the axis, so guard R = 0.
+  double x = c1, y = c2;
+  CovMatrix6 cov = teCov;
+  if (cylindrical) {
+    // The stored second coordinate is the arc length R*Phi, so dividing by
+    // the radius recovers the azimuth of the point itself. This is the
+    // position angle, unrelated to `phi`, which is the track direction.
+    const double Phi = (c1 != 0.0) ? c2 / c1 : 0.0;
+    x = c1 * std::cos(Phi);
+    y = c1 * std::sin(Phi);
+
+    // Congruence C' = Jc * C * Jc^T, same construction as the helix step
+    // below: multiply, transpose, multiply, then symmetrise to kill the
+    // rounding asymmetry the two products leave behind.
+    const TMatrixD    Jc = cylToCartJacobian(Phi);
+    const TMatrixDSym Cc = covFromArray(teCov);
+    const TMatrixD    JC (Jc, TMatrixD::kMult, Cc);
+    const TMatrixD    Jt (TMatrixD::kTransposed, Jc);
+    const TMatrixD    Cx (JC, TMatrixD::kMult, Jt);
+    for (int i = 0; i < 6; ++i)
+      for (int j = 0; j <= i; ++j)
+        cov[covOffset(i, j)] = static_cast<float>(0.5 * (Cx(i, j) + Cx(j, i)));
+  }
+
+  h.refPoint_ = { static_cast<float>(x  * kCm2Mm),
+                  static_cast<float>(y  * kCm2Mm),
                   static_cast<float>(c3 * kCm2Mm) };
   h.p_.D0   = 0.f;
   h.p_.Z0   = 0.f;
@@ -158,7 +204,7 @@ Helix Helix::fromTrackElement(double c1, double c2, double c3,
 
   // Cov push-forward C_helix = J · C_te · J^T.
   const TMatrixD    J  = teJacobian(theta, phi, invP, charge, B, invPt);
-  const TMatrixDSym Ct = covFromArray(teCov);
+  const TMatrixDSym Ct = covFromArray(cov);
   const TMatrixD    JC (J, TMatrixD::kMult, Ct);
   const TMatrixD    Jt (TMatrixD::kTransposed, J);
   const TMatrixD    Cf (JC, TMatrixD::kMult, Jt);
