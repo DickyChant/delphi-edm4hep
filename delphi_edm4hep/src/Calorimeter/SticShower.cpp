@@ -8,12 +8,14 @@
 // It is zeroed every event, so a track whose row is all zero has no shower.
 // NSTIC counts the rows that were filled; it is not an array length.
 //
-// Energy, theta and phi are the MAIN-module kinematics of the particle rather
-// than STIC measurements (skelana.car:4262-4270). On the shortDST path words
-// 7 and 8 are never filled.
+// SKELANA fills the common from either STIC(19), the fullDST module, when the
+// PA carries it, or SSTC(33), the shortDST condensation, otherwise (PSHSTC,
+// skelana.car:6394). On the SSTC path words 1..3 are the track's MAIN-module
+// kinematics rather than STIC measurements, word 4 uses a different scale,
+// word 5 is a photon/electron code, and 7..8 stay zero.
 //
-// The bank mnemonic in the collection name follows the pass (SSTC on sDST,
-// STIC on fDST); the data source is the same common.
+// The collection name follows the pass (SSTC on sDST, STIC on fDST), not the
+// module that supplied the values.
 
 #include "delphi_edm4hep/Calorimeter/SticShower.h"
 

@@ -374,6 +374,14 @@ Per-event scalars stored as podio Frame parameters:
   `sDST_MAIN_Particles` entry it belongs to.
 - `sDST_SSTC_Showers` (Cluster) — STIC (small-angle) calorimeter showers:
   `energy`, direction `iTheta`/`iPhi`; `type` bit 3.
+
+  > **Two modules, one detector.** `STIC(19)` is the fullDST module, `SSTC(33)` a
+  > condensation made at shortDST production; SKELANA takes `STIC` when the file
+  > has it, `SSTC` otherwise (`PSHSTC`, no version gate), and the collection is
+  > named `SSTC` either way. On the `SSTC` path — 94C2, 95C2, 95D1 only —
+  > `energy`/`iTheta`/`iPhi` are the track's MAIN kinematics rather than STIC
+  > measurements, `shapeParameters[0]` is scaled 1/10 not 1/1000, `[1]` is a
+  > photon/electron code not a veto tag, and `[3]`/`[4]` are absent.
 - `sDST_TDVD_VDPoints` (TrackerHit3D) — unassociated Vertex-Detector hits.
 - `sDST_TDVD_VDHits` (TrackerHit3D) + `sDST_TDVD_VDHits_TrackIndex`
   (UserData&lt;int32&gt;) — VD hits associated to a track; the parallel index
