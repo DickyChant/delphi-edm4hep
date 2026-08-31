@@ -5,6 +5,7 @@
 //   <tag>_MAIN_Particles    (charged + neutral; 4-mom from sk::VECP)
 //   <tag>_VECP_LVLOCK       (UserData int32 parallel to _MAIN_Particles)
 //   <tag>_MAIN_ReconstructionCode (UserData int32 parallel to _MAIN_Particles)
+//   <tag>_MAIN_DetectorMask (UserData int32 parallel to _MAIN_Particles)
 //   <tag>_MAIN_TrackLength  (UserData float parallel to _MAIN_Particles, cm)
 //   <tag>_TRAC_d0PV / z0PV / d0BS  (UserData float; from sk::QTRAC(38..40))
 //
@@ -70,6 +71,7 @@ void TrackingWriter::emit()
   edm4hep::ReconstructedParticleCollection pfoCol;
   podio::UserDataCollection<std::int32_t>  lvlockCol;
   podio::UserDataCollection<std::int32_t>  codeCol;
+  podio::UserDataCollection<std::int32_t>  detCol;
   podio::UserDataCollection<float>         lengthCol;
   podio::UserDataCollection<float>         d0PvCol;
   podio::UserDataCollection<float>         z0PvCol;
@@ -150,6 +152,7 @@ void TrackingWriter::emit()
   auto push_particle_words = [&](int vecp_i, int lpa, int lmain) {
     lvlockCol.push_back(vecp_i >= 1 ? sk::LVLOCK(vecp_i) : -1);
     codeCol.push_back((ph::IQ(lpa + 3) >> 18) & 0x7F);
+    detCol.push_back(ph::IQ(lpa + 2));
     lengthCol.push_back(lmain > 0 ? ph::Q(lmain + 9) : 0.f);
   };
 
@@ -278,6 +281,7 @@ void TrackingWriter::emit()
   put(std::move(pfoCol),    "MAIN", "Particles", Provenance::Derived);
   put(std::move(lvlockCol), "VECP", "LVLOCK",             Provenance::Derived);
   put(std::move(codeCol),   "MAIN", "ReconstructionCode", Provenance::Transcribed);
+  put(std::move(detCol),    "MAIN", "DetectorMask",       Provenance::Transcribed);
   put(std::move(lengthCol), "MAIN", "TrackLength",        Provenance::Transcribed);
   put(std::move(d0PvCol),   "TRAC", "d0PV", Provenance::Derived);
   put(std::move(z0PvCol),   "TRAC", "z0PV", Provenance::Derived);

@@ -235,6 +235,16 @@ Per-event scalars stored as podio Frame parameters:
   > that, not `sDST_EVT_dstVersion`, to decide how to read the code.
 - `sDST_MAIN_TrackLength` (UserData&lt;float&gt;) — track length in cm, parallel
   to `sDST_MAIN_Particles`.
+- `sDST_MAIN_DetectorMask` (UserData&lt;int32&gt;) — which subdetectors were used
+  in this particle's reconstruction, a raw bit mask parallel to
+  `sDST_MAIN_Particles`. Bits: 2 primary vertex in fit, 4 VD, 5 ID, 6 TPC,
+  7 RIB, 9 OD, 10 HPC, 14 HAB, 15 MUB, 19 STIC, 21 FCA, 22 RIF, 23 HAF,
+  26 FCB, 27 EMF, 31 MUF.
+
+  > **Bit 4 is "VD or VFT", not VD alone** — DELPHI's own code says so
+  > (`mammoth.car:13556`), though the content note predates the VFT and still
+  > calls it VD. At LEP2 it is set on every VFT-reconstructed track, so a
+  > "has VD hits" cut written against it silently widens.
 - `sDST_MAIN_Particles` (ReconstructedParticle) — charged and neutral
   particles. The 4-momentum and mass come from the SKELANA combined-momentum
   vector (mass-hypothesis aware). `charge` = +1/−1 from the DELPHI charge code;
