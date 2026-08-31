@@ -19,6 +19,7 @@
 #include "delphi_edm4hep/Pid/SdstPaExtras.h"
 #include "delphi_edm4hep/Calorimeter/SticShower.h"
 #include "delphi_edm4hep/Tracking/VdHits.h"
+#include "delphi_edm4hep/Tracking/TrackElements.h"
 #include "delphi_edm4hep/Tracking/Tracking.h"
 #include "delphi_edm4hep/Truth/Truth.h"
 #include "delphi_edm4hep/Vertex/Vertex.h"
@@ -151,6 +152,9 @@ int main(int argc, char** argv) {
     // ctx.tracking is set), then everything downstream that needs it.
     dom::event::EventWriter            (frame, ctx, "sDST").emit();
     dom::truth::TruthGenWriter         (frame, ctx, "sDST").emit();
+    // TrackElements runs before Tracking so the mother tracks can link to
+    // the track elements while they are still mutable.
+    dom::track_elements::TrackElementsWriter(frame, ctx, "sDST").emit();
     dom::tracking::TrackingWriter      (frame, ctx, "sDST").emit();
     dom::truth::TruthRecoLinkWriter    (frame, ctx, "sDST").emit();
     dom::vertex::VertexWriter          (frame, ctx, "sDST").emit();

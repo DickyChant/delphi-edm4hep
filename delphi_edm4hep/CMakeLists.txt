@@ -82,6 +82,7 @@ add_library(delphi_edm4hep
   src/Event/Event.cpp
   src/Vertex/Vertex.cpp
   src/Btag/Btag.cpp
+  src/Tracking/TrackElements.cpp
   src/Tracking/Tracking.cpp
   src/Calorimeter/Calorimeter.cpp
   src/Pid/ParticleId.cpp
@@ -89,7 +90,7 @@ add_library(delphi_edm4hep
   src/Tracking/MatchProvenance.cpp
   src/Pid/TofFdst.cpp
   src/Pid/MtpcFdst.cpp
-  src/Tracking/TeStateMerge.cpp
+  src/Tracking/TrackHybrid.cpp
   src/Calorimeter/EmcaFdst.cpp
   src/Calorimeter/HcalFdst.cpp
   src/Calorimeter/TeadFdst.cpp

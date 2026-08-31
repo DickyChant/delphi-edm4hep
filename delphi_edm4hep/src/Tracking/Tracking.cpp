@@ -6,6 +6,8 @@
 //   <tag>_VECP_LVLOCK       (UserData int32 parallel to _MAIN_Particles)
 //   <tag>_MAIN_ReconstructionCode (UserData int32 parallel to _MAIN_Particles)
 //   <tag>_MAIN_DetectorMask (UserData int32 parallel to _MAIN_Particles)
+//
+// Each Track links to the track elements from its PA (see TrackElements).
 //   <tag>_MAIN_TrackLength  (UserData float parallel to _MAIN_Particles, cm)
 //   <tag>_TRAC_d0PV / z0PV / d0BS  (UserData float; from sk::QTRAC(38..40))
 //
@@ -205,6 +207,20 @@ void TrackingWriter::emit()
 
     auto trk = trkCol.create();
     trk.addToTrackStates(helix.toTrackState(edm4hep::TrackState::AtIP));
+
+    // Track elements reconstructed from this PA, decoded by
+    // TrackElementsWriter. Linked here, while the track is still mutable.
+    if (ctx_.track_elements) {
+      const auto& te = *ctx_.track_elements;
+      if (paIdx < static_cast<int>(te.pa_to_segments.size())) {
+        for (const auto& seg : te.pa_to_segments[paIdx]) trk.addToTracks(seg);
+      }
+      if (paIdx < static_cast<int>(te.pa_to_plane_hits.size())) {
+        for (const auto& hit : te.pa_to_plane_hits[paIdx]) {
+          trk.addToTrackerHits(hit);
+        }
+      }
+    }
 
     // chi2 / ndf from PA.MAIN. +26/+27 (with VD) preferred, fallback to
     // +16/+17 (without VD). SKELANA sanitises ndf to [0, 1000].

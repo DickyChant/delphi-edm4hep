@@ -406,6 +406,43 @@ Per-event scalars stored as podio Frame parameters:
   > `energy`/`iTheta`/`iPhi` are the track's MAIN kinematics rather than STIC
   > measurements, `shapeParameters[0]` is scaled 1/10 not 1/1000, `[1]` is a
   > photon/electron code not a veto tag, and `[3]`/`[4]` are absent.
+**Track elements**
+
+- `sDST_TE_Segments` (Track) — one per track element, each carrying a single
+  `TrackState` at `AtOther`: `referencePoint` is the measured point, `phi` the
+  track direction there, and `chi2`/`ndf` the element's own fit quality.
+- `sDST_TE_SegmentLength` (UserData&lt;float&gt;) — element length in mm, parallel
+  to `sDST_TE_Segments`.
+- `sDST_TEVF_TrackElementPlane` (TrackerHitPlane) + `sDST_TEVF_TrackElementLength`
+  — the very forward tracker, which measures two coordinates and no direction.
+
+  Reach them from `sDST_TRAC_Tracks.tracks` and `sDST_TRAC_Tracks.trackerHits`.
+
+  > **`type` names the source module**, as `label*10 + stage` — the bank
+  > mnemonic is not in the collection name, so this is what identifies it:
+  >
+  > | `type` | bank | detector | stage digit |
+  > |---|---|---|---|
+  > | 12 | `TEID` | inner detector | 1 jet chamber, 2 trigger layer |
+  > | 13 | `TETP` | TPC | |
+  > | 14 | `TEOD` | outer detector | |
+  > | 15 | `TEFA` | forward chamber A | |
+  > | 16 | `TEFB` | forward chamber B | |
+  > | 21 | `TERF` | forward RICH | |
+  > | 41 | `TEST` | straw tubes | |
+  > | 42 | `TEVF` | very forward tracker | |
+  >
+  > So 121 is an inner-detector element from the jet chamber and 131 a TPC one.
+  > The stage digit is 0 on files written before PXDST 2.87.
+  >
+  > **Detectors measure different quantities, and what a module did not measure
+  > is `NaN` — never 0, which is a legal measured value.** `D0` and `Z0` are
+  > always `NaN`: a track element measures a point, not an impact parameter.
+  > Typically the TPC gives direction and curvature, the inner detector
+  > curvature but not the dip angle, and the outer detector, forward RICH and
+  > straw tubes direction only. It varies element by element, so test for `NaN`
+  > rather than inferring from `type`.
+
 - `sDST_TDVD_VDPoints` (TrackerHit3D) — unassociated Vertex-Detector hits.
 - `sDST_TDVD_VDHits` (TrackerHit3D) + `sDST_TDVD_VDHits_TrackIndex`
   (UserData&lt;int32&gt;) — VD hits associated to a track; the parallel index
@@ -490,6 +527,12 @@ originals described in §2.2.
   `fDST_<algo>_Dedx` (+ `_DedxRecDqdx`) — `setParticle` re-pointed to
   `fDST_MAIN_Particles`. `<algo>` mirrors pass 1 (BBDXGET or GETDEDX).
 - `fDST_EMNC_Showers`, `fDST_HCNC_Showers`, `fDST_HCAL_Showers` — shower clones.
+- `fDST_TE_Segments`, `fDST_TEVF_TrackElementPlane` — track elements decoded
+  from the fullDST PA chain, linked from `fDST_TRAC_Tracks`. `fDST_TRAC_Tracks`
+  no longer carries per-element `AtOther` states, and the companion
+  `fDST_TRAC_Tracks_FitQuality` has been removed: `ndf` and `chi2` are native
+  on the segments, the descriptor is in `quality`, and the length is the
+  parallel `SegmentLength`.
 - `fDST_TBL_RecoToGen` — `from` re-pointed to `fDST_MAIN_Particles`.
 
 ### 2.5 B-tagging (`--btag`, opt-in)

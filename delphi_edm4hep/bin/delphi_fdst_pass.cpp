@@ -25,7 +25,8 @@
 #include "delphi_edm4hep/Calorimeter/SticShower.h"
 #include "delphi_edm4hep/Truth/TblHybrid.h"
 #include "delphi_edm4hep/Calorimeter/TdhaFdst.h"
-#include "delphi_edm4hep/Tracking/TeStateMerge.h"
+#include "delphi_edm4hep/Tracking/TrackElements.h"
+#include "delphi_edm4hep/Tracking/TrackHybrid.h"
 #include "delphi_edm4hep/Tracking/TraxFdst.h"
 #include "delphi_edm4hep/Calorimeter/TeadFdst.h"
 #include "delphi_edm4hep/Pid/TofFdst.h"
@@ -149,7 +150,10 @@ int main(int argc, char** argv) {
     // ctx.fdst_pa_to_sdst_particle (and _track) which the other
     // pass-2 writers consume for their setParticle linkage.
     matchprov::MatchProvenanceWriter(frame, ctx, "fDST").emit();
-    te_merge::TeStateMergeWriter    (frame, ctx, "fDST").emit();
+    // TrackElements decodes the PA.TE* modules and must run before
+    // TrackHybrid, which links each cloned track to them.
+    track_elements::TrackElementsWriter(frame, ctx, "fDST").emit();
+    track_hybrid::TrackHybridWriter (frame, ctx, "fDST").emit();
     emca_fdst::EmcaFdstWriter       (frame, ctx, "fDST").emit();
     hcal_fdst::HcalFdstWriter       (frame, ctx, "fDST").emit();
     tead_fdst::TeadFdstWriter       (frame, ctx, "fDST").emit();
@@ -161,7 +165,7 @@ int main(int argc, char** argv) {
     // (mutable) particle, so MainHybrid re-points it onto these clones
     // while fDST_MAIN_Particles is still being built.
     shower_hybrid::ShowerHybridWriter(frame, ctx, "fDST").emit();
-    // MainHybrid must run AFTER TeStateMerge (consumes fDST_TRAC_Tracks)
+    // MainHybrid must run AFTER TrackHybrid (consumes fDST_TRAC_Tracks)
     // and ShowerHybrid (consumes fDST_EMNC/HCNC_Showers), and BEFORE the
     // hybrid writers that consume fDST_MAIN_Particles.
     main_hybrid::MainHybridWriter   (frame, ctx, "fDST").emit();

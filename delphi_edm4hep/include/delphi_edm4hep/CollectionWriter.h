@@ -26,6 +26,7 @@
 
 // Data-only headers (no writer classes) so this header doesn't pull
 // CollectionWriter back in transitively.
+#include "delphi_edm4hep/Tracking/TrackElementData.h" // track_elements::Output
 #include "delphi_edm4hep/Tracking/TrackingData.h"   // tracking::Output
 #include "delphi_edm4hep/Truth/TruthData.h"      // truth::GenParticleResult
 
@@ -46,6 +47,10 @@ namespace delphi_edm4hep {
 struct EventContext {
   // Set by TruthGenWriter; consumed by TruthRecoLinkWriter.
   std::optional<truth::GenParticleResult> gen_truth;
+
+  // Set by TrackElementsWriter; consumed by TrackingWriter, which links each
+  // mother track to the track elements from the same PA.
+  std::optional<track_elements::Output> track_elements;
 
   // Set by TrackingWriter; consumed by VertexWriter, CalorimeterWriter,
   // ParticleIdWriter, and (pass 2) the TE-merge writers.
