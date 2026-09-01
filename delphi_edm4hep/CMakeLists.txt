@@ -106,6 +106,7 @@ add_library(delphi_edm4hep
   src/Tracking/EltrSdst.cpp
   src/Tracking/Trax.cpp
   src/Tracking/VdHits.cpp
+  src/Tracking/VftHits.cpp
   src/Pid/PidExtrasSdst.cpp
 )
 target_include_directories(delphi_edm4hep

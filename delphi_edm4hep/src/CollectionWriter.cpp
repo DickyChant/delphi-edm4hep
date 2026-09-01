@@ -27,7 +27,8 @@ std::map<std::string, Provenance, std::less<>> g_seen;
 constexpr std::string_view kBankMnemonics[] = {
   "BSP",  "EL",   "ELID", "ELTR", "EMCA", "EMNC", "HAID", "HCAL",
   "HCMU", "HCNC", "HCRO", "LUJ",  "MAIN", "MRIC", "MTPC", "MU",   "MUFI",
-  "MUID", "ODHI", "PHC",  "PHOT", "SSTC", "STIC", "TBL",  "TDHA", "TDID",
+  "MUID", "ODHI", "PHC",  "PHOT", "PXTD", "SSTC", "STIC", "TBL",  "TDHA",
+  "TDID",
   "TDVD", "TEAD", "TEFA", "TEFB", "TEID", "TEOD", "TERB", "TERF", "TEST",
   "TETP", "TEVF", "TOF",  "TRAC", "TRAX", "V0",
 };

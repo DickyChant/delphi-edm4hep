@@ -9,9 +9,10 @@ namespace {
 // PA modules a plain shortDST does not keep, present on both the extended
 // shortDST and the longDST. The TE family spans this class and the
 // extended-shortDST-only one, so it is named for the weaker requirement.
-constexpr std::array<std::string_view, 13> kExtendedOnly = {
-    "EMCA", "HCAL", "HCMU", "MRIC", "MUFI", "STIC", "TDID",
-    "TE",   "TERB", "TERF", "TEST", "TEVF", "TOF",
+constexpr std::array<std::string_view, 15> kExtendedOnly = {
+    "EMCA", "HCAL", "HCMU", "MRIC", "MUFI", "PXTD", "STIC",
+    "STTD", "TDID", "TE",   "TERB", "TERF", "TEST", "TEVF",
+    "TOF",
 };
 
 // PA modules only the longDST keeps.

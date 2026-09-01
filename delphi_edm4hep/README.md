@@ -563,6 +563,19 @@ Per-event scalars stored as podio Frame parameters:
   global (x,y) is not in the DST, so that conversion is left to the consumer.
   `cellID` = signed module number (sign = Z side); `type` bit 0 marks an R-Z
   measurement; `eDep` carries the signal-to-noise ratio.
+- `xsDST_PXTD_PixelHits` (TrackerHitPlane) — pixel clusters from the Very
+  Forward Tracker: `position` in the DELPHI frame (mm), `du`/`dv` the
+  measurement errors along the module's two axes (mm, typically 0.09),
+  `cellID` the module number (crown + 1000 × raquette). `u` and `v` are NaN —
+  they are the directions `du`/`dv` are measured along, and the module
+  orientation is not stored on the DST. Companions
+  `xsDST_PXTD_PixelHits_ClusterSize` (pixels in the cluster) and
+  `xsDST_PXTD_PixelHits_TanagraId` (the TK or TE it was assigned to). The
+  per-pixel column/row addresses the bank also stores are not emitted: they
+  cannot be placed without the module geometry, which the DST does not carry.
+  The VFT was a LEP2 upgrade, so this is empty on LEP1 files. The companion
+  ministrip bank STTD is not converted — it stores a one-dimensional local
+  coordinate with no position.
 
 ### 2.3 Pass-2 pure-fullDST collections (`fDST_*`)
 

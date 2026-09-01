@@ -19,6 +19,7 @@
 #include "delphi_edm4hep/Pid/SdstPaExtras.h"
 #include "delphi_edm4hep/Calorimeter/SticShower.h"
 #include "delphi_edm4hep/Tracking/VdHits.h"
+#include "delphi_edm4hep/Tracking/VftHits.h"
 #include "delphi_edm4hep/Calorimeter/Emca.h"
 #include "delphi_edm4hep/Calorimeter/Tdha.h"
 #include "delphi_edm4hep/Pid/Mtpc.h"
@@ -174,6 +175,7 @@ int main(int argc, char** argv) {
     dom::eltr_sdst::EltrSdstWriter         (frame, ctx, dom::bank::Pass::Sdst).emit();
     // §3.3 deferred PSC commons: VD hits + VECP-indexed PID extras.
     dom::vd_hits::VdHitsWriter             (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::vft_hits::VftHitsWriter           (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::pid_extras_sdst::PidExtrasSdstWriter(frame, ctx, dom::bank::Pass::Sdst).emit();
 
     // PA modules that are on the (X)shortDST as well as the fullDST. Each is
