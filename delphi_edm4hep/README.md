@@ -506,35 +506,26 @@ VD-only and ID+VD-without-z tracks).
   (14=MUB/17=MUS/30=MUF), n layers, ndof, global χ², first-layer x/y,
   expected-missing-layers, chambers-alone χ², extrapolated x/y/θ/φ and their
   errors.
-- `sDST_HCRO_HitPattern` (algType 34) — hadron-calorimeter read-out pattern
-  for this track: `[0]` total tube hits, `[1]` mean distance between the track
-  extrapolation and the fired tubes (mm), `[2]` its rms (mm), `[3..22]` hits
-  in calorimeter planes 1 to 20. A muon crosses many planes leaving few hits
-  in each; a hadron shower concentrates them, so the pattern separates the two
-  where shower energy alone does not.
-- `sDST_HCRO_MuonTag` (algType 34) — the muon block that some HCRO modules
-  carry: `[0]` identification flag, `[1]` azimuth (deg), `[2]` χ², `[3]` rms
-  of the hit-to-track distance, `[4]` packed status word. Written only for
-  tracks whose module carries it, so this collection is far smaller than
-  `sDST_HCRO_HitPattern`.
-- `xsDST_MRIC_RichExtrapolation` (algType 6) — where the track crossed the RICH
-  and what its radiators saw. Written by PXDST itself, and independent of the
-  Cherenkov angles in `sDST_HAID_HadronID`, which come from `HAID`:
-  `[0]` liquid-radiator refractive index, `[1]` gas-radiator refractive index
+- `sDST_HCRO_HitPattern` (algType 34) — hadron-calorimeter hit pattern for the
+  track: `[0]` tube hits, `[1]` mean distance from the track extrapolation to
+  the fired tubes (mm), `[2]` its rms, `[3..22]` hits in planes 1–20. The
+  spread across planes separates penetrating tracks from showers.
+- `sDST_HCRO_MuonTag` (algType 34) — muon block carried by some HCRO modules:
+  `[0]` identification flag, `[1]` azimuth (deg), `[2]` χ², `[3]` rms of the
+  hit-to-track distance, `[4]` packed status word.
+- `xsDST_MRIC_RichExtrapolation` (algType 6) — the RICH measurement PXDST
+  records for the track, independent of the Cherenkov angles in
+  `sDST_HAID_HadronID`: `[0]`/`[1]` liquid and gas radiator refractive index
   (NaN when that radiator did not fire), `[2]`/`[3]` extrapolation coordinates
-  at the RICH entry (mm), `[4]` polar and `[5]` azimuthal angle (rad),
-  `[6]` q/p (1/GeV), `[7..11]` variances of `[2..6]`, `[12]` number of
-  ionization hits. `[2]`/`[3]` are R·φ and z for a barrel track and x and y for
-  a forward one; the module carries no flag saying which, so decide from the
-  polar angle. Three further words per radiator and six drift-tube words are
-  stored but not emitted: their meaning is not established for the PXDST
-  version these files carry.
-- `xsDST_HCMU_MuonID` (algType 35) — muon tag derived from the HCRO pattern,
-  comparing hit count, penetration depth, timing and energy against
-  calibrated expectations per polar angle: `[0]` identification level,
-  `[1]` mean distance (mm), `[2]` its rms (mm). The level is 1 or 3; level 2
-  does not occur, because the producer's tightest test repeats the cuts of
-  the middle one.
+  at the RICH entry (mm), `[4]`/`[5]` polar and azimuthal angle (rad),
+  `[6]` q/p (1/GeV), `[7..11]` variances of `[2..6]`, `[12]` ionization hits.
+  `[2]`/`[3]` are R·φ and z for a barrel track and x and y for a forward one;
+  the module carries no flag saying which, so use the polar angle. Some stored
+  words are omitted: their meaning is not established for this PXDST version.
+- `xsDST_HCMU_MuonID` (algType 35) — muon tag from the HCRO pattern, comparing
+  hits, penetration, timing and energy against calibrated expectations per
+  polar angle: `[0]` level (1 or 3; 2 does not occur), `[1]` mean distance
+  (mm), `[2]` its rms.
 
 **Other detectors**
 
@@ -598,19 +589,13 @@ VD-only and ID+VD-without-z tracks).
   global (x,y) is not in the DST, so that conversion is left to the consumer.
   `cellID` = signed module number (sign = Z side); `type` bit 0 marks an R-Z
   measurement; `eDep` carries the signal-to-noise ratio.
-- `xsDST_PXTD_PixelHits` (TrackerHitPlane) — pixel clusters from the Very
-  Forward Tracker: `position` in the DELPHI frame (mm), `du`/`dv` the
-  measurement errors along the module's two axes (mm, typically 0.09),
-  `cellID` the module number (crown + 1000 × raquette). `u` and `v` are NaN —
-  they are the directions `du`/`dv` are measured along, and the module
-  orientation is not stored on the DST. Companions
-  `xsDST_PXTD_PixelHits_ClusterSize` (pixels in the cluster) and
-  `xsDST_PXTD_PixelHits_TanagraId` (the TK or TE it was assigned to). The
-  per-pixel column/row addresses the bank also stores are not emitted: they
-  cannot be placed without the module geometry, which the DST does not carry.
-  The VFT was a LEP2 upgrade, so this is empty on LEP1 files. The companion
-  ministrip bank STTD is not converted — it stores a one-dimensional local
-  coordinate with no position.
+- `xsDST_PXTD_PixelHits` (TrackerHitPlane) — Very Forward Tracker pixel
+  clusters: `position` in the DELPHI frame (mm), `du`/`dv` the measurement
+  errors along the module axes (mm), `cellID` the module number. `u`/`v` are
+  NaN, since the module orientation is not on the DST. Companions
+  `_ClusterSize` and `_TanagraId` give the pixels in the cluster and the track
+  element it was assigned to. Empty on LEP1, where the VFT did not exist. The
+  per-pixel addresses and the ministrip bank STTD are not converted.
 
 ### 2.3 Pass-2 pure-fullDST collections (`fDST_*`)
 
@@ -680,35 +665,24 @@ originals described in §2.2.
 
 ### 2.5 B-tagging
 
-Both tags are emitted on every file; there is no flag and no opt-in. DELPHI's
-b-tagging exists in two forms and they are different quantities, so the output
-carries both and the provenance says which is which:
+DELPHI's b-tag comes in two forms, both emitted on every file:
 
-- `<prefix>_BTG_*` — the tag DELPHI **stored** on the DST, read back with
-  `PSHBTG`. Provenance `Transcribed`. Empty (NaN) on files whose BTAG bank was
-  never written, which includes many shortDSTs.
-- `<prefix>_AABTAG_*` — the tag **recalculated** at conversion time by
-  rerunning AABTAG. Provenance `Derived`.
+- `<prefix>_BTG_*` — the tag stored on the DST (`Transcribed`). NaN where the
+  BTAG bank was not written, which includes many shortDSTs.
+- `<prefix>_AABTAG_*` — the tag recalculated at conversion time (`Derived`).
 
-**For analysis, prefer `AABTAG_*`**: rerunning the tagger measurably improves
-data/MC agreement over the stored value. `BTG_*` is kept because it is what
-DELPHI actually recorded, which a reproduction of a published result may need.
+Prefer `AABTAG_*` for analysis: it describes data and simulation more
+consistently. `BTG_*` is what DELPHI recorded, for reproducing published work.
 
-Both carry the same event-level quantities — `ProbNegIP`, `ProbPosIP`,
-`ProbAllIP` (each a triplet: hemisphere 1, hemisphere 2, whole event),
-`ThrustAxis` and `ThrustValue`. The per-track layer and AABTAG's primary
-vertex exist **only** for the recalculated tag: the stored bank has no
-per-track content at all.
+Both carry `ProbNegIP`, `ProbPosIP`, `ProbAllIP` (triplets: hemisphere 1,
+hemisphere 2, whole event), `ThrustAxis` and `ThrustValue`. The per-track
+quantities and AABTAG's primary vertex exist only for `AABTAG_*`; the stored
+bank has no per-track content. AABTAG's vertex is a separate collection and
+does not replace `sDST_PV_PrimaryVertex`.
 
-The AABTAG primary vertex is emitted as its own collection rather than
-replacing the DELANA one, so both vertices are available and nothing is
-destroyed.
-
-> **AABTAG re-rolls MC smearing.** Rerunning it consumes random numbers that
-> simulation smearing also draws from, so per-event MC values (the beam spot,
-> for instance) differ from a conversion made without it. Distributions are
-> unchanged and real data is unaffected, but an MC file is not event-by-event
-> comparable with output from a converter that did not run AABTAG.
+> On simulation, AABTAG draws from the same random sequence as detector
+> smearing, so per-event values differ from a conversion made without it.
+> Distributions are unchanged; real data is unaffected.
 
 Every frame carries source-local provenance:
 
@@ -766,22 +740,15 @@ on output.
   efficiency/acceptance corrections negate a value to mark rejection, and
   `abs(value)` is the underlying count.
 
-  **The impact parameters are not here.** They belong to the track, so they
-  ride on it: every track AABTAG used carries an extra `TrackState` at
-  `AtVertex` on `sDST_TRAC_Tracks`, whose `referencePoint` is AABTAG's own
-  vertex, `D0`/`Z0` are the impact parameters in mm and whose covariance
-  holds their variances. A track AABTAG skipped simply has no such state —
-  roughly a third of charged tracks. Reach them from a tag row with
-  `getParticle()` → `getTracks()` → the `AtVertex` state; no index array is
-  involved. Components AABTAG does not measure (`phi`, `omega`, `tanLambda`,
-  and the other covariance entries) are NaN rather than zero.
+  Impact parameters are on the track, not here: each track AABTAG used carries
+  a `TrackState` at `AtVertex` on `sDST_TRAC_Tracks`, with `referencePoint` =
+  AABTAG's vertex, `D0`/`Z0` in mm and their variances in the covariance.
+  Tracks AABTAG did not use have no such state. Reach it with `getParticle()`
+  → `getTracks()`. Unmeasured components (`phi`, `omega`, `tanLambda`, other
+  covariance entries) are NaN.
 
-  > **The `D0` sign is flipped relative to AABTAG.** `TrackState.D0` follows
-  > the EDM4hep convention, as the perigee `AtIP` state on the same track
-  > does, while AABTAG stores the DELPHI sign. `Z0` is unaffected. This
-  > matters because the sign *is* the physics: AABTAG's negative-impact-
-  > parameter side is the mistag control sample, which is the **positive**
-  > side here. A DELPHI cut ported literally will select the wrong tail.
+  > `D0` follows the EDM4hep sign convention, as the `AtIP` state does, and is
+  > therefore opposite in sign to AABTAG's own value. `Z0` is unchanged.
 - Frame parameters `BadEventCode`, `AlgorithmInvoked`, `Valid`, `NTracksRaw`,
   `NTracks`, `NTracksAttached`, `Truncated`. `BadEventCode` preserves AABTAG's
   raw `IBAD` snapshot (0 success, 1 processing failure, 2 vertex-fit failure),
@@ -804,12 +771,6 @@ on output.
 of the Track collections — the sign is the physics (the negative-IP side is
 the mistag control sample). Do not mix it with `sDST_QTRAC_Tracks_d0PV` or
 `sDST_PV_Tracks_d0PV`; see §2.2.
-
-`IFLPVT` is pinned to 0. Setting it to 1 would let AABTAG's vertex overwrite
-the DELANA one inside SKELANA's `PSCVTX`, and on the beamspot-failure path
-(`IERRBS != 0`) `PSFBTG` writes a `-999` sentinel over the position,
-destroying a good DELANA vertex. Since AABTAG's vertex is emitted as its own
-collection, there is nothing to gain by replacing anything.
 
 ---
 

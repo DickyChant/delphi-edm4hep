@@ -1,26 +1,15 @@
 // Btag.h — b-tagging domain writer.
 //
-// Emits both forms of DELPHI's b-tag, because they are different quantities:
+// Emits both forms of DELPHI's b-tag:
 //
-//   <prefix>_BTG_*     the tag DELPHI stored on the DST, read back with
-//                      PSHBTG. Transcribed. NaN where the bank was never
-//                      written, which includes many shortDSTs.
-//   <prefix>_AABTAG_*  the tag recalculated here by rerunning AABTAG.
-//                      Derived. Carries the per-track quantities from the
-//                      AAMAIN / AAMNVX commons and AABTAG's own primary
-//                      vertex as well; the stored bank has no per-track
-//                      content at all.
+//   <prefix>_BTG_*     the tag stored on the DST. Transcribed; NaN where the
+//                      bank was not written.
+//   <prefix>_AABTAG_*  the tag recalculated here. Derived, and the only form
+//                      carrying per-track quantities and a primary vertex.
 //
-// AABTAG is deliberately not a bank mnemonic: it marks values the converter
-// computed rather than read. Prefer it for analysis -- rerunning the tagger
-// improves data/MC agreement -- and keep BTG for what DELPHI recorded.
-//
-// Per-track arrays are emitted in AABTAG's OWN track ordering (1..NTRK),
-// not remapped onto the Track/Particle collections, with a parallel
-// _ParticleIndex giving the <prefix>_MAIN_Particles entry for each (-1
-// when unresolvable). That mirrors sDST_ELTR_ParticleIndex and keeps the
-// AABTAG selection (ISRT) meaningful; a remap would have to invent
-// entries for tracks AABTAG never considered.
+// Per-track rows are in AABTAG's own ordering (1..NTRK), each linked to its
+// particle. Impact parameters ride on the track as a TrackState at AtVertex
+// (see Tracking.cpp), not here.
 
 #pragma once
 

@@ -1,21 +1,17 @@
 // VftHits domain — pass-1 only.
 //
-// The pixel clusters the Very Forward Tracker reconstructed in this event:
-// where each cluster sits, how precisely it was measured, how many pixels it
-// spans and which track element it was assigned to. Event-level rather than
-// per-particle, so the bank hangs off LDTOP rather than the PA chain.
+// Very Forward Tracker pixel clusters. An event-level bank (LDTOP), not part
+// of the PA chain.
 //
 // Emits:
 //   <prefix>_PXTD_PixelHits              TrackerHitPlaneCollection
 //   <prefix>_PXTD_PixelHits_ClusterSize  UserDataCollection<int32>, parallel
 //   <prefix>_PXTD_PixelHits_TanagraId    UserDataCollection<int32>, parallel
 //
-// Positions are in the DELPHI frame. `du` and `dv` are the measurement errors
-// along the module's own two axes; the module orientation is not on the DST,
-// so the directions `u` and `v` those errors belong to are NaN rather than
-// zero. The per-pixel addresses the bank also stores are column and row
-// within a module and cannot be placed without the module geometry, so they
-// are not emitted.
+// Positions are in the DELPHI frame; `du`/`dv` are the errors along the
+// module axes. `u`/`v` are NaN, since the module orientation is not stored.
+// Per-pixel addresses are not emitted: they cannot be placed without the
+// module geometry.
 
 #pragma once
 

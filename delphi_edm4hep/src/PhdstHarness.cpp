@@ -83,14 +83,10 @@ void setSkelanaFlags() {
   sk::IFLRVR = 111;
   sk::IFLSIM = 1;
   sk::IFLBSP = 2;
-  // AABTAG runs on every event. PSFBTG fills the per-track b-tag commons
-  // that BtagWriter reads, and the stored BTAG bank is read back separately
-  // so that both the transcribed and the recalculated tag are emitted.
-  //
-  // IFLPVT stays 0 so that neither routine overwrites the DELANA primary
-  // vertex -- with 1 they replace it, and write a -999 sentinel over it
-  // whenever the beamspot lookup fails. AABTAG's own vertex is emitted as
-  // its own collection instead, so nothing is lost by keeping both.
+  // AABTAG runs on every event: PSFBTG fills the per-track b-tag commons, and
+  // the stored BTAG bank is read separately, so both tags are emitted.
+  // IFLPVT = 0 keeps SKELANA's primary vertex intact; AABTAG's own vertex is
+  // emitted as a separate collection.
   sk::IFLBTG = 2;
   sk::IFLPVT = 0;
   sk::IFLVDR = 1;

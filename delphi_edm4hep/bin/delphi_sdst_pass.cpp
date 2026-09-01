@@ -59,8 +59,7 @@ static void usage(const char* argv0) {
     << "       " << argv0
     << " -N|--nickname <nickname> <output.edm4hep.root> [-n MAX_EVENTS]\n"
     << "       " << argv0
-    << " -P|--pdl <pdlinput> <output.edm4hep.root> [-n MAX_EVENTS]\n"
-    << "   options: none\n";
+    << " -P|--pdl <pdlinput> <output.edm4hep.root> [-n MAX_EVENTS]\n";
 }
 
 // Parse a strictly-positive integer for -n; error + usage + exit(1) on
