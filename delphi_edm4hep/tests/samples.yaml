@@ -27,6 +27,36 @@ samples:
     max_events: -1
     note: "ShortDST qqbar, sim of 94 (liq) ANA94C Fix2, RAL -> Y10060.346.al"
 
+  - id: data_96e_long
+    kind: data
+    period: 96e
+    select: {mode: nickname, value: "long96_e1/c1-1"}
+    max_events: 2000
+    note: "longDST -> Y13711.1.al. The only sample carrying MU, EL and TDHA, so the
+      only cover for the lDST_* collections. Flavour verified by module inventory:
+      catalogue prefixes do not track the DST flavour."
+
+  - id: data_99d_xshort
+    kind: data
+    period: 99d
+    select: {mode: nickname, value: "xsdst99_d1/c1-1"}
+    max_events: 2000
+    note: "extended shortDST -> R02140.1.al. Covers TE/TERF/TEST/TEVF, TOF, TDID,
+      STIC, MRIC, HCRO, HCMU and PXTD, none of which the LEP1 samples reach."
+
+  - id: mc_a0e_xshort
+    kind: mc
+    period: a0e
+    select: {mode: nickname, value: "xs_apacic105_207_wupp_a0e1/c1-1"}
+    max_events: 2000
+    note: "extended shortDST simulation at 206.5 GeV."
+
+# A DELPHI DST comes in three flavours and the module inventory follows the
+# flavour, not the year or the processing tag, so the samples cover all three.
+# No longDST simulation was found: every lo_* MC nickname checked (lo_92e2,
+# lo_93d2, lo_94c, lo_95d2, lo_qqps_z0_cern_94c2) carries the bare shortDST
+# inventory, and the four long* entries are all data.
+
 # Cross-check of the INPUT MODES, not of the conversion. Converts one physical
 # file two ways in the same run and requires the two results to agree.
 equivalence:
