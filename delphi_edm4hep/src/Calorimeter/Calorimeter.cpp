@@ -23,6 +23,7 @@
 
 #include "delphi_edm4hep/internal/BankReader.h"
 
+#include <edm4hep/CalorimeterHit.h>
 #include <edm4hep/ClusterCollection.h>
 #include <edm4hep/MutableCluster.h>
 #include <edm4hep/ReconstructedParticleCollection.h>
@@ -67,7 +68,8 @@ void setHeaderEnergyPosition(edm4hep::MutableCluster clu,
 // attaches each to the owning particle.
 void walkEMNC(int lpa,
               edm4hep::MutableReconstructedParticle pfo,
-              edm4hep::ClusterCollection& cluCol)
+              edm4hep::ClusterCollection& cluCol,
+              const std::vector<std::vector<edm4hep::CalorimeterHit>>* pa_hits)
 {
   const auto emnc = banks::find(lpa, "EMNC");
   if (!emnc) return;
@@ -91,6 +93,14 @@ void walkEMNC(int lpa,
   for (int ns = 0; ns < nshowr; ++ns) {
     auto clu = cluCol.create();
     clu.setType(type_bit);
+
+    // Calorimeter hits of the same shower, decoded by EmcaWriter from the
+    // same PA. PA.EMCA and PA.EMNC list a PA's showers in the same order.
+    if (pa_hits && ns < static_cast<int>(pa_hits->size())) {
+      for (const auto& hit : (*pa_hits)[static_cast<std::size_t>(ns)]) {
+        clu.addToHits(hit);
+      }
+    }
     setHeaderEnergyPosition(clu, shower, 1);
 
     int stride = 4;               // FEMC carries no layer detail here
@@ -215,7 +225,11 @@ void CalorimeterWriter::emit()
       if (particle_idx < 0) return;
       auto pfo = tracking.particle_handles[particle_idx];
 
-      walkEMNC(lpa, pfo, emncCol);
+      const std::vector<std::vector<edm4hep::CalorimeterHit>>* pa_hits = nullptr;
+      if (ctx_.emca && paIdx < static_cast<int>(ctx_.emca->pa_shower_hits.size())) {
+        pa_hits = &ctx_.emca->pa_shower_hits[static_cast<std::size_t>(paIdx)];
+      }
+      walkEMNC(lpa, pfo, emncCol, pa_hits);
       walkHCNC(lpa, pfo, hcncCol);
       walkHCAL(lpa, pfo, hcalCol);
     });

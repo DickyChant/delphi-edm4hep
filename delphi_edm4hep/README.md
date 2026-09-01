@@ -401,6 +401,8 @@ VD-only and ID+VD-without-z tracks).
 - `sDST_EMNC_Showers` (Cluster) — electromagnetic showers (HPC barrel and FEMC
   endcap, distinguished by `type` bits 0/1); `energy`, `position`, and the
   per-layer energy profile in `subdetectorEnergies`.
+  `hits` links the HPC pad hits of the same shower (`xsDST_EMCA_HPCClusters`).
+  Only showers the EMCA module records as HPC carry them.
 - `sDST_HCNC_Showers` / `xsDST_HCAL_Showers` (Cluster) — hadron-calorimeter
   showers (`type` bit 2); per-hit energies in `subdetectorEnergies`, the
   parallel layer indices in `shapeParameters`. **Both are always emitted and

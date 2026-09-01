@@ -147,6 +147,7 @@ int main(int argc, char** argv) {
     dom::tracking::TrackingWriter      (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::truth::TruthRecoLinkWriter    (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::vertex::VertexWriter          (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::emca::EmcaWriter               (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::calorimeter::CalorimeterWriter(frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::particleid::ParticleIdWriter  (frame, ctx, dom::bank::Pass::Sdst).emit();
     // sDST-only PA extras: PHOT/ODHI ParticleID, SSTC STIC showers.
@@ -163,7 +164,6 @@ int main(int argc, char** argv) {
     dom::mtpc::MtpcWriter                (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::tof::TofWriter                  (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::pa_pid_extras::PaPidExtrasWriter(frame, ctx, dom::bank::Pass::Sdst).emit();
-    dom::emca::EmcaWriter                (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::tdha::TdhaWriter                (frame, ctx, dom::bank::Pass::Sdst).emit();
     // B-tagging. After Tracking (needs ctx.tracking to resolve AABTAG's
     // PA addresses onto emitted Particles).

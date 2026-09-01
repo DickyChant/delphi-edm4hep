@@ -43,7 +43,21 @@ void EmcaWriter::emit()
   edm4hep::CalorimeterHitCollection hpc_col;
   edm4hep::CalorimeterHitCollection femc_col;
 
-  pawalk::forEachPA([&](int lpa, int /*paIdx*/) {
+  Output out;
+
+  auto record = [&](int paIdx, int ns, const edm4hep::CalorimeterHit& hit) {
+    if (paIdx < 0) return;
+    if (paIdx >= static_cast<int>(out.pa_shower_hits.size())) {
+      out.pa_shower_hits.resize(static_cast<std::size_t>(paIdx) + 1);
+    }
+    auto& showers = out.pa_shower_hits[static_cast<std::size_t>(paIdx)];
+    if (ns >= static_cast<int>(showers.size())) {
+      showers.resize(static_cast<std::size_t>(ns) + 1);
+    }
+    showers[static_cast<std::size_t>(ns)].push_back(hit);
+  };
+
+  pawalk::forEachPA([&](int lpa, int paIdx) {
     const int lemca = pawalk::lphpa("EMCA", lpa);
     if (lemca <= 0) return;
     const int nsh = static_cast<int>(std::lround(ph::Q(lemca + 2)));
@@ -80,6 +94,7 @@ void EmcaWriter::emit()
             pyc * kCm2Mm,
             pzc * kCm2Mm,
           });
+          record(paIdx, ns, hit);
         }
       } else if (idet == kIdetFEMC && nclu > 0 && nclu <= 10 && nwdcl == kNwdFEMC) {
         // FEMC: per-layer (energy, packed = layer*1000 + nhits).
@@ -106,6 +121,7 @@ void EmcaWriter::emit()
             showY * kCm2Mm,
             showZ * kCm2Mm,
           });
+          record(paIdx, ns, hit);
         }
       }
 
@@ -114,6 +130,7 @@ void EmcaWriter::emit()
     }
   });
 
+  ctx_.emca = std::move(out);
   put(std::move(hpc_col),  "EMCA", "HPCClusters", Provenance::Transcribed);
   put(std::move(femc_col), "EMCA", "FEMCLayers", Provenance::Transcribed);
 }

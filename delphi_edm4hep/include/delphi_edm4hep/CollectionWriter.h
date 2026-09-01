@@ -31,6 +31,7 @@
 #include "delphi_edm4hep/Tracking/TraxData.h"         // trax::Output
 #include "delphi_edm4hep/Tracking/TrackingData.h"   // tracking::Output
 #include "delphi_edm4hep/Tracking/VdHitData.h"      // vd_hits::Output
+#include "delphi_edm4hep/Calorimeter/EmcaData.h"    // emca::Output
 #include "delphi_edm4hep/Truth/TruthData.h"      // truth::GenParticleResult
 #include "delphi_edm4hep/BankPrefix.h"           // bank::Pass, bank::make
 
@@ -64,6 +65,10 @@ struct EventContext {
   // Set by VdHitsWriter; consumed by TrackingWriter, which links each track
   // to the Vertex-Detector hits assigned to it.
   std::optional<vd_hits::Output> vd_hits;
+
+  // Set by EmcaWriter; consumed by CalorimeterWriter, which attaches each
+  // shower's calorimeter hits to the cluster built from the same shower.
+  std::optional<emca::Output> emca;
 
   // Set by TrackingWriter; consumed by VertexWriter, CalorimeterWriter and
   // ParticleIdWriter, and by particleForPa() in pass 1.
