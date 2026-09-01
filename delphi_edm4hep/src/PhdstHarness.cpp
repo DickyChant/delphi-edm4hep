@@ -11,6 +11,8 @@
 
 #include "delphi_edm4hep/PhdstHarness.h"
 
+#include "delphi_edm4hep/internal/DstCensus.h"
+
 #include "delphi_edm4hep/BtagMode.h"
 #include "delphi_edm4hep/CollectionWriter.h"
 
@@ -203,8 +205,10 @@ void on_user00() noexcept {
           auto fd = reader->readEntry("events", i);
           if (!fd) break;
           const podio::Frame f(std::move(fd));
-          const auto run = f.getParameter<int>("sDST_EVT_runNumber");
-          const auto evt = f.getParameter<int>("sDST_EVT_eventNumber");
+          const auto run = f.getParameter<int>(
+              bank::make(bank::Pass::Sdst, "EVT", "runNumber"));
+          const auto evt = f.getParameter<int>(
+              bank::make(bank::Pass::Sdst, "EVT", "eventNumber"));
           if (run && evt) {
             if (g_sdst_index.emplace(std::make_pair(*run, *evt),
                                      std::make_pair(r, i)).second) {
@@ -299,6 +303,9 @@ static void on_user02_impl() {
   }
   g_current_sdst_frame = &frame;
 
+  // Record what this event's DST record carries, for the metadata frame.
+  census::observeEvent();
+
   if (g_cfg.on_event) {
     g_cfg.on_event(frame, ph::IIIRUN, ph::IIIEVT);
   }
@@ -333,6 +340,12 @@ void on_user99() noexcept {
     podio::Frame meta;
     meta.putParameter("provenance_collection", record.collections);
     meta.putParameter("provenance_source",     record.sources);
+
+    // What the input file actually carried, so an empty collection can be
+    // told apart from a module the file never had. Covers the events
+    // converted, not the whole file.
+    meta.putParameter("dst_pa_modules_present",      census::paModules());
+    meta.putParameter("dst_pilot_blocklets_present", census::pilotBlocklets());
 
     // The SKELANA track selection this file was produced with. IFLCUT names
     // the cut table (1 old SKELANA, 2 May-98 tuning, 3 April-99 tuning; the

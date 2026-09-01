@@ -72,7 +72,8 @@ void BtagWriter::emit()
   // domain, so sDST_EVT_BeamSpotErrorCode is not valid evidence for which
   // beamspot status governed the fDST AABTAG invocation. Serialize the live
   // current-pass value beside the b-tag payload instead.
-  putParameter("BTAGCFG", "SourcePrefix", std::string(source_tag_), Provenance::Custom);
+  putParameter("BTAGCFG", "SourcePrefix",
+               std::string(fromFullDst() ? "fDST" : "sDST"), Provenance::Custom);
   putParameter("BTAGCFG", "BeamSpotErrorCode", sk::IERRBS,
                Provenance::Derived);
   putParameter("BTAGCFG", "PrimaryVertexPolicy",

@@ -2,20 +2,21 @@
 //
 // Abstract base for per-domain podio writers. Owns a reference to the
 // Frame, an EventContext (shared scratch space across writers in one
-// event), and the source-tag prefix ("sDST" or "fDST"). Subclasses
-// implement `emit()`; the protected `put` / `putParameter` helpers
-// build the canonical "<source>_<bank>_<readable>" collection /
-// parameter name and forward to the frame.
+// event), and which conversion pass is running. Subclasses implement
+// `emit()`; the protected `put` / `putParameter` helpers build the
+// canonical "<prefix>_<bank>_<readable>" collection / parameter name and
+// forward to the frame. BankPrefix.h decides the prefix from the bank and
+// the pass.
 //
 // Per-event flow:
 //   EventContext ctx;
-//   EventWriter        (frame, ctx, "sDST").emit();      // EVT_* params
-//   TruthGenWriter     (frame, ctx, "sDST").emit();      // sets ctx.gen_truth
-//   TrackingWriter     (frame, ctx, "sDST").emit();      // sets ctx.tracking
-//   TruthRecoLinkWriter(frame, ctx, "sDST").emit();      // reads both
-//   VertexWriter       (frame, ctx, "sDST").emit();      // reads ctx.tracking
-//   CalorimeterWriter  (frame, ctx, "sDST").emit();      // reads ctx.tracking
-//   ParticleIdWriter   (frame, ctx, "sDST").emit();      // reads ctx.tracking
+//   EventWriter        (frame, ctx, Pass::Sdst).emit();  // EVT_* params
+//   TruthGenWriter     (frame, ctx, Pass::Sdst).emit();  // sets ctx.gen_truth
+//   TrackingWriter     (frame, ctx, Pass::Sdst).emit();  // sets ctx.tracking
+//   TruthRecoLinkWriter(frame, ctx, Pass::Sdst).emit();  // reads both
+//   VertexWriter       (frame, ctx, Pass::Sdst).emit();  // reads ctx.tracking
+//   CalorimeterWriter  (frame, ctx, Pass::Sdst).emit();  // reads ctx.tracking
+//   ParticleIdWriter   (frame, ctx, Pass::Sdst).emit();  // reads ctx.tracking
 //
 // All writers are stack-allocated; no heap, no vtable dispatch in the
 // usual case. `emit()` is virtual to leave the door open for runtime
@@ -30,6 +31,7 @@
 #include "delphi_edm4hep/Tracking/TraxData.h"         // trax::Output
 #include "delphi_edm4hep/Tracking/TrackingData.h"   // tracking::Output
 #include "delphi_edm4hep/Truth/TruthData.h"      // truth::GenParticleResult
+#include "delphi_edm4hep/BankPrefix.h"           // bank::Pass, bank::make
 
 #include <edm4hep/ReconstructedParticleCollection.h>
 #include <podio/Frame.h>
@@ -105,8 +107,8 @@ class CollectionWriter {
 public:
   CollectionWriter(podio::Frame& frame,
                    EventContext& ctx,
-                   std::string_view source_tag)
-    : frame_(frame), ctx_(ctx), source_tag_(source_tag) {}
+                   bank::Pass pass)
+    : frame_(frame), ctx_(ctx), pass_(pass) {}
 
   virtual ~CollectionWriter() = default;
 
@@ -116,7 +118,12 @@ public:
 protected:
   podio::Frame&    frame_;
   EventContext&    ctx_;
-  std::string_view source_tag_;
+  bank::Pass       pass_;
+
+  // True when this writer is running over a fullDST. Writers that decode a
+  // bank differently in the two passes branch on this rather than on the
+  // collection prefix, which varies per bank.
+  bool fromFullDst() const { return pass_ == bank::Pass::Fdst; }
 
   // The reconstructed particle this PA belongs to, or empty if it has none.
   //
@@ -134,17 +141,18 @@ protected:
   std::optional<edm4hep::ReconstructedParticle> particleForPa(int paIdx) const;
 
   // Build a canonical collection / parameter name
-  // "<source_tag>_<bank>_<readable>". Single allocation.
+  // "<prefix>_<bank>_<readable>". Also the way to name a collection written
+  // by another writer, since the prefix follows the bank.
   std::string makeName(std::string_view bank,
                        std::string_view readable) const {
-    std::string out;
-    out.reserve(source_tag_.size() + 1 + bank.size() + 1 + readable.size());
-    out.append(source_tag_);
-    out.push_back('_');
-    out.append(bank);
-    out.push_back('_');
-    out.append(readable);
-    return out;
+    return bank::make(pass_, bank, readable);
+  }
+
+  // Name of a collection written by pass 1. Pass-2 writers read pass-1 output,
+  // whose prefix follows the bank rather than the pass running now.
+  std::string sdstName(std::string_view bank,
+                       std::string_view readable) const {
+    return bank::make(bank::Pass::Sdst, bank, readable);
   }
 
   // Move a freshly-built collection into the frame under

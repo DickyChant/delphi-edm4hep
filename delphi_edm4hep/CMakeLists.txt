@@ -73,6 +73,7 @@ find_package(DelphiAL9 REQUIRED)
 # linker dance because the DELPHI archives have circular symbol deps).
 add_library(delphi_edm4hep
   src/BankPrefix.cpp
+  src/DstCensus.cpp
   src/BankReader.cpp
   src/CollectionWriter.cpp
   src/PerigeeMatch.cpp
@@ -106,7 +107,6 @@ add_library(delphi_edm4hep
   src/Tracking/Trax.cpp
   src/Tracking/VdHits.cpp
   src/Pid/PidExtrasSdst.cpp
-  src/Calorimeter/CcalFdst.cpp
 )
 target_include_directories(delphi_edm4hep
   PUBLIC

@@ -2,10 +2,10 @@
 //
 // Emits the PA track-element modules (te_bank::decodeModule) as:
 //
-//   <tag>_TE_Segments              Track,           one per track element
-//   <tag>_TE_SegmentLength         UserData<float>, parallel, mm
-//   <tag>_TEVF_TrackElementPlane   TrackerHitPlane, one per VFT element
-//   <tag>_TEVF_TrackElementLength  UserData<float>, parallel, mm
+//   <prefix>_TE_Segments                   Track,   one per track element
+//   <prefix>_TE_Segments_Length            UserData<float>, parallel, mm
+//   <prefix>_TEVF_TrackElementPlane        TrackerHitPlane, one per VFT element
+//   <prefix>_TEVF_TrackElementPlane_Length UserData<float>, parallel, mm
 //
 // A segment is a Track carrying one TrackState at AtOther: referencePoint is
 // the measured point, phi the track direction there, and chi2/ndf the

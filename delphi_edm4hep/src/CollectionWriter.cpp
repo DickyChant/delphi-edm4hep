@@ -25,7 +25,7 @@ std::map<std::string, Provenance, std::less<>> g_seen;
 // event-level bank mnemonics used in collection names. A name built from one
 // of these asserts that its values are stored DST content.
 constexpr std::string_view kBankMnemonics[] = {
-  "BSP",  "CCAL", "EL",   "ELID", "ELTR", "EMCA", "EMNC", "HAID", "HCAL",
+  "BSP",  "EL",   "ELID", "ELTR", "EMCA", "EMNC", "HAID", "HCAL",
   "HCMU", "HCNC", "HCRO", "LUJ",  "MAIN", "MRIC", "MTPC", "MU",   "MUFI",
   "MUID", "ODHI", "PHC",  "PHOT", "SSTC", "STIC", "TBL",  "TDHA", "TDID",
   "TDVD", "TEAD", "TEFA", "TEFB", "TEID", "TEOD", "TERB", "TERF", "TEST",
@@ -76,7 +76,8 @@ CollectionWriter::particleForPa(int paIdx) const {
     const int i = map[paIdx];
     if (i < 0) return std::nullopt;
     const auto& particles =
-      frame_.get<edm4hep::ReconstructedParticleCollection>("fDST_MAIN_Particles");
+      frame_.get<edm4hep::ReconstructedParticleCollection>(
+        makeName("MAIN", "Particles"));
     // Guard the clone being shorter than the map: better to return nothing
     // than to link the wrong particle.
     if (i >= static_cast<int>(particles.size())) return std::nullopt;

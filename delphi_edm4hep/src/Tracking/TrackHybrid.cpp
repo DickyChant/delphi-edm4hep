@@ -42,7 +42,7 @@ void TrackHybridWriter::emit()
   }
   const auto& pa_to_track = *ctx_.fdst_pa_to_sdst_track;
   const auto& sdst_tracks =
-    frame_.get<edm4hep::TrackCollection>("sDST_TRAC_Tracks");
+    frame_.get<edm4hep::TrackCollection>(sdstName("TRAC", "Tracks"));
 
   // sDST Track index -> the fDST PAs the perigee match resolved to it.
   // Usually 1:1, but many-to-one is tolerated.

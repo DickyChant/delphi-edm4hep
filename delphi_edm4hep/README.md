@@ -130,66 +130,70 @@ Two kinds of test:
 ---
 
 ## 2. Output collections
+### 2.0 DST flavour and collection naming
 
-### 2.0 Module availability
+A DELPHI DST exists in three flavours, and which PA modules a file carries is
+a property of the flavour — not of the year, and not of the reprocessing tag:
 
-Which PA modules a file carries is a **per-processing choice**. It does not
-follow the year, the DST version word, or the `short`/`xshort` catalogue
-nickname — `94B3` is catalogued as a shortDST yet carries the extended
-inventory, while `97E2` lacks `SSTC` that its neighbours have. A collection is
-therefore emitted whether or not its module is present, and is simply empty
-when it is not: the set of collections never varies between samples.
+| flavour | written by | era |
+|---|---|---|
+| shortDST | `shortdst.car` | LEP1 |
+| longDST | `longdst.car` | LEP1 |
+| extended shortDST | `xshortdst.car` | 1996 onward; replaced both |
 
-Measured, one file per processing, 300 events each (fullDST 200). A dash means
-the module was absent from that sample, which is weaker evidence for a rare
-module than for a common one.
+Each flavour's content is fixed by a production description deck
+(`shortdst.des`, `longdst.des`, `DESCRIP`) which marks word by word what is
+kept:
 
-| module | 92E2 | 94B3 | 94C2 | 95C2 | 95D1 | 96F1 | 97E2 | 98C2 | 99C1 | 99D1 | A0C1 | fDST |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `EL` | – | y | – | – | – | y | – | – | – | – | – | y |
-| `ELID` | y | y | y | y | y | y | y | y | y | y | y | – |
-| `ELTR` | y | y | y | y | y | y | y | y | y | y | y | – |
-| `EMCA` | – | y | – | – | – | y | y | y | y | y | y | y |
-| `EMNC` | y | y | y | y | y | y | y | y | y | y | y | – |
-| `HAID` | y | y | y | y | y | y | y | y | y | y | y | – |
-| `HCAL` | – | y | – | – | – | y | y | y | y | y | y | y |
-| `HCMU` | – | – | – | – | – | – | – | – | y | y | y | – |
-| `HCNC` | y | y | y | y | y | y | y | y | – | – | – | – |
-| `HCRO` | – | – | – | – | y | y | y | y | y | y | y | – |
-| `MAIN` | y | y | y | y | y | y | y | y | y | y | y | y |
-| `MRIC` | – | y | – | – | – | y | – | y | y | y | y | y |
-| `MTPC` | y | y | y | – | y | y | y | y | y | y | y | y |
-| `MU` | – | y | – | – | – | y | – | – | – | – | – | y |
-| `MUFI` | – | y | – | – | – | y | y | y | y | y | y | – |
-| `MUID` | y | y | y | y | y | y | y | y | y | y | y | – |
-| `ODHI` | y | y | y | y | y | y | y | y | y | y | y | – |
-| `PHOT` | y | y | y | y | y | y | y | y | y | y | y | – |
-| `SAT` | y | – | – | – | – | – | – | – | – | – | – | – |
-| `SSTC` | – | y | y | y | y | y | – | y | y | y | y | – |
-| `STIC` | – | y | – | – | – | y | y | y | y | y | y | y |
-| `TDHA` | – | y | – | – | – | y | – | – | – | – | – | y |
-| `TDID` | – | y | – | – | – | y | y | y | y | y | y | y |
-| `TEFA` | – | y | – | – | – | y | y | y | y | y | y | y |
-| `TEFB` | – | y | – | – | – | y | y | y | y | y | y | y |
-| `TEID` | – | y | – | – | – | y | y | y | y | y | y | y |
-| `TEOD` | – | y | – | – | – | y | y | y | y | y | y | y |
-| `TERF` | – | – | – | – | – | – | y | y | y | y | y | y |
-| `TEST` | – | – | – | – | – | – | y | y | y | y | y | – |
-| `TETP` | – | y | – | – | – | y | y | y | y | y | y | y |
-| `TEVF` | – | – | – | – | – | – | y | y | y | y | y | – |
-| `TOF` | – | y | – | – | – | y | y | y | y | y | y | y |
-| `TRAC` | y | y | y | y | y | y | y | y | y | y | y | y |
-| `TRAX` | – | – | – | – | – | y | – | – | – | – | – | y |
+| modules | short | long | xshort |
+|---|---|---|---|
+| `MAIN` `TRAC` `MTPC` `EMNC` `HCNC` `MUID` `ELID` `HAID` `ELTR` `ODHI` `PHOT` `NMUS` `SSTC` `HCRO` | y | y | y |
+| `EMCA` `HCAL` `MRIC` `TOF` `TDID` `STIC` `MUFI` `TEID` `TETP` `TEOD` `TEFA` `TEFB` | – | y | y |
+| `MU` `EL` `TDHA` `TRAX` `OTRK` `CCAL` | – | y | – |
+| `TERF` `TEST` `TEVF` `HCMU` | – | – | y |
 
-Two families are visible. Modules with label < 22 (`EMCA`, `HCAL`, `STIC`,
-`TOF`, `TDID`, `MU`, `EL`, `TRAX`, the `TE*` family) are produced at earlier
-processing stages and copied down, so they appear on the fullDST and on the
-files that kept them. Labels 22–40 (`EMNC`, `HCNC`, `MUID`, `ELID`, `HAID`,
-`SSTC`, `ODHI`, `PHOT`, `HCRO`, `MUFI`) are created during shortDST
-production, which is why the fullDST column is blank for them.
+`SAT` is kept by the 1993/94 shortDST and the longDST, and disappears once
+STIC replaces it.
 
-`SAT` appears only in 1992 — the luminosity monitor STIC replaced in 1994.
+**The collection name states which flavour supplies it**, so you can tell from
+the name alone what an input must be for the data to exist:
 
+    sDST_*    every flavour carries it
+    xsDST_*   the extended shortDST and the longDST, but not a plain shortDST
+    lDST_*    the longDST only
+    fDST_*    written by the fullDST pass
+
+**Companion collections name what they are parallel to.** A `UserData` array
+carries no relations and is meaningful only by index, so its name begins with
+the collection it is indexed against — `sDST_MAIN_Particles_DetectorMask` is
+parallel to `sDST_MAIN_Particles`, `xxsDST_TE_Segments_Length` to
+`xxsDST_TE_Segments`.
+
+**Every collection is always emitted**, so the collection set never varies
+between samples and code written against one file works on any other. A
+collection is simply empty when the input does not carry its module.
+
+**Which modules your file actually had** is recorded in the metadata frame, so
+an empty collection never has to be guessed at:
+
+    dst_pa_modules_present        PA modules seen anywhere in the file
+    dst_pilot_blocklets_present   PILOT blocklets present
+
+If a module is listed there, an empty collection means that event had no such
+activity. If it is not listed, the input never carried it. The census covers
+the events actually converted, so a short `-n` run reports only those.
+
+Flavour is not the only reason a collection can be empty. Some content was
+dropped by particular productions regardless of flavour:
+
+- `HCNC` is not written from the 1999 processings on; hadron-calorimeter
+  clusters come from `HCAL` there.
+- The VD dE/dx sub-block of `HAID` is absent from 1999 on, so
+  `sDST_HAID_dEdxVD` is empty on those files.
+- `MRIC` is absent from the 97E2 processing although its flavour keeps it.
+
+These appear in the census as a missing module, the same as a flavour
+difference.
 
 This section is self-contained — it describes the physical content of every
 collection and the meaning/units of every field, so the original DELPHI bank
@@ -253,7 +257,7 @@ Per-event scalars stored as podio Frame parameters:
 - Magnetic field: `BField` (Tesla) and `BFieldGevPerCm` (the
   curvature-to-momentum conversion factor).
 
-### 2.2 Pass-1 collections (`sDST_*`)
+### 2.2 Pass-1 collections (`sDST_*`, `xsDST_*`, `lDST_*`)
 
 **Truth**
 
@@ -290,16 +294,16 @@ Per-event scalars stored as podio Frame parameters:
   > Covariance is present only where DELPHI stored one: on the first measured
   > point for essentially every track, and on the muon surfaces when the track
   > has an associated MU signal. Elsewhere it is zero.
-- `sDST_TRAC_d0PV`, `sDST_TRAC_z0PV`, `sDST_TRAC_d0BS` (UserData&lt;float&gt;) —
+- `sDST_QTRAC_Tracks_d0PV`, `sDST_QTRAC_Tracks_z0PV`, `sDST_QTRAC_Tracks_d0BS` (UserData&lt;float&gt;) —
   impact parameters of each track w.r.t. the primary vertex (`d0PV`, `z0PV`)
   and the beam spot (`d0BS`), mm; parallel to `sDST_TRAC_Tracks` (charged
   only — neutrals have no entry), NaN when no PV/BS-corrected value is
   available for that track.
-- `sDST_VECP_LVLOCK` (UserData&lt;int32&gt;) — raw per-particle DELPHI lock/status
+- `sDST_VECP_Particles_SelectionFlag` (UserData&lt;int32&gt;) — raw per-particle DELPHI lock/status
   mask; bit 1 marks track-selection failure and bit 32 multi-vertex/REMCLU
   locking. Other bits are preserved without reinterpretation; −1 for
   neutrals. Parallel to `sDST_MAIN_Particles`.
-- `sDST_MAIN_ReconstructionCode` (UserData&lt;int32&gt;) — raw PXPHOT code,
+- `sDST_MAIN_Particles_ReconstructionCode` (UserData&lt;int32&gt;) — raw PXPHOT code,
   parallel to `sDST_MAIN_Particles`.
 
   > **A code describing how the track was reconstructed** — e.g. 75 = VD-only
@@ -311,9 +315,9 @@ Per-event scalars stored as podio Frame parameters:
   > from 97E2 and 98C2 but common either side. DELPHI changed convention part
   > way through, keyed on `sDST_EVT_dstProcessingTag` (new from `96`) — use
   > that, not `sDST_EVT_dstVersion`, to decide how to read the code.
-- `sDST_MAIN_TrackLength` (UserData&lt;float&gt;) — track length in cm, parallel
+- `sDST_MAIN_Particles_TrackLength` (UserData&lt;float&gt;) — track length in cm, parallel
   to `sDST_MAIN_Particles`.
-- `sDST_MAIN_DetectorMask` (UserData&lt;int32&gt;) — which subdetectors were used
+- `sDST_MAIN_Particles_DetectorMask` (UserData&lt;int32&gt;) — which subdetectors were used
   in this particle's reconstruction, a raw bit mask parallel to
   `sDST_MAIN_Particles`. Bits: 2 primary vertex in fit, 4 VD, 5 ID, 6 TPC,
   7 RIB, 9 OD, 10 HPC, 14 HAB, 15 MUB, 19 STIC, 21 FCA, 22 RIF, 23 HAF,
@@ -362,7 +366,7 @@ Per-event scalars stored as podio Frame parameters:
 - `sDST_EMNC_Showers` (Cluster) — electromagnetic showers (HPC barrel and FEMC
   endcap, distinguished by `type` bits 0/1); `energy`, `position`, and the
   per-layer energy profile in `subdetectorEnergies`.
-- `sDST_HCNC_Showers` / `sDST_HCAL_Showers` (Cluster) — hadron-calorimeter
+- `sDST_HCNC_Showers` / `xsDST_HCAL_Showers` (Cluster) — hadron-calorimeter
   showers (`type` bit 2); per-hit energies in `subdetectorEnergies`, the
   parallel layer indices in `shapeParameters`. **Both are always emitted and
   either may be empty — see the note below before using them.**
@@ -463,7 +467,7 @@ Per-event scalars stored as podio Frame parameters:
   parameters, shower θ/φ, OD-link & stray-shower counts, fit χ², σφ/σθ).
 - `sDST_ODHI_OuterDetector` (algType 29) — Outer-Detector per-track hit
   summary (up to 7 raw bank words).
-- `sDST_MUFI_RefitMuon` (algType 27) — refitted-muon fit summary: detector
+- `xsDST_MUFI_RefitMuon` (algType 27) — refitted-muon fit summary: detector
   (14=MUB/17=MUS/30=MUF), n layers, ndof, global χ², first-layer x/y,
   expected-missing-layers, chambers-alone χ², extrapolated x/y/θ/φ and their
   errors.
@@ -486,12 +490,12 @@ Per-event scalars stored as podio Frame parameters:
   > photon/electron code not a veto tag, and `[3]`/`[4]` are absent.
 **Track elements**
 
-- `sDST_TE_Segments` (Track) — one per track element, each carrying a single
+- `xsDST_TE_Segments` (Track) — one per track element, each carrying a single
   `TrackState` at `AtOther`: `referencePoint` is the measured point, `phi` the
   track direction there, and `chi2`/`ndf` the element's own fit quality.
-- `sDST_TE_SegmentLength` (UserData&lt;float&gt;) — element length in mm, parallel
-  to `sDST_TE_Segments`.
-- `sDST_TEVF_TrackElementPlane` (TrackerHitPlane) + `sDST_TEVF_TrackElementLength`
+- `xxsDST_TE_Segments_Length` (UserData&lt;float&gt;) — element length in mm, parallel
+  to `xsDST_TE_Segments`.
+- `xsDST_TEVF_TrackElementPlane` (TrackerHitPlane) + `xxsDST_TEVF_TrackElementPlane_Length`
   — the very forward tracker, which measures two coordinates and no direction.
 
   Reach them from `sDST_TRAC_Tracks.tracks` and `sDST_TRAC_Tracks.trackerHits`.
@@ -541,18 +545,11 @@ Per-event scalars stored as podio Frame parameters:
   counterpart (post-DST V0 daughter, photon-conversion daughter, or hadronic
   secondary that exists only in the shortDST), `−1` neutral particle (no
   perigee match applies).
-- `fDST_TRAC_Tracks` (Track) — the shortDST track with extra TrackStates
-  appended: one `AtFirstHit` (reference point = first measured point, mm) and
-  one `AtOther` per track-element detector (TEID/TETP/TEOD/TEFA/TEFB and the
-  forward-RICH TERF). Each TE state's reference point is the measured
-  `(c1,c2,c3)` (mm) and its helix parameters + 6×6 covariance are the
-  push-forward of the TE-bank measurement.
-- `fDST_TRAC_Tracks_FitQuality` (ParticleID, companion to the TE TrackStates) —
-  `algorithmType` = TE detector label (12 TEID, 13 TETP, 14 TEOD, 15 TEFA,
-  16 TEFB, 21 TERF); `params`: `[0]` charge (±1/0), `[1]` B field (T),
-  `[2]` TE descriptor word, `[3]` ndf, `[4]` χ², `[5]` track length (cm),
-  `[6]` number of stored covariance entries. (`[0]` and `[1]` let you recover
-  momentum from the state's `omega` without external lookups.)
+- `fDST_TRAC_Tracks` (Track) — the shortDST track cloned with its `AtIP` state,
+  plus the extrapolation states the fullDST carries: one `AtFirstHit` at the
+  first measured point, `AtCalorimeter` at a calorimeter face, and `AtOther`
+  elsewhere along the track (mm). Track elements are linked rather than merged
+  in — see `fDST_TE_Segments` and `fDST_TEVF_TrackElementPlane`.
 - `fDST_TOF_TimeOfFlight` (ParticleID, algType 5) — `[0]` time of flight (ns),
   `[1]` σ_t (ns).
 - `fDST_MTPC_dEdxExtended` (ParticleID, algType 6) + `fDST_MTPC_dEdx_RecDqdx` —
@@ -582,9 +579,6 @@ Per-event scalars stored as podio Frame parameters:
   `position` mm; time not decoded at this DST level.
 - `fDST_STIC_Showers` (Cluster) — STIC showers from the fullDST (same content
   as `sDST_SSTC_Showers`).
-- `fDST_CCAL_Showers` (Cluster) — combined-calorimetry showers (the reconciled
-  EMF/HPC/HAC overlap): `energy`, `position` (mm), direction `iTheta`/`iPhi`;
-  `type` bit 4.
 
 ### 2.4 Pass-2 hybrid collections (`fDST_*`)
 
@@ -602,11 +596,9 @@ originals described in §2.2.
   `fDST_MAIN_Particles`. `<algo>` mirrors pass 1 (BBDXGET or GETDEDX).
 - `fDST_EMNC_Showers`, `fDST_HCNC_Showers`, `fDST_HCAL_Showers` — shower clones.
 - `fDST_TE_Segments`, `fDST_TEVF_TrackElementPlane` — track elements decoded
-  from the fullDST PA chain, linked from `fDST_TRAC_Tracks`. `fDST_TRAC_Tracks`
-  no longer carries per-element `AtOther` states, and the companion
-  `fDST_TRAC_Tracks_FitQuality` has been removed: `ndf` and `chi2` are native
-  on the segments, the descriptor is in `quality`, and the length is the
-  parallel `SegmentLength`.
+  from the fullDST PA chain, linked from `fDST_TRAC_Tracks`. `ndf` and `chi2`
+  are native on the segments, the TE descriptor is in `quality`, and the
+  element length is the parallel `fDST_TE_Segments_Length`.
 - `fDST_TBL_RecoToGen` — `from` re-pointed to `fDST_MAIN_Particles`.
 
 ### 2.5 B-tagging (`--btag`, opt-in)
@@ -704,8 +696,8 @@ on output.
 
 `ImpactParRPhi` uses AABTAG's **own sign convention**, not the LCIO `D0` sign
 of the Track collections — the sign is the physics (the negative-IP side is
-the mistag control sample). Do not mix it with `sDST_TRAC_d0PV` or
-`sDST_PV_trackD0PV`; see §2.2.
+the mistag control sample). Do not mix it with `sDST_QTRAC_Tracks_d0PV` or
+`sDST_PV_Tracks_d0PV`; see §2.2.
 
 `--btag-pv` sets `IFLPVT = 1`, letting AABTAG's vertex overwrite the DELANA
 one inside SKELANA's `PSCVTX`. **Not recommended.** On the beamspot-failure

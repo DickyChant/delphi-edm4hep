@@ -15,7 +15,7 @@ void TblHybridWriter::emit()
   edm4hep::RecoMCParticleLinkCollection out;
 
   const auto& src =
-    frame_.get<edm4hep::RecoMCParticleLinkCollection>("sDST_TBL_RecoToGen");
+    frame_.get<edm4hep::RecoMCParticleLinkCollection>(sdstName("TBL", "RecoToGen"));
   const auto& fdst_particles =
     frame_.get<edm4hep::ReconstructedParticleCollection>("fDST_MAIN_Particles");
   const std::size_t n_fdst = fdst_particles.size();

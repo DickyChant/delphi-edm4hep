@@ -1,32 +1,44 @@
 // SPDX-License-Identifier: same-as-repo
 // BankPrefix.h
 //
-// Authoritative mapping between Delphi bank / SKELANA-common mnemonics and
-// the BANK slot of the <source-tag>_<BANK>_<ReadableName> collection-naming
-// convention used by the library.
+// Collection names follow <prefix>_<BANK>_<ReadableName>.
 //
-// This header is the single source of truth for "what does e.g. MAIN mean
-// in a collection name?" — the table covers per-PA modules, event-level
-// banks, and SKELANA-aggregated commons.
+// The prefix names the kind of DELPHI input file that supplies the bank, so a
+// collection name states what a reader needs in order to have the data:
 //
-// No state, no Fortran linkage — pure constexpr-ish lookups.
+//   sDST   kept by every DST flavour
+//   xsDST  kept by the extended shortDST and the longDST, but not by a plain
+//          shortDST
+//   lDST   kept by the longDST only
+//   fDST   written by the fullDST pass
+//
+// Which PA modules a file carries is fixed by the production description deck
+// it was written with (shortdst.des, longdst.des, DESCRIP), not by the year or
+// the reprocessing tag. Collections are emitted whether or not the input
+// carries the module, and are empty when it does not; the prefix says which
+// inputs can fill them.
+//
+// This header is the single source of truth for the prefix and for what a
+// bank mnemonic means in a collection name.
+//
+// No state, no Fortran linkage.
 
 #pragma once
 
+#include <string>
 #include <string_view>
 
 namespace delphi_edm4hep::bank {
 
-// Source-tag prefix added by the harness depending on which pass wrote the
-// frame. Stored as a string literal so we can prepend without allocation.
-inline constexpr std::string_view kSourceTagSDST = "sDST";
-inline constexpr std::string_view kSourceTagFDST = "fDST";
+// Which conversion pass is writing. The fullDST pass reads a different input
+// file, so everything it writes carries the fDST prefix regardless of bank.
+enum class Pass { Sdst, Fdst };
 
-// Helper: build a fully-qualified collection name "<source>_<bank>_<name>".
-// Returns a std::string (one allocation per call); only called at frame.put
-// time so the cost is negligible.
-std::string make(std::string_view source_tag,
-        std::string_view bank,
-        std::string_view readable_name);
+// Prefix for `bank` when written by `pass`.
+std::string_view prefixFor(Pass pass, std::string_view bank);
+
+// Build "<prefix>_<bank>_<readable_name>". One allocation; called at
+// frame.put time only.
+std::string make(Pass pass, std::string_view bank, std::string_view readable_name);
 
 }  // namespace delphi_edm4hep::bank

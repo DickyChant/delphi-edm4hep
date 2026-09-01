@@ -40,8 +40,8 @@ void SticShowerWriter::emit()
 {
   edm4hep::ClusterCollection col;
 
-  const bool is_sdst = (source_tag_ == "sDST");
-  const char* bank   = is_sdst ? "SSTC" : "STIC";
+  // Pass 1 reads the shortDST module SSTC; the fullDST carries STIC.
+  const char* bank = fromFullDst() ? "STIC" : "SSTC";
 
   const int last = std::min(sk::NVECP, sk::MTRACK);
   for (int i = sk::LVPART; i <= last; ++i) {

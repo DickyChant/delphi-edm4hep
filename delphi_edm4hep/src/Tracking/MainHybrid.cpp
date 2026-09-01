@@ -67,7 +67,7 @@ void cloneVerticesWithRepointedParticles(
 void MainHybridWriter::emit()
 {
   const auto& sdst_particles =
-    frame_.get<edm4hep::ReconstructedParticleCollection>("sDST_MAIN_Particles");
+    frame_.get<edm4hep::ReconstructedParticleCollection>(sdstName("MAIN", "Particles"));
   const auto& fdst_tracks =
     frame_.get<edm4hep::TrackCollection>("fDST_TRAC_Tracks");
   const std::size_t n_fdst_tracks = fdst_tracks.size();
@@ -81,8 +81,8 @@ void MainHybridWriter::emit()
   // the reference's collectionID.
   const auto& fdst_emnc = frame_.get<edm4hep::ClusterCollection>("fDST_EMNC_Showers");
   const auto& fdst_hcnc = frame_.get<edm4hep::ClusterCollection>("fDST_HCNC_Showers");
-  const auto  emnc_id   = frame_.get<edm4hep::ClusterCollection>("sDST_EMNC_Showers").getID();
-  const auto  hcnc_id   = frame_.get<edm4hep::ClusterCollection>("sDST_HCNC_Showers").getID();
+  const auto  emnc_id   = frame_.get<edm4hep::ClusterCollection>(sdstName("EMNC", "Showers")).getID();
+  const auto  hcnc_id   = frame_.get<edm4hep::ClusterCollection>(sdstName("HCNC", "Showers")).getID();
   const std::size_t n_emnc = fdst_emnc.size();
   const std::size_t n_hcnc = fdst_hcnc.size();
 
@@ -135,10 +135,10 @@ void MainHybridWriter::emit()
   edm4hep::VertexCollection v0_out;
   edm4hep::VertexCollection phc_out;
 
-  const auto& sdst_pv  = frame_.get<edm4hep::VertexCollection>("sDST_PV_PrimaryVertex");
-  const auto& sdst_vtx = frame_.get<edm4hep::VertexCollection>("sDST_PV_Vertices");
-  const auto& sdst_v0  = frame_.get<edm4hep::VertexCollection>("sDST_V0_V0Candidates");
-  const auto& sdst_phc = frame_.get<edm4hep::VertexCollection>("sDST_PHC_PhotonConversions");
+  const auto& sdst_pv  = frame_.get<edm4hep::VertexCollection>(sdstName("PV", "PrimaryVertex"));
+  const auto& sdst_vtx = frame_.get<edm4hep::VertexCollection>(sdstName("PV", "Vertices"));
+  const auto& sdst_v0  = frame_.get<edm4hep::VertexCollection>(sdstName("V0", "V0Candidates"));
+  const auto& sdst_phc = frame_.get<edm4hep::VertexCollection>(sdstName("PHC", "PhotonConversions"));
 
   cloneVerticesWithRepointedParticles(sdst_pv,  pv_out,  main_out);
   cloneVerticesWithRepointedParticles(sdst_vtx, vtx_out, main_out);

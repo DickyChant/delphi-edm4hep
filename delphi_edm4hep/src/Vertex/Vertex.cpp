@@ -381,7 +381,7 @@ void VertexWriter::emit()
   {
     const double px = pv_x_cm * kCm2Mm, py = pv_y_cm * kCm2Mm, pz = pv_z_cm * kCm2Mm;
     const auto& tracks = frame_.get<edm4hep::TrackCollection>(
-        std::string(source_tag_) + "_TRAC_Tracks");
+        makeName("TRAC", "Tracks"));
     for (const auto& trk : tracks) {
       float d0pv = -999.f, z0pv = -999.f; std::int32_t flag = 0;
       if (have_pv) {
@@ -404,9 +404,9 @@ void VertexWriter::emit()
   }
 
   // ----- Push everything into the frame via the base put() -----
-  put(std::move(d0pvCol),    "PV",  "trackD0PV", Provenance::Custom);
-  put(std::move(z0pvCol),    "PV",  "trackZ0PV", Provenance::Custom);
-  put(std::move(d0pvFlag),   "PV",  "trackImpactFlag", Provenance::Custom);
+  put(std::move(d0pvCol),    "PV",  "Tracks_d0PV", Provenance::Custom);
+  put(std::move(z0pvCol),    "PV",  "Tracks_z0PV", Provenance::Custom);
+  put(std::move(d0pvFlag),   "PV",  "Tracks_ImpactFlag", Provenance::Custom);
   put(std::move(pvCol),      "PV",  "PrimaryVertex", Provenance::Transcribed);
   put(std::move(vtxCol),     "PV",  "Vertices", Provenance::Transcribed);
   put(std::move(statusBits), "PV",  "Vertices_StatusBits", Provenance::Transcribed);

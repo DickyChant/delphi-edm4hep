@@ -24,7 +24,7 @@ constexpr const char* kDedxAlgorithms[] = {"BBDXGET", "GETDEDX"};
 
 std::string dedxAlgorithm(const podio::Frame& frame) {
   for (const char* algo : kDedxAlgorithms) {
-    if (frame.get(std::string("sDST_") + algo + "_Dedx")) return algo;
+    if (frame.get(bank::make(bank::Pass::Sdst, algo, "Dedx"))) return algo;
   }
   throw std::runtime_error(
       "pass-1 frame carries no dE/dx collection; expected sDST_BBDXGET_Dedx"
@@ -67,17 +67,17 @@ void PidHybridWriter::emit()
   const std::size_t n_fdst_tracks = fdst_tracks.size();
 
   const std::string dedx_algo = dedxAlgorithm(frame_);
-  const std::string dedx_name = "sDST_" + dedx_algo + "_Dedx";
+  const std::string dedx_name = sdstName(dedx_algo, "Dedx");
 
   edm4hep::ParticleIDCollection haid_out, muid_out, elid_out, dedx_out;
   clonePidWithRepoint(
-    frame_.get<edm4hep::ParticleIDCollection>("sDST_HAID_HadronID"),
+    frame_.get<edm4hep::ParticleIDCollection>(sdstName("HAID", "HadronID")),
     haid_out, fdst_particles);
   clonePidWithRepoint(
-    frame_.get<edm4hep::ParticleIDCollection>("sDST_MUID_MuonID"),
+    frame_.get<edm4hep::ParticleIDCollection>(sdstName("MUID", "MuonID")),
     muid_out, fdst_particles);
   clonePidWithRepoint(
-    frame_.get<edm4hep::ParticleIDCollection>("sDST_ELID_ElectronID"),
+    frame_.get<edm4hep::ParticleIDCollection>(sdstName("ELID", "ElectronID")),
     elid_out, fdst_particles);
   clonePidWithRepoint(
     frame_.get<edm4hep::ParticleIDCollection>(dedx_name),

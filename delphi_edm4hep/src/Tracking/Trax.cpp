@@ -87,7 +87,7 @@ void TraxWriter::emit()
 
   // Field strength as the event recorded it, so both passes agree.
   const double B = frame_.getParameter<float>(
-      std::string(source_tag_) + "_EVT_BField").value_or(0.f);
+      makeName("EVT", "BField")).value_or(0.f);
 
   pawalk::forEachPA([&](int lpa, int paIdx) {
     if (paIdx >= static_cast<int>(out.pa_to_states.size())) {

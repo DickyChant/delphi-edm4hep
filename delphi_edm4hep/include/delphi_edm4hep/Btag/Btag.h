@@ -37,10 +37,10 @@ public:
   // (pass 2 drives on a fullDST, where Bank degrades to a recalculation).
   BtagWriter(podio::Frame& frame,
              EventContext& ctx,
-             std::string_view source_tag,
+             bank::Pass pass,
              BtagMode mode,
              bool fulldst)
-    : CollectionWriter(frame, ctx, source_tag), mode_(mode), fulldst_(fulldst) {}
+    : CollectionWriter(frame, ctx, pass), mode_(mode), fulldst_(fulldst) {}
 
   void emit() override;
 

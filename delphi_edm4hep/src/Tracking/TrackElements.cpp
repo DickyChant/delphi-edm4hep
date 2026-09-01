@@ -56,7 +56,7 @@ void TrackElementsWriter::emit()
   // Field strength as the event recorded it, so both passes agree. Zero when
   // absent, which yields zero curvature rather than a wrong one.
   const double B = frame_.getParameter<float>(
-      std::string(source_tag_) + "_EVT_BField").value_or(0.f);
+      makeName("EVT", "BField")).value_or(0.f);
 
   pawalk::forEachPA([&](int lpa, int paIdx) {
     if (paIdx >= static_cast<int>(out.pa_to_segments.size())) {
@@ -114,10 +114,10 @@ void TrackElementsWriter::emit()
   // Emitted whether or not any module is on the file, so the collection set
   // does not vary between samples.
   put(std::move(segments),       "TE",   "Segments",       Provenance::Transcribed);
-  put(std::move(segment_length), "TE",   "SegmentLength",  Provenance::Transcribed);
+  put(std::move(segment_length), "TE",   "Segments_Length", Provenance::Transcribed);
   put(std::move(planes),         "TEVF", "TrackElementPlane",
       Provenance::Transcribed);
-  put(std::move(plane_length),   "TEVF", "TrackElementLength",
+  put(std::move(plane_length),   "TEVF", "TrackElementPlane_Length",
       Provenance::Transcribed);
 
   ctx_.track_elements = std::move(out);

@@ -1,15 +1,15 @@
 // Tracking domain — implementation S3 (pass-1).
 //
 // Walks the PA chain (LDTOP-1 -> per-PV -> per-PA), emitting:
-//   <tag>_TRAC_Tracks       (Track + TrackState[AtIP] + 5x5 helix-basis cov)
-//   <tag>_MAIN_Particles    (charged + neutral; 4-mom from sk::VECP)
-//   <tag>_VECP_LVLOCK       (UserData int32 parallel to _MAIN_Particles)
-//   <tag>_MAIN_ReconstructionCode (UserData int32 parallel to _MAIN_Particles)
-//   <tag>_MAIN_DetectorMask (UserData int32 parallel to _MAIN_Particles)
+//   <prefix>_TRAC_Tracks    (Track + TrackState[AtIP] + 5x5 helix-basis cov)
+//   <prefix>_MAIN_Particles (charged + neutral; 4-mom from sk::VECP)
+//   <prefix>_VECP_Particles_SelectionFlag       (UserData int32)
+//   <prefix>_MAIN_Particles_ReconstructionCode  (UserData int32)
+//   <prefix>_MAIN_Particles_DetectorMask        (UserData int32)
 //
 // Each Track links to the track elements from its PA (see TrackElements).
-//   <tag>_MAIN_TrackLength  (UserData float parallel to _MAIN_Particles, cm)
-//   <tag>_TRAC_d0PV / z0PV / d0BS  (UserData float; from sk::QTRAC(38..40))
+//   <prefix>_MAIN_Particles_TrackLength         (UserData float, cm)
+//   <prefix>_QTRAC_Tracks_d0PV / _z0PV / _d0BS  (UserData float; QTRAC 38..40)
 //
 // No shape moments, no sigma calibration, no perigee-momentum fallback —
 // bank-truth values only (those custom operations are intentionally
@@ -107,13 +107,13 @@ void TrackingWriter::emit()
   // Helper: push the BS/PV-corrected impact-parameter triplet for a
   // VECP-matched track, or NaN sentinels if vecp_i is 0.
   //
-  // CONVENTION / FOOTGUN (sDST_TRAC_d0PV / z0PV / d0BS): sk::QTRAC values
+  // CONVENTION / FOOTGUN (QTRAC_Tracks_d0PV / _z0PV / _d0BS): sk::QTRAC values
   // converted cm -> **mm**, DELPHI sign (rho = Vx sinphi - Vy cosphi), parallel
   // to TRAC_Tracks (charged-only). These are EMPTY (0 / -999) in real DATA --
   // the SKELANA QTRAC common is only filled in MC. For a data-usable impact
-  // parameter use sDST_PV_trackD0PV (Vertex.cpp): geometric, also **mm** but
-  // LCIO sign, so sDST_PV_trackD0PV ~= -1 * sDST_TRAC_d0PV. Same units and
-  // parallel collection now; they still differ in SIGN -- do not mix them.
+  // parameter use PV_Tracks_d0PV (Vertex.cpp): geometric, also **mm** but LCIO
+  // sign. Both are filled on MC, where d0 differs by a factor -1 while z0
+  // agrees -- do not mix them.
   static constexpr float kNaN = std::numeric_limits<float>::quiet_NaN();
   auto push_qtrac_or_nan = [&](int vecp_i) {
     if (vecp_i >= 1) {
@@ -302,13 +302,13 @@ void TrackingWriter::emit()
   // Handles in `result` remain valid afterwards.
   put(std::move(trkCol),    "TRAC", "Tracks", Provenance::Derived);
   put(std::move(pfoCol),    "MAIN", "Particles", Provenance::Derived);
-  put(std::move(lvlockCol), "VECP", "LVLOCK",             Provenance::Derived);
-  put(std::move(codeCol),   "MAIN", "ReconstructionCode", Provenance::Transcribed);
-  put(std::move(detCol),    "MAIN", "DetectorMask",       Provenance::Transcribed);
-  put(std::move(lengthCol), "MAIN", "TrackLength",        Provenance::Transcribed);
-  put(std::move(d0PvCol),   "TRAC", "d0PV", Provenance::Derived);
-  put(std::move(z0PvCol),   "TRAC", "z0PV", Provenance::Derived);
-  put(std::move(d0BsCol),   "TRAC", "d0BS", Provenance::Derived);
+  put(std::move(lvlockCol), "VECP", "Particles_SelectionFlag", Provenance::Derived);
+  put(std::move(codeCol),   "MAIN", "Particles_ReconstructionCode", Provenance::Transcribed);
+  put(std::move(detCol),    "MAIN", "Particles_DetectorMask",       Provenance::Transcribed);
+  put(std::move(lengthCol), "MAIN", "Particles_TrackLength",        Provenance::Transcribed);
+  put(std::move(d0PvCol),   "QTRAC", "Tracks_d0PV", Provenance::Derived);
+  put(std::move(z0PvCol),   "QTRAC", "Tracks_z0PV", Provenance::Derived);
+  put(std::move(d0BsCol),   "QTRAC", "Tracks_d0BS", Provenance::Derived);
 
   // Hand off to downstream writers via the shared context.
   ctx_.tracking = std::move(result);

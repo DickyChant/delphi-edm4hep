@@ -13,7 +13,6 @@
 #include "delphi_edm4hep/Btag/Btag.h"
 #include "delphi_edm4hep/BtagMode.h"
 #include "delphi_edm4hep/PhdstHarness.h"
-#include "delphi_edm4hep/Calorimeter/CcalFdst.h"
 #include "delphi_edm4hep/Calorimeter/Emca.h"
 #include "delphi_edm4hep/Pid/PaPidExtras.h"
 #include "delphi_edm4hep/Calorimeter/HcalFdst.h"
@@ -149,40 +148,39 @@ int main(int argc, char** argv) {
     // MatchProvenanceWriter must run FIRST: it populates
     // ctx.fdst_pa_to_sdst_particle (and _track) which the other
     // pass-2 writers consume for their setParticle linkage.
-    matchprov::MatchProvenanceWriter(frame, ctx, "fDST").emit();
+    matchprov::MatchProvenanceWriter(frame, ctx, bank::Pass::Fdst).emit();
     // TrackElements decodes the PA.TE* modules and must run before
     // TrackHybrid, which links each cloned track to them.
-    track_elements::TrackElementsWriter(frame, ctx, "fDST").emit();
-    trax::TraxWriter                (frame, ctx, "fDST").emit();
-    track_hybrid::TrackHybridWriter (frame, ctx, "fDST").emit();
-    emca::EmcaWriter       (frame, ctx, "fDST").emit();
-    hcal_fdst::HcalFdstWriter       (frame, ctx, "fDST").emit();
-    tead_fdst::TeadFdstWriter       (frame, ctx, "fDST").emit();
-    tdha::TdhaWriter       (frame, ctx, "fDST").emit();
-    stic_shower::SticShowerWriter   (frame, ctx, "fDST").emit();
-    ccal_fdst::CcalFdstWriter       (frame, ctx, "fDST").emit();
+    track_elements::TrackElementsWriter(frame, ctx, bank::Pass::Fdst).emit();
+    trax::TraxWriter                (frame, ctx, bank::Pass::Fdst).emit();
+    track_hybrid::TrackHybridWriter (frame, ctx, bank::Pass::Fdst).emit();
+    emca::EmcaWriter       (frame, ctx, bank::Pass::Fdst).emit();
+    hcal_fdst::HcalFdstWriter       (frame, ctx, bank::Pass::Fdst).emit();
+    tead_fdst::TeadFdstWriter       (frame, ctx, bank::Pass::Fdst).emit();
+    tdha::TdhaWriter       (frame, ctx, bank::Pass::Fdst).emit();
+    stic_shower::SticShowerWriter   (frame, ctx, bank::Pass::Fdst).emit();
     // ShowerHybrid clones sDST_EMNC/HCNC_Showers into fDST_* and must run
     // BEFORE MainHybrid: the Particle→Cluster relation lives on the
     // (mutable) particle, so MainHybrid re-points it onto these clones
     // while fDST_MAIN_Particles is still being built.
-    shower_hybrid::ShowerHybridWriter(frame, ctx, "fDST").emit();
+    shower_hybrid::ShowerHybridWriter(frame, ctx, bank::Pass::Fdst).emit();
     // MainHybrid must run AFTER TrackHybrid (consumes fDST_TRAC_Tracks)
     // and ShowerHybrid (consumes fDST_EMNC/HCNC_Showers), and BEFORE the
     // hybrid writers that consume fDST_MAIN_Particles.
-    main_hybrid::MainHybridWriter   (frame, ctx, "fDST").emit();
+    main_hybrid::MainHybridWriter   (frame, ctx, bank::Pass::Fdst).emit();
     // These PA ParticleID writers link setParticle() to fDST_MAIN_Particles
     // (1:1 with sDST_MAIN_Particles by clone index), so they MUST run AFTER
     // MainHybrid creates it. They previously ran earlier and linked to the
     // pass-1 sDST_MAIN_Particles, leaving final-file PID->particle relations
     // inconsistent with the PidHybrid-repointed clones. (MU/EL/TDID + TOF + MTPC + TRAX.)
-    tof::TofWriter         (frame, ctx, "fDST").emit();
-    mtpc::MtpcWriter              (frame, ctx, "fDST").emit();
-    pa_pid_extras::PaPidExtrasWriter(frame, ctx, "fDST").emit();
-    pid_hybrid::PidHybridWriter     (frame, ctx, "fDST").emit();
-    tbl_hybrid::TblHybridWriter     (frame, ctx, "fDST").emit();
+    tof::TofWriter         (frame, ctx, bank::Pass::Fdst).emit();
+    mtpc::MtpcWriter              (frame, ctx, bank::Pass::Fdst).emit();
+    pa_pid_extras::PaPidExtrasWriter(frame, ctx, bank::Pass::Fdst).emit();
+    pid_hybrid::PidHybridWriter     (frame, ctx, bank::Pass::Fdst).emit();
+    tbl_hybrid::TblHybridWriter     (frame, ctx, bank::Pass::Fdst).emit();
     // B-tagging. fulldst=true: SKELANA recalculates for ANY IFLBTG > 0 on
     // a fullDST, so --btag bank still yields AABTAG-named output here.
-    btag::BtagWriter                (frame, ctx, "fDST", btag_mode, /*fulldst=*/true).emit();
+    btag::BtagWriter                (frame, ctx, bank::Pass::Fdst, btag_mode, /*fulldst=*/true).emit();
   };
 
   return harness::run(cfg);
