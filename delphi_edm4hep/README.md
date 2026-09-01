@@ -528,7 +528,7 @@ VD-only and ID+VD-without-z tracks).
 
 **Other detectors**
 
-- `sDST_ELTR_RefitTracks` (Track) + `sDST_ELTR_ParticleIndex`
+- `sDST_ELTR_RefitTracks` (Track) + `sDST_ELTR_RefitTracks_ParticleIndex`
   (UserData&lt;int32&gt;) — the electron-hypothesis refitted track (same perigee
   + covariance treatment as `sDST_TRAC_Tracks`); the parallel index gives the
   `sDST_MAIN_Particles` entry it belongs to.
@@ -596,7 +596,7 @@ VD-only and ID+VD-without-z tracks).
 
 ### 2.3 Pass-2 pure-fullDST collections (`fDST_*`)
 
-- `fDST_MAIN_MatchProvenance` (UserData&lt;int32&gt;, parallel to
+- `fDST_MAIN_Particles_MatchProvenance` (UserData&lt;int32&gt;, parallel to
   `fDST_MAIN_Particles` — one entry per reconstructed particle, charged and
   neutral, NOT parallel to `fDST_TRAC_Tracks` which is charged-only) —
   per-particle provenance from the pass-2 perigee match: `+1` charged

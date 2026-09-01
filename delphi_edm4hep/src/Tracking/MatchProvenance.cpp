@@ -137,7 +137,7 @@ void MatchProvenanceWriter::emit()
   // Bank prefix is MAIN, not TRAC: this collection is parallel to
   // fDST_MAIN_Particles (charged + neutral), NOT to fDST_TRAC_Tracks
   // (charged only). The -1 = neutral value is a per-particle concept.
-  put(std::move(prov), "MAIN", "MatchProvenance", Provenance::Custom);
+  put(std::move(prov), "MAIN", "Particles_MatchProvenance", Provenance::Custom);
 }
 
 }  // namespace delphi_edm4hep::matchprov

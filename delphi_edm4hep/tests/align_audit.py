@@ -19,25 +19,26 @@ Exit 0 if all contracts hold, 77 if no input is configured (CTest skip), and
 import os
 import sys
 
-# Most companion arrays name their parent collection as a prefix, and are
-# discovered from the file. These do not.
-PARENT_OVERRIDES = {
-    "fDST_MAIN_MatchProvenance":         "fDST_MAIN_Particles",
-    "sDST_ELTR_ParticleIndex":           "sDST_ELTR_RefitTracks",
-    "sDST_PV_Tracks_ImpactFlag":         "sDST_TRAC_Tracks",
-    "sDST_PV_Tracks_d0PV":               "sDST_TRAC_Tracks",
-    "sDST_PV_Tracks_z0PV":               "sDST_TRAC_Tracks",
-    "sDST_QTRAC_Tracks_d0BS":            "sDST_TRAC_Tracks",
-    "sDST_QTRAC_Tracks_d0PV":            "sDST_TRAC_Tracks",
-    "sDST_QTRAC_Tracks_z0PV":            "sDST_TRAC_Tracks",
-    "sDST_VECP_Particles_SelectionFlag": "sDST_MAIN_Particles",
+# A companion array is index-aligned with an object collection. The array is
+# either named after its parent plus a suffix, or carries the parent's kind as
+# a token.
+PARENT_BY_KIND = {
+    "Tracks":    "TRAC_Tracks",
+    "Particles": "MAIN_Particles",
 }
 
 
 def parent_of(name, names):
     """The collection a companion array runs parallel to, or None."""
-    parent = PARENT_OVERRIDES.get(name) or name.rsplit("_", 1)[0]
-    return parent if parent in names else None
+    stem = name.rsplit("_", 1)[0]
+    if stem in names:
+        return stem
+    tokens = name.split("_")
+    for token in tokens[1:]:
+        if token in PARENT_BY_KIND:
+            parent = f"{tokens[0]}_{PARENT_BY_KIND[token]}"
+            return parent if parent in names else None
+    return None
 
 
 def main():
