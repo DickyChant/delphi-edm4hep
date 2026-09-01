@@ -384,8 +384,8 @@ VD-only and ID+VD-without-z tracks).
   word carries the finer classification. For reconstructed PV-chain entries, `particles` is the
   raw DELPHI **outgoing-PA assignment**, which can partition the event; it is
   not the set of tracks used by the vertex fit. In particular, do not use this
-  relation for b-tag fit membership. Recalculated AABTAG publishes its own
-  vertex and explicit `Tracks_AttachedToPV` / `Tracks_ParticleIndex` arrays.
+  relation for b-tag fit membership. AABTAG publishes its own vertex, and its
+  `sDST_AABTAG_TrackTag` rows carry an attached-to-PV flag.
 - `sDST_BSP_BeamSpot` (Vertex, 1 entry) — the official beamspot: position with
   a diagonal covariance built from the beam widths; `algorithmType = 2` marks
   "beamspot bank, not a fit". (See also `delphi_bs_fit` in §3.)
@@ -756,16 +756,32 @@ on output.
   `NTracksAttached > 0`, and `ndf > 0`.
   A status-zero entry with no attached tracks/ndf is a beamspot-only result,
   not a track-fitted PV. The collection is empty when `Valid != 1`.
-- `<source>_AABTAG_Tracks_*` (UserData, all mutually index-parallel, in
-  AABTAG's own track order 1..`NTracks`): `ParticleIndex` (→
-  `<source>_MAIN_Particles`, −1 if unresolvable), `ImpactParRPhi` /
-  `ImpactParRPhiError`, `ImpactParZ` / `ImpactParZError` (mm),
-  `ProbRPhi` / `ProbZ` (per-track probabilities — the jet-probability
-  ingredient), `UsedForTag` (0 = AABTAG ignored this track), `AttachedToPV`,
-  `NVDHitsRPhi` / `NVDHitsZ`, `NVDLayersRPhi` / `NVDLayersZ`, `Chi2VD`,
-  `Chi2PV`, `Momentum`. The four `NVD*` values are raw signed legacy outputs:
-  AAP efficiency/acceptance corrections negate a value to mark rejection, and
+- `<source>_AABTAG_TrackTag` (ParticleID, `algorithmType = 4`) — one row per
+  track AABTAG used, in its own order 1..`NTracks`, linked to its particle
+  with `setParticle`. `params`: `[0]`/`[1]` per-track probabilities Rφ and z
+  (the jet-probability ingredient), `[2]` χ² to the VD, `[3]` χ² to the PV,
+  `[4]` momentum, `[5]`/`[6]` VD hits Rφ and z, `[7]`/`[8]` VD layers Rφ and
+  z, `[9]` used-for-tag (0 = AABTAG ignored this track), `[10]`
+  attached-to-PV. The four VD counts are raw signed legacy outputs: AAP
+  efficiency/acceptance corrections negate a value to mark rejection, and
   `abs(value)` is the underlying count.
+
+  **The impact parameters are not here.** They belong to the track, so they
+  ride on it: every track AABTAG used carries an extra `TrackState` at
+  `AtVertex` on `sDST_TRAC_Tracks`, whose `referencePoint` is AABTAG's own
+  vertex, `D0`/`Z0` are the impact parameters in mm and whose covariance
+  holds their variances. A track AABTAG skipped simply has no such state —
+  roughly a third of charged tracks. Reach them from a tag row with
+  `getParticle()` → `getTracks()` → the `AtVertex` state; no index array is
+  involved. Components AABTAG does not measure (`phi`, `omega`, `tanLambda`,
+  and the other covariance entries) are NaN rather than zero.
+
+  > **The `D0` sign is flipped relative to AABTAG.** `TrackState.D0` follows
+  > the EDM4hep convention, as the perigee `AtIP` state on the same track
+  > does, while AABTAG stores the DELPHI sign. `Z0` is unaffected. This
+  > matters because the sign *is* the physics: AABTAG's negative-impact-
+  > parameter side is the mistag control sample, which is the **positive**
+  > side here. A DELPHI cut ported literally will select the wrong tail.
 - Frame parameters `BadEventCode`, `AlgorithmInvoked`, `Valid`, `NTracksRaw`,
   `NTracks`, `NTracksAttached`, `Truncated`. `BadEventCode` preserves AABTAG's
   raw `IBAD` snapshot (0 success, 1 processing failure, 2 vertex-fit failure),

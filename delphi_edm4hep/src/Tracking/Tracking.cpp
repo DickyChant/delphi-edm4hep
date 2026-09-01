@@ -17,6 +17,11 @@
 
 #include "delphi_edm4hep/Tracking/Tracking.h"
 
+#include "delphi_edm4hep/internal/AabtagCommons.h"
+#include "delphi_edm4hep/internal/AabtagStatus.h"
+
+#include "skelana/pscbsp.hpp"
+
 #include "delphi_edm4hep/Helix.h"
 #include "delphi_edm4hep/internal/PaWalk.h"
 #include "skelana/pscvec.hpp"
@@ -31,11 +36,20 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <limits>
+#include <algorithm>
+#include <unordered_map>
 #include <iostream>
 #include <string>
 
 namespace ph = phdst;
 namespace sk = skelana;
+namespace aa = delphi_edm4hep::aabtag;
+
+namespace {
+constexpr double kCm2Mm = 10.0;
+constexpr float  kNotMeasured = std::numeric_limits<float>::quiet_NaN();
+}  // namespace
 
 namespace delphi_edm4hep::tracking {
 
@@ -158,6 +172,19 @@ void TrackingWriter::emit()
     lengthCol.push_back(lmain > 0 ? ph::Q(lmain + 9) : 0.f);
   };
 
+  // AABTAG's per-track arrays are indexed 1..NTRK in its own ordering, and
+  // IADTR gives the PA each entry came from. Invert that once so a PA can
+  // find its entry while its track is still mutable. Empty when AABTAG did
+  // not produce a usable result for this event.
+  std::unordered_map<int, int> lpa_to_btag;
+  {
+    const auto st = aabtag::eventStatus(sk::IERRBS, aabtag::IBAD());
+    if (st.valid && st.algorithmInvoked) {
+      const int ntrk = std::clamp(aa::NTRK(), 0, aa::kMaxTracks);
+      for (int i = 1; i <= ntrk; ++i) lpa_to_btag.emplace(aa::IADTR(i), i);
+    }
+  }
+
   forEachPA([&](int lpa, int paIdx) {
     // PA.MAIN: per-track summary. Charge code at Q(LMAIN+8):
     //   0 = neutral, 1 = positive, 2 = negative, 3 = undefined.
@@ -207,6 +234,39 @@ void TrackingWriter::emit()
 
     auto trk = trkCol.create();
     trk.addToTrackStates(helix.toTrackState(edm4hep::TrackState::AtIP));
+
+    // AABTAG measures an impact parameter for the subset of tracks it can
+    // use, against its own primary vertex. That is a property of the track,
+    // so it rides here as a state at that vertex rather than in a parallel
+    // array; a track AABTAG skipped simply has no AtVertex state.
+    //
+    // D0 is negated into the EDM4hep convention, as the perigee above is
+    // (Helix::fromPerigee) -- AABTAG stores the DELPHI sign. Z0 is not
+    // negated, matching the same routine. Only these two components are
+    // measured; the rest stay NaN rather than zero, which would claim a
+    // measurement that was never made.
+    if (auto it = lpa_to_btag.find(lpa); it != lpa_to_btag.end()) {
+      const int b = it->second;
+      edm4hep::TrackState bs{};
+      bs.location       = edm4hep::TrackState::AtVertex;
+      bs.D0             = static_cast<float>(-aa::PARIMP(b) * kCm2Mm);
+      bs.Z0             = static_cast<float>( aa::EZED  (b) * kCm2Mm);
+      bs.phi            = kNotMeasured;
+      bs.omega          = kNotMeasured;
+      bs.tanLambda      = kNotMeasured;
+      bs.time           = kNotMeasured;
+      bs.referencePoint = {static_cast<float>(aa::POSVX(1) * kCm2Mm),
+                           static_cast<float>(aa::POSVX(2) * kCm2Mm),
+                           static_cast<float>(aa::POSVX(3) * kCm2Mm)};
+      std::array<float, 21> cov;
+      cov.fill(kNotMeasured);
+      const float dD0 = static_cast<float>(aa::SIGIMP(b) * kCm2Mm);
+      const float dZ0 = static_cast<float>(aa::SIGZED(b) * kCm2Mm);
+      cov[0] = dD0 * dD0;   // (D0, D0)
+      cov[9] = dZ0 * dZ0;   // (Z0, Z0)
+      bs.covMatrix = cov;
+      trk.addToTrackStates(bs);
+    }
 
     // Track elements reconstructed from this PA, decoded by
     // TrackElementsWriter. Linked here, while the track is still mutable.

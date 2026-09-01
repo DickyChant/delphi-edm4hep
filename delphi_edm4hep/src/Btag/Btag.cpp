@@ -17,6 +17,8 @@
 #include "skelana/pscbtg.hpp"
 #include "skelana/pscflg.hpp"
 
+#include <edm4hep/MutableParticleID.h>
+#include <edm4hep/ParticleIDCollection.h>
 #include <edm4hep/VertexCollection.h>
 #include <podio/UserDataCollection.h>
 
@@ -42,6 +44,9 @@ constexpr float  kNaN      = std::numeric_limits<float>::quiet_NaN();
 // Vertex.cpp uses (0 primary, 1 secondary, 2 beamspot, 4 simulation,
 // 10 V0, 11 photon conversion) so the two PVs are never confused.
 constexpr int kAlgoBtagPV = 3;
+
+// algorithmType for the per-track b-tag row.
+constexpr int kAlgoBtagTag = 4;
 
 // Map the "not computed" sentinel to NaN so a consumer that forgets to check
 // cannot silently average it in.
@@ -184,83 +189,40 @@ void BtagWriter::emit()
   std::unordered_map<int, int> lpa_to_pa;
   pawalk::forEachPA([&](int lpa, int paIdx) { lpa_to_pa.emplace(lpa, paIdx); });
 
-  // Pass 1 has TrackingWriter's direct PA -> emitted-particle map. Pass 2
-  // instead has MatchProvenanceWriter's fDST PA -> sDST particle map; the
-  // fDST_MAIN collection is a one-to-one clone, so those indices are also the
-  // correct fDST_MAIN indices. Without this fallback every pass-2 index was
-  // silently written as -1.
-  const std::vector<int>* pa_to_particle = nullptr;
-  if (ctx_.tracking) {
-    pa_to_particle = &ctx_.tracking->pa_to_particle;
-  } else if (ctx_.fdst_pa_to_sdst_particle) {
-    pa_to_particle = &*ctx_.fdst_pa_to_sdst_particle;
-  }
-
-  podio::UserDataCollection<std::int32_t> particleIdx;
-  podio::UserDataCollection<float>        impRPhi, impRPhiErr;
-  podio::UserDataCollection<float>        impZ,    impZErr;
-  podio::UserDataCollection<float>        probRPhi, probZ;
-  podio::UserDataCollection<std::int32_t> usedForTag, attachedToPv;
-  podio::UserDataCollection<std::int32_t> nHitsRPhi, nHitsZ;
-  podio::UserDataCollection<std::int32_t> nLayersRPhi, nLayersZ;
-  podio::UserDataCollection<float>        chi2Vd, chi2Pv, momentum;
+  // One row per track AABTAG used, in its own 1..NTRK ordering, linked to
+  // the particle it belongs to. The impact parameters are NOT here: they are
+  // a property of the track and ride on it as a TrackState at AABTAG's
+  // vertex (see Tracking.cpp). Reach them from a row via
+  // getParticle() -> getTracks() -> the AtVertex state.
+  edm4hep::ParticleIDCollection tags;
 
   for (int i = 1; i <= ntrk; ++i) {
-    int p_idx = -1;
-    if (pa_to_particle) {
-      if (auto it = lpa_to_pa.find(aa::IADTR(i)); it != lpa_to_pa.end()) {
-        const int paIdx = it->second;
-        if (paIdx >= 0 && paIdx < static_cast<int>(pa_to_particle->size())) {
-          p_idx = (*pa_to_particle)[paIdx];
-        }
-      }
-    }
-    particleIdx.push_back(p_idx);
+    auto tag = tags.create();
+    tag.setAlgorithmType(kAlgoBtagTag);
 
-    // PARIMP is the SIGNED r-phi impact parameter wrt AABTAG's POSVX, in
-    // DELPHI cm and DELPHI sign convention -- NOT the LCIO D0 sign used by
-    // the Track collections. Converted to mm, sign left as AABTAG set it,
-    // because the sign is the physics here (the negative-IP side is the
-    // mistag control sample). Do not mix with sDST_TRAC_d0PV or
-    // sDST_PV_trackD0PV; see Vertex.cpp / Tracking.cpp on those.
-    impRPhi   .push_back(static_cast<float>(aa::PARIMP(i) * kCm2Mm));
-    impRPhiErr.push_back(static_cast<float>(aa::SIGIMP(i) * kCm2Mm));
-    impZ      .push_back(static_cast<float>(aa::EZED  (i) * kCm2Mm));
-    impZErr   .push_back(static_cast<float>(aa::SIGZED(i) * kCm2Mm));
-
-    // AATPRB leaves these at 1.0 for tracks it could not use.
-    probRPhi.push_back(aa::TRPR (i));
-    probZ   .push_back(aa::TRPRZ(i));
-
-    usedForTag  .push_back(aa::ISRT(i));      // 0 = not used, > 0 = used
-    attachedToPv.push_back(aa::INMVX(i) ? 1 : 0);
+    // AATPRB leaves the probabilities at 1.0 for tracks it could not use.
+    tag.addToParameters(aa::TRPR (i));
+    tag.addToParameters(aa::TRPRZ(i));
+    tag.addToParameters(aa::CHI2VD(i));
+    tag.addToParameters(aa::CHI2TR(i));
+    tag.addToParameters(aa::PMOM  (i));
     // These count-like legacy values are signed: AAP* efficiency/acceptance
     // corrections negate them to mark rejection; abs(value) is the count.
-    nHitsRPhi   .push_back(aa::NVDP (i));
-    nHitsZ      .push_back(aa::NVDPZ(i));
-    nLayersRPhi .push_back(aa::NLAY (i));
-    nLayersZ    .push_back(aa::NLAYZ(i));
-    chi2Vd      .push_back(aa::CHI2VD(i));
-    chi2Pv      .push_back(aa::CHI2TR(i));
-    momentum    .push_back(aa::PMOM  (i));
+    tag.addToParameters(static_cast<float>(aa::NVDP (i)));
+    tag.addToParameters(static_cast<float>(aa::NVDPZ(i)));
+    tag.addToParameters(static_cast<float>(aa::NLAY (i)));
+    tag.addToParameters(static_cast<float>(aa::NLAYZ(i)));
+    tag.addToParameters(static_cast<float>(aa::ISRT(i)));        // 0 = unused
+    tag.addToParameters(static_cast<float>(aa::INMVX(i) ? 1 : 0));
+
+    if (auto it = lpa_to_pa.find(aa::IADTR(i)); it != lpa_to_pa.end()) {
+      if (const auto particle = particleForPa(it->second)) {
+        tag.setParticle(*particle);
+      }
+    }
   }
 
-  put(std::move(particleIdx), bank, "Tracks_ParticleIndex", prov);
-  put(std::move(impRPhi), bank, "Tracks_ImpactParRPhi", prov);
-  put(std::move(impRPhiErr), bank, "Tracks_ImpactParRPhiError", prov);
-  put(std::move(impZ), bank, "Tracks_ImpactParZ", prov);
-  put(std::move(impZErr), bank, "Tracks_ImpactParZError", prov);
-  put(std::move(probRPhi), bank, "Tracks_ProbRPhi", prov);
-  put(std::move(probZ), bank, "Tracks_ProbZ", prov);
-  put(std::move(usedForTag), bank, "Tracks_UsedForTag", prov);
-  put(std::move(attachedToPv), bank, "Tracks_AttachedToPV", prov);
-  put(std::move(nHitsRPhi), bank, "Tracks_NVDHitsRPhi", prov);
-  put(std::move(nHitsZ), bank, "Tracks_NVDHitsZ", prov);
-  put(std::move(nLayersRPhi), bank, "Tracks_NVDLayersRPhi", prov);
-  put(std::move(nLayersZ), bank, "Tracks_NVDLayersZ", prov);
-  put(std::move(chi2Vd), bank, "Tracks_Chi2VD", prov);
-  put(std::move(chi2Pv), bank, "Tracks_Chi2PV", prov);
-  put(std::move(momentum), bank, "Tracks_Momentum", prov);
+  put(std::move(tags), bank, "TrackTag", prov);
 }
 
 }  // namespace delphi_edm4hep::btag
