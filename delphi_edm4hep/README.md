@@ -471,6 +471,23 @@ Per-event scalars stored as podio Frame parameters:
   (14=MUB/17=MUS/30=MUF), n layers, ndof, global χ², first-layer x/y,
   expected-missing-layers, chambers-alone χ², extrapolated x/y/θ/φ and their
   errors.
+- `sDST_HCRO_HitPattern` (algType 34) — hadron-calorimeter read-out pattern
+  for this track: `[0]` total tube hits, `[1]` mean distance between the track
+  extrapolation and the fired tubes (mm), `[2]` its rms (mm), `[3..22]` hits
+  in calorimeter planes 1 to 20. A muon crosses many planes leaving few hits
+  in each; a hadron shower concentrates them, so the pattern separates the two
+  where shower energy alone does not.
+- `sDST_HCRO_MuonTag` (algType 34) — the muon block that some HCRO modules
+  carry: `[0]` identification flag, `[1]` azimuth (deg), `[2]` χ², `[3]` rms
+  of the hit-to-track distance, `[4]` packed status word. Written only for
+  tracks whose module carries it, so this collection is far smaller than
+  `sDST_HCRO_HitPattern`.
+- `xsDST_HCMU_MuonID` (algType 35) — muon tag derived from the HCRO pattern,
+  comparing hit count, penetration depth, timing and energy against
+  calibrated expectations per polar angle: `[0]` identification level,
+  `[1]` mean distance (mm), `[2]` its rms (mm). The level is 1 or 3; level 2
+  does not occur, because the producer's tightest test repeats the cuts of
+  the middle one.
 
 **Other detectors**
 
