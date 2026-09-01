@@ -482,6 +482,18 @@ Per-event scalars stored as podio Frame parameters:
   of the hit-to-track distance, `[4]` packed status word. Written only for
   tracks whose module carries it, so this collection is far smaller than
   `sDST_HCRO_HitPattern`.
+- `xsDST_MRIC_RichExtrapolation` (algType 6) — where the track crossed the RICH
+  and what its radiators saw. Written by PXDST itself, and independent of the
+  Cherenkov angles in `sDST_HAID_HadronID`, which come from `HAID`:
+  `[0]` liquid-radiator refractive index, `[1]` gas-radiator refractive index
+  (NaN when that radiator did not fire), `[2]`/`[3]` extrapolation coordinates
+  at the RICH entry (mm), `[4]` polar and `[5]` azimuthal angle (rad),
+  `[6]` q/p (1/GeV), `[7..11]` variances of `[2..6]`, `[12]` number of
+  ionization hits. `[2]`/`[3]` are R·φ and z for a barrel track and x and y for
+  a forward one; the module carries no flag saying which, so decide from the
+  polar angle. Three further words per radiator and six drift-tube words are
+  stored but not emitted: their meaning is not established for the PXDST
+  version these files carry.
 - `xsDST_HCMU_MuonID` (algType 35) — muon tag derived from the HCRO pattern,
   comparing hit count, penetration depth, timing and energy against
   calibrated expectations per polar angle: `[0]` identification level,
