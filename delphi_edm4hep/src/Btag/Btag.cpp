@@ -19,12 +19,14 @@
 
 #include <edm4hep/MutableParticleID.h>
 #include <edm4hep/ParticleIDCollection.h>
+#include <edm4hep/MutableVertex.h>
 #include <edm4hep/VertexCollection.h>
 #include <podio/UserDataCollection.h>
 
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -144,21 +146,23 @@ void BtagWriter::emit()
   // a status-zero result can be a beamspot-only constraint.
   // With IFLPVT = Keep (the default) SKELANA never overwrites QVTX, so a
   // consumer gets both vertices and picks; nothing is destroyed.
+  // Built here but put after the per-track loop, so the tracks AABTAG
+  // attached to this vertex can be linked while it is still mutable.
   edm4hep::VertexCollection btagPv;
+  std::optional<edm4hep::MutableVertex> pv;
   if (tagValid) {
-    auto pv = btagPv.create();
-    pv.setPrimary(true);
-    pv.setAlgorithmType(kAlgoBtagPV);
-    pv.setPosition({static_cast<float>(aa::POSVX(1) * kCm2Mm),
-                    static_cast<float>(aa::POSVX(2) * kCm2Mm),
-                    static_cast<float>(aa::POSVX(3) * kCm2Mm)});
-    pv.setChi2(aa::CHI2VX());
-    pv.setNdf(aa::NDOFVX());
-    pv.setCovMatrix({aa::COVVX(1) * kCm2Mm2_f, aa::COVVX(2) * kCm2Mm2_f,
-                     aa::COVVX(3) * kCm2Mm2_f, aa::COVVX(4) * kCm2Mm2_f,
-                     aa::COVVX(5) * kCm2Mm2_f, aa::COVVX(6) * kCm2Mm2_f});
+    pv = btagPv.create();
+    pv->setPrimary(true);
+    pv->setAlgorithmType(kAlgoBtagPV);
+    pv->setPosition({static_cast<float>(aa::POSVX(1) * kCm2Mm),
+                     static_cast<float>(aa::POSVX(2) * kCm2Mm),
+                     static_cast<float>(aa::POSVX(3) * kCm2Mm)});
+    pv->setChi2(aa::CHI2VX());
+    pv->setNdf(aa::NDOFVX());
+    pv->setCovMatrix({aa::COVVX(1) * kCm2Mm2_f, aa::COVVX(2) * kCm2Mm2_f,
+                      aa::COVVX(3) * kCm2Mm2_f, aa::COVVX(4) * kCm2Mm2_f,
+                      aa::COVVX(5) * kCm2Mm2_f, aa::COVVX(6) * kCm2Mm2_f});
   }
-  put(std::move(btagPv), bank, "PrimaryVertex", prov);
 
   // ---- Per-track quantities (AAMAIN + AAMNVX) ------------------------
   // AABTAG's arrays are dimensioned kMaxTracks. Its NTRK common saturates at
@@ -218,11 +222,15 @@ void BtagWriter::emit()
     if (auto it = lpa_to_pa.find(aa::IADTR(i)); it != lpa_to_pa.end()) {
       if (const auto particle = particleForPa(it->second)) {
         tag.setParticle(*particle);
+        // Tracks AABTAG attached to its own vertex, as a relation rather
+        // than a flag to re-derive.
+        if (pv && aa::INMVX(i)) pv->addToParticles(*particle);
       }
     }
   }
 
   put(std::move(tags), bank, "TrackTag", prov);
+  put(std::move(btagPv), bank, "PrimaryVertex", prov);
 }
 
 }  // namespace delphi_edm4hep::btag

@@ -727,7 +727,7 @@ on output.
 
 - `<source>_AABTAG_PrimaryVertex` (Vertex, 1 entry, `algorithmType = 3`) —
   AAMNVX's vertex output, emitted *alongside* `sDST_PV_PrimaryVertex` rather
-  than replacing it. Treat it as a valid fit only when its coordinates and
+  than replacing it. `particles` links the tracks AABTAG attached to the fit. Treat it as a valid fit only when its coordinates and
   covariance are finite, `<source>_AABTAG_Valid == 1`,
   `NTracksAttached > 0`, and `ndf > 0`.
   A status-zero entry with no attached tracks/ndf is a beamspot-only result,
