@@ -40,6 +40,11 @@ namespace {
 // each index.
 constexpr std::size_t kTagParams = 11;
 
+// CHI2TR is a truncated quadratic form, so it rounds slightly below zero for a
+// track sitting on the vertex. Observed floor over 3459 attached tracks is
+// -0.03, against a median of 1.4.
+constexpr float kChi2RoundGuard = 0.1f;
+
 
 struct Stats {
   std::uint64_t entries = 0;
@@ -187,8 +192,9 @@ int main(int argc, char** argv) {
         const auto params = tag.getParameters();
         if (params.size() != kTagParams) { ++stats.tagParamCountFailures; continue; }
         if (!okProbability(params[0]) || !okProbability(params[1])) ++stats.tagDomainFailures;
-        if (!domain::isNonnegativeFinite(params[2]) ||
-            !domain::isNonnegativeFinite(params[3])) ++stats.tagDomainFailures;
+        if (!domain::isNonnegativeFinite(params[2])) ++stats.tagDomainFailures;
+        if (!domain::isFinite(params[3]) || params[3] < -kChi2RoundGuard)
+          ++stats.tagDomainFailures;
         if (!domain::isPositiveFinite(params[4])) ++stats.tagDomainFailures;
         if (!domain::isValidSignedCount(static_cast<std::int32_t>(params[5]), domain::kMaxVdHits) ||
             !domain::isValidSignedCount(static_cast<std::int32_t>(params[6]), domain::kMaxVdHits) ||
