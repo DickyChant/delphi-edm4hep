@@ -34,20 +34,13 @@ def main() -> int:
 
     checker = Path(sys.argv[1])
     expected_run = os.environ.get("DELPHI_EDM4HEP_EXPECTED_RUN", "data")
-    mode = os.environ.get("DELPHI_EDM4HEP_BTAG_MODE", "recalc")
-    primary_vertex_policy = os.environ.get(
-        "DELPHI_EDM4HEP_PRIMARY_VERTEX_POLICY", "keep-delana"
-    )
     for source in ("sDST", "fDST"):
         command = [
             str(checker),
             "--source",
             source,
-            "--primary-vertex-policy",
-            primary_vertex_policy,
             str(sample),
             expected_run,
-            mode,
         ]
         result = subprocess.run(command, text=True, capture_output=True, check=False)
         if result.returncode != 0:
@@ -59,25 +52,15 @@ def main() -> int:
         required = {
             "status": "PASS",
             "source": source,
-            "identity_source": "sDST_EVT",
-            "provenance_schema": "source-local-v1",
-            "beamspot_status_source": f"{source}_BTAGCFG_BeamSpotErrorCode",
-            "primary_vertex_policy": primary_vertex_policy,
-            "primary_vertex_policy_expected": primary_vertex_policy,
-            "iflpvt": "0" if primary_vertex_policy == "keep-delana" else "1",
-            "primary_vertex_policy_failures": "0",
-            "legacy_fdst_beamspot_fallback_used": "0",
-            "off_payload_presence_failures": "0",
-            "bank_payload_empty_failures": "0",
-            "track_impact_nonfinite_failures": "0",
-            "track_error_domain_failures": "0",
-            "track_chi2_domain_failures": "0",
-            "track_momentum_domain_failures": "0",
-            "track_integer_domain_failures": "0",
-            "pv_primary_flag_failures": "0",
-            "pv_algorithm_type_failures": "0",
-            "pv_nonfinite_failures": "0",
-            "pv_ndf_domain_failures": "0",
+            "source_prefix_failures": "0",
+            "missing_parameters": "0",
+            "missing_collections": "0",
+            "tag_row_count_failures": "0",
+            "tag_domain_failures": "0",
+            "impact_state_count_failures": "0",
+            "impact_domain_failures": "0",
+            "vertex_failures": "0",
+            "attached_consistency_failures": "0",
             "failures": "0",
         }
         for key, value in required.items():

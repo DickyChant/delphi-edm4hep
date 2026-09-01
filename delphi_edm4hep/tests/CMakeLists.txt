@@ -14,34 +14,9 @@ set_tests_properties(cli_fdst_rejects_no_args
 set_tests_properties(cli_btag_check_rejects_no_args
   PROPERTIES PASS_REGULAR_EXPRESSION "usage: .*input\\.edm4hep\\.root")
 add_test(NAME cli_btag_check_rejects_invalid_source
-         COMMAND delphi_btag_check --source wrong missing.root data recalc)
+         COMMAND delphi_btag_check --source wrong missing.root data)
 set_tests_properties(cli_btag_check_rejects_invalid_source
   PROPERTIES PASS_REGULAR_EXPRESSION "--source must be sDST or fDST")
-add_test(NAME cli_btag_check_rejects_invalid_primary_vertex_policy
-         COMMAND delphi_btag_check --source sDST
-                 --primary-vertex-policy wrong missing.root data recalc)
-set_tests_properties(cli_btag_check_rejects_invalid_primary_vertex_policy
-  PROPERTIES PASS_REGULAR_EXPRESSION
-             "--primary-vertex-policy must be keep-delana or replace-with-aabtag")
-add_test(NAME cli_btag_check_rejects_missing_primary_vertex_policy
-         COMMAND delphi_btag_check --source sDST --primary-vertex-policy)
-set_tests_properties(cli_btag_check_rejects_missing_primary_vertex_policy
-  PROPERTIES PASS_REGULAR_EXPRESSION
-             "--primary-vertex-policy requires keep-delana or replace-with-aabtag")
-add_test(NAME cli_btag_check_rejects_fdst_identity_reference
-         COMMAND delphi_btag_check --source fDST missing.root data recalc reference.root)
-set_tests_properties(cli_btag_check_rejects_fdst_identity_reference
-  PROPERTIES PASS_REGULAR_EXPRESSION "identity reference validates copied sDST_EVT")
-add_test(NAME cli_btag_check_rejects_sdst_legacy_fallback
-         COMMAND delphi_btag_check --source sDST --legacy-fdst-beamspot-fallback
-                 missing.root data recalc)
-set_tests_properties(cli_btag_check_rejects_sdst_legacy_fallback
-  PROPERTIES PASS_REGULAR_EXPRESSION "valid only with --source fDST")
-add_test(NAME cli_btag_check_rejects_reference_fallback_without_reference
-         COMMAND delphi_btag_check --source sDST
-                 --legacy-reference-beamspot-fallback missing.root data recalc)
-set_tests_properties(cli_btag_check_rejects_reference_fallback_without_reference
-  PROPERTIES PASS_REGULAR_EXPRESSION "requires an identity-reference file")
 
 # Pure regression guard for PSFBTG's IERRBS bypass. In that branch AABTGS is
 # not called and IBAD is stale, so raw status and current-event validity must
@@ -49,10 +24,6 @@ set_tests_properties(cli_btag_check_rejects_reference_fallback_without_reference
 add_executable(aabtag_status_test aabtag_status_test.cpp)
 target_include_directories(aabtag_status_test PRIVATE ${PROJECT_SOURCE_DIR}/include)
 add_test(NAME aabtag_status_contract COMMAND aabtag_status_test)
-
-add_executable(btag_provenance_test btag_provenance_test.cpp)
-target_include_directories(btag_provenance_test PRIVATE ${PROJECT_SOURCE_DIR}/include)
-add_test(NAME btag_provenance_contract COMMAND btag_provenance_test)
 
 add_executable(btag_check_domains_test btag_check_domains_test.cpp)
 target_include_directories(btag_check_domains_test
@@ -81,12 +52,6 @@ if(Python3_FOUND)
                    ${CMAKE_CURRENT_SOURCE_DIR}/btag_prefix_integration.py
                    $<TARGET_FILE:delphi_btag_check>)
   set_tests_properties(btag_prefix_integration PROPERTIES SKIP_RETURN_CODE 77)
-  add_test(NAME btag_checker_content_integration
-           COMMAND ${Python3_EXECUTABLE}
-                   ${CMAKE_CURRENT_SOURCE_DIR}/btag_checker_content_integration.py
-                   $<TARGET_FILE:delphi_btag_check>)
-  set_tests_properties(btag_checker_content_integration
-    PROPERTIES SKIP_RETURN_CODE 77)
   add_test(NAME harness_exception_containment
            COMMAND ${Python3_EXECUTABLE}
                    ${CMAKE_CURRENT_SOURCE_DIR}/harness_exception_containment.py

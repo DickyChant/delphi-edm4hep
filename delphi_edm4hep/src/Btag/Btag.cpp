@@ -9,7 +9,6 @@
 
 #include "delphi_edm4hep/internal/AabtagCommons.h"
 #include "delphi_edm4hep/internal/AabtagStatus.h"
-#include "delphi_edm4hep/internal/BtagProvenance.h"
 #include "delphi_edm4hep/internal/PaWalk.h"
 
 #include "skelana/functions.hpp"
@@ -98,25 +97,10 @@ void BtagWriter::emitEventLevel(std::string_view bank, Provenance prov,
 
 void BtagWriter::emit()
 {
-  // AABTAG is rerun on every event, so the recalculated tag is always
-  // available; the stored bank is read back beside it.
-  putParameter("BTAGCFG", "Mode", std::string("recalc"), Provenance::Custom);
-  putParameter("BTAGCFG", "Recalculated", 1, Provenance::Custom);
-  // These fields deliberately live under the writer's source prefix. Pass 2
-  // carries the copied sDST_EVT_* identity parameters but has no fDST_EVT_*
-  // domain, so sDST_EVT_BeamSpotErrorCode is not valid evidence for which
-  // beamspot status governed the fDST AABTAG invocation. Serialize the live
-  // current-pass value beside the b-tag payload instead.
   putParameter("BTAGCFG", "SourcePrefix",
                std::string(fromFullDst() ? "fDST" : "sDST"), Provenance::Custom);
   putParameter("BTAGCFG", "BeamSpotErrorCode", sk::IERRBS,
                Provenance::Derived);
-  putParameter("BTAGCFG", "PrimaryVertexPolicy",
-               std::string(provenance::primaryVertexPolicy(sk::IFLPVT)), Provenance::Custom);
-  // Retain the raw steering word as well as the stable semantic label, so the
-  // primary-vertex policy is auditable without knowing the Fortran flag
-  // convention.
-  putParameter("BTAGCFG", "IFLPVT", sk::IFLPVT, Provenance::Custom);
 
   // AAFLAG is meaningful only when PSFBTG actually called AABTGS. PSFBTG
   // skips that call when IERRBS != 0 and leaves IBAD (and the rich COMMON
