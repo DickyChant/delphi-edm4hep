@@ -687,6 +687,12 @@ Every frame carries source-local provenance:
 - `<prefix>_BTAGCFG_BeamSpotErrorCode`, the live `IERRBS` for that pass (do not
   substitute the copied `sDST_EVT_*` value when validating fDST content).
 
+> **1996 data carries no b-tagging, in either form.** The stored `BTG` bank was
+> not written by that production, and the beamspot database has no entry for
+> those runs, so `IERRBS != 0` and SKELANA skips the AABTAG recalculation.
+> Both collections are present and empty. This follows the run, not the DST
+> flavour: short and long 1996 samples behave alike.
+
 `delphi_btag_check` validates the payload: both tags present with their
 probabilities and thrust in range, one `AABTAG_TrackTag` row per track AABTAG
 reports with every value in its allowed domain and a resolvable particle, an

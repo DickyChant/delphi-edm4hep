@@ -27,14 +27,15 @@ samples:
     max_events: -1
     note: "ShortDST qqbar, sim of 94 (liq) ANA94C Fix2, RAL -> Y10060.346.al"
 
-  - id: data_96e_long
+  - id: data_95d_long
     kind: data
-    period: 96e
-    select: {mode: nickname, value: "long96_e1/c1-1"}
+    period: 95d
+    select: {mode: nickname, value: "long95p3_d2/c1-1"}
     max_events: 2000
-    note: "longDST -> Y13711.1.al. The only sample carrying MU, EL and TDHA, so the
-      only cover for the lDST_* collections. Flavour verified by module inventory:
-      catalogue prefixes do not track the DST flavour."
+    note: "longDST -> Y13718.210.al. The only sample carrying MU, EL and TDHA, so
+      the only cover for the lDST_* collections. Flavour verified by module
+      inventory: catalogue prefixes do not track the DST flavour. Preferred over
+      long96_e1, which carries neither b-tag (see README)."
 
   - id: data_99d_xshort
     kind: data
