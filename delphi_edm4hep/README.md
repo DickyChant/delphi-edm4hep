@@ -257,6 +257,42 @@ Per-event scalars stored as podio Frame parameters:
 - Magnetic field: `BField` (Tesla) and `BFieldGevPerCm` (the
   curvature-to-momentum conversion factor).
 
+**Track selection**
+
+SKELANA flags tracks rather than removing them (`IFLSTR = 11`), so every
+reconstructed particle is present in the output and
+`sDST_VECP_Particles_SelectionFlag` records the verdict. Which cuts produced
+that verdict is set by `IFLCUT`, published per file as the metadata parameter
+`skelana_IFLCUT`.
+
+This converter uses **`IFLCUT = 3`** — SKELANA's own default for every year.
+SKELANA has no era logic, so the flags match what stock SKELANA produces for
+the same file.
+
+| | 1 "old" | 2 "May 98, for 97 data" | 3 "April 99, for 98 data" |
+|---|---|---|---|
+| min momentum (GeV) | 0.4 | 0.2 | 0.1 |
+| max momentum (GeV) | – | 1.5 | 1.5 |
+| min track length (cm) | 30 | – | – |
+| max \|z\| impact (cm) | 10 | 4 | 4 |
+| VD-only, ID+VD without z | kept | rejected | rejected |
+| HCAL noise, STIC off-momentum | off | off | on |
+| neutral HPC/FEMC/HCAL/STIC (GeV) | ~0 | .5/.4/.9/.3 | .3/.4/0/.3 |
+
+Table 3 is not uniformly the loosest — looser on momentum and length, stricter
+on seven other cuts, notably the neutral calorimeter thresholds.
+
+**Two selections coexist in one file and must not be mixed.** The event
+counters `nChargedTeam4` and `hadronicTagTeam4` come from `PSHEVT`, which is
+hardwired to table 1 and ignores `IFLCUT` — so a file reports a table-1 track
+count beside a table-3 per-track flag.
+
+To apply a different table yourself, the inputs are all in the output:
+momentum and the impact parameters, plus `sDST_MAIN_Particles_TrackLength`
+(the only cut quantity with no other route) and
+`sDST_MAIN_Particles_ReconstructionCode` (the word SKELANA reads to reject
+VD-only and ID+VD-without-z tracks).
+
 ### 2.2 Pass-1 collections (`sDST_*`, `xsDST_*`, `lDST_*`)
 
 **Truth**
@@ -301,8 +337,9 @@ Per-event scalars stored as podio Frame parameters:
   available for that track.
 - `sDST_VECP_Particles_SelectionFlag` (UserData&lt;int32&gt;) — raw per-particle DELPHI lock/status
   mask; bit 1 marks track-selection failure and bit 32 multi-vertex/REMCLU
-  locking. Other bits are preserved without reinterpretation; −1 for
-  neutrals. Parallel to `sDST_MAIN_Particles`.
+  locking. Other bits are preserved without reinterpretation. −1 marks a
+  particle with no VECP match; neutrals carry a real verdict, since they go
+  through selection too. Parallel to `sDST_MAIN_Particles`.
 - `sDST_MAIN_Particles_ReconstructionCode` (UserData&lt;int32&gt;) — raw PXPHOT code,
   parallel to `sDST_MAIN_Particles`.
 
