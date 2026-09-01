@@ -12,6 +12,7 @@
 #include "delphi_edm4hep/internal/BtagProvenance.h"
 #include "delphi_edm4hep/internal/PaWalk.h"
 
+#include "skelana/functions.hpp"
 #include "skelana/pscbsp.hpp"
 #include "skelana/pscbtg.hpp"
 #include "skelana/pscflg.hpp"
@@ -55,56 +56,13 @@ float thrustValue(float v) { return (v < 0.f || v >= 1.999f) ? kNaN : v; }
 
 }  // namespace
 
-void BtagWriter::emit()
+// The PSCBTG common is a single output buffer: PSHBTG fills it from the
+// stored BTAG bank and PSFBTG from the recalculation, so whichever ran last
+// is what it holds.
+void BtagWriter::emitEventLevel(std::string_view bank, Provenance prov,
+                               bool valid)
 {
-  // Record the b-tag mode unconditionally, so a consumer can distinguish a
-  // no-b-tag file from one where AABTAG simply produced nothing without
-  // guessing from which collections happen to be present. The separate
-  // --btag-pv compatibility switch is documented by the CLI; it does not
-  // change which AABTAG collections are emitted.
-  putParameter("BTAGCFG", "Mode",
-               std::string(mode_ == BtagMode::Off    ? "off"
-                         : mode_ == BtagMode::Bank   ? "bank"
-                                                     : "recalc"), Provenance::Custom);
-  putParameter("BTAGCFG", "Recalculated", recalculated() ? 1 : 0, Provenance::Custom);
-  // These fields deliberately live under the writer's source prefix. Pass 2
-  // carries the copied sDST_EVT_* identity parameters but has no fDST_EVT_*
-  // domain, so sDST_EVT_BeamSpotErrorCode is not valid evidence for which
-  // beamspot status governed the fDST AABTAG invocation. Serialize the live
-  // current-pass value beside the b-tag payload instead.
-  putParameter("BTAGCFG", "SourcePrefix",
-               std::string(fromFullDst() ? "fDST" : "sDST"), Provenance::Custom);
-  putParameter("BTAGCFG", "BeamSpotErrorCode", sk::IERRBS,
-               Provenance::Derived);
-  putParameter("BTAGCFG", "PrimaryVertexPolicy",
-               std::string(provenance::primaryVertexPolicy(sk::IFLPVT)), Provenance::Custom);
-  // Retain the raw steering word as well as the stable semantic label. This
-  // makes the legacy --btag-pv compatibility mode auditable without forcing
-  // downstream code to know the Fortran flag convention.
-  putParameter("BTAGCFG", "IFLPVT", sk::IFLPVT, Provenance::Custom);
-
-  if (mode_ == BtagMode::Off) return;
-
-  // BTG is a transcription of the stored bank, AABTAG a rerun of the algorithm
-  // at conversion time. The same condition picks the mnemonic and the
-  // provenance, so the two cannot disagree.
-  const Provenance prov =
-      recalculated() ? Provenance::Derived : Provenance::Transcribed;
-
-  const std::string_view bank = mnemonic();
-  const bool reran = recalculated();
-  // AAFLAG is meaningful only when PSFBTG actually called AABTGS. PSFBTG
-  // skips that call when IERRBS != 0 and leaves IBAD (and the rich COMMON
-  // arrays) stale. Failed AABTAG events can retain derived values too, so gate
-  // the entire rich payload on the combined current-event status rather than
-  // sanitizing one field at a time.
-  const auto status = aa::eventStatus(sk::IERRBS, reran ? aa::IBAD() : 0);
-  const bool tagValid = !reran || status.valid;
-  const auto eventProb = [&](float value) {
-    return tagValid ? prob(value) : kNaN;
-  };
-
-  // ---- Event / hemisphere probabilities (PSCBTG; both modes) ----------
+  const auto eventProb = [&](float value) { return valid ? prob(value) : kNaN; };
   // Index order within each triplet is (hemisphere 1, hemisphere 2, whole
   // event), matching QBTPRN/QBTPRP/QBTPRS(1..3).
   putParameter(bank, "ProbNegIP",
@@ -121,20 +79,58 @@ void BtagWriter::emit()
                                   eventProb(sk::QBTPRS(3))}, prov);
   // The thrust axis gets the same sentinel treatment: VFILL sets it to 2.0
   // as well, and a direction cosine can never legitimately exceed 1, so an
-  // un-mapped 2.0 here would be a sentinel masquerading as data. (Caught by
-  // running --btag bank on a real short DST, where the BTAG bank is absent
-  // and every PSCBTG word is left at 2.0.)
+  // un-mapped 2.0 here would be a sentinel masquerading as data.
   putParameter(bank, "ThrustAxis",
                std::vector<float>{eventProb(sk::QBTTHR(1)),
                                   eventProb(sk::QBTTHR(2)),
                                   eventProb(sk::QBTTHR(3))}, prov);
-  // QBTTHR(4) is the thrust VALUE, not an axis component. (delphi-nanoaod
-  // drops it; we keep it -- it is free and the axis alone is not enough to
-  // reproduce a thrust-based hemisphere split.)
+  // QBTTHR(4) is the thrust VALUE, not an axis component.
   putParameter(bank, "ThrustValue",
-               tagValid ? thrustValue(sk::QBTTHR(4)) : kNaN, prov);
+               valid ? thrustValue(sk::QBTTHR(4)) : kNaN, prov);
+}
 
-  if (!reran) return;
+void BtagWriter::emit()
+{
+  // AABTAG is rerun on every event, so the recalculated tag is always
+  // available; the stored bank is read back beside it.
+  putParameter("BTAGCFG", "Mode", std::string("recalc"), Provenance::Custom);
+  putParameter("BTAGCFG", "Recalculated", 1, Provenance::Custom);
+  // These fields deliberately live under the writer's source prefix. Pass 2
+  // carries the copied sDST_EVT_* identity parameters but has no fDST_EVT_*
+  // domain, so sDST_EVT_BeamSpotErrorCode is not valid evidence for which
+  // beamspot status governed the fDST AABTAG invocation. Serialize the live
+  // current-pass value beside the b-tag payload instead.
+  putParameter("BTAGCFG", "SourcePrefix",
+               std::string(fromFullDst() ? "fDST" : "sDST"), Provenance::Custom);
+  putParameter("BTAGCFG", "BeamSpotErrorCode", sk::IERRBS,
+               Provenance::Derived);
+  putParameter("BTAGCFG", "PrimaryVertexPolicy",
+               std::string(provenance::primaryVertexPolicy(sk::IFLPVT)), Provenance::Custom);
+  // Retain the raw steering word as well as the stable semantic label, so the
+  // primary-vertex policy is auditable without knowing the Fortran flag
+  // convention.
+  putParameter("BTAGCFG", "IFLPVT", sk::IFLPVT, Provenance::Custom);
+
+  // AAFLAG is meaningful only when PSFBTG actually called AABTGS. PSFBTG
+  // skips that call when IERRBS != 0 and leaves IBAD (and the rich COMMON
+  // arrays) stale. Failed AABTAG events can retain derived values too, so gate
+  // the entire rich payload on the combined current-event status rather than
+  // sanitizing one field at a time.
+  const auto status = aa::eventStatus(sk::IERRBS, aa::IBAD());
+  const bool tagValid = status.valid;
+
+  // Both tags are emitted. PSHORT has already run PSFBTG, so the recalculated
+  // values are the ones currently in PSCBTG; read them before PSHBTG refills
+  // the common from the stored bank. The stored tag needs no validity gate --
+  // an absent bank leaves the 2.0 prefill, which prob() maps to NaN.
+  emitEventLevel("AABTAG", Provenance::Derived, tagValid);
+  sk::PSHBTG();
+  emitEventLevel("BTG", Provenance::Transcribed, /*valid=*/true);
+
+  // The per-track arrays and AABTAG's vertex come from AAMAIN / AAMNVX, which
+  // PSHBTG does not touch, so they still hold the recalculation.
+  const std::string_view bank = "AABTAG";
+  const Provenance prov = Provenance::Derived;
 
   // ---- AABTAG primary-vertex output (AAMNVX) -------------------------
   // Emitted as its own collection rather than replacing the DELANA PV.

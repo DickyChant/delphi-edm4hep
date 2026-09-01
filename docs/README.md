@@ -39,8 +39,8 @@ longer breaks configuration. `-DDELPHI_AL9_LIB_DIR=` / `-DCERN_AL9_LIB_DIR=`
 still override if needed.
 
 ```sh
-./build/delphi_sdst_pass  in.sdst  inter.edm4hep.root  [-n N] [--btag off|bank|recalc] [--btag-pv]
-./build/delphi_fdst_pass  inter.edm4hep.root[,more...]  in.fadana  final.edm4hep.root  [-n N] [--btag ...]
+./build/delphi_sdst_pass  in.sdst  inter.edm4hep.root  [-n N]
+./build/delphi_fdst_pass  inter.edm4hep.root[,more...]  in.fadana  final.edm4hep.root  [-n N]
 ./build/delphi_bs_fit     final.edm4hep.root  beamspot_by_run.csv    # pure podio, no DELPHI env
 ./build/delphi_btag_check --source sDST [--primary-vertex-policy keep-delana|replace-with-aabtag] input.edm4hep.root data|NEG_RUN off|bank|recalc [identity-reference.root]
 ./build/delphi_btag_check --source fDST [--primary-vertex-policy keep-delana|replace-with-aabtag] final.edm4hep.root data|NEG_RUN off|bank|recalc
@@ -149,9 +149,10 @@ physics change and validate it against `delphi-nanoaod` output.
 
 ### B-tagging
 
-`IFLBTG` / `IFLPVT` are configurable via `--btag` / `--btag-pv` (see
-`BtagMode.h` and `delphi_edm4hep/README.md` §2.5). Facts worth not
-rediscovering, all from `skelana.car` / `aabtagxx.car`:
+`IFLBTG` is pinned to 2 and `IFLPVT` to 0: AABTAG runs on every event and the
+stored bank is read back beside it, so both tags are always emitted (see
+`delphi_edm4hep/README.md` §2.5). Facts worth not rediscovering, all from
+`skelana.car` / `aabtagxx.car`:
 
 - **The `IFLBTG` dispatch is asymmetric.** On a fullDST, `PSHORT` calls
   `PSFBTG` (recalculate) for *any* `IFLBTG > 0`; only on a shortDST does

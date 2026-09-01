@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include "delphi_edm4hep/BtagMode.h"
 
 #include <podio/Frame.h>
 #include <podio/ROOTReader.h>
@@ -64,14 +63,6 @@ struct Config {
   // collisions; first-occurrence wins.
   std::vector<std::filesystem::path> input_edm4hep_extra;
   int                   max_events = -1;  // -1 = unlimited
-
-  // DELPHI b-tagging. Off by default: rerunning AABTAG is a new
-  // reconstruction, not a transcription of the DST, and it is only worth
-  // its cost when the b-tag output is actually wanted.
-  BtagMode          btag    = BtagMode::Off;
-  // Whether AABTAG's vertex replaces the DELANA one in PSCVTX. Keep by
-  // default -- see BtagMode.h for why Replace is dangerous.
-  BtagPrimaryVertex btag_pv = BtagPrimaryVertex::Keep;
 
   InitHook     on_init;
   EventHook    on_event;

@@ -75,7 +75,6 @@ cmake --build build -j
 ```sh
 # Pass 1 : shortDST -> intermediate EDM4hep (sDST_* collections)
 ./build/delphi_sdst_pass  input.sdst  out_sdst.edm4hep.root  [-n MAX_EVENTS] \
-                          [--btag off|bank|recalc] [--btag-pv]
 
 # Pass 1, alternative inputs instead of a local file:
 ./build/delphi_sdst_pass  -N|--nickname short94_c2/c1-10  out_sdst.edm4hep.root  [-n MAX_EVENTS]
@@ -84,7 +83,6 @@ cmake --build build -j
 # Pass 2 : intermediate + fullDST -> final EDM4hep (sDST_* + fDST_*)
 ./build/delphi_fdst_pass  out_sdst.edm4hep.root  input.fadana \
                           out_final.edm4hep.root  [-n MAX_EVENTS] \
-                          [--btag off|bank|recalc] [--btag-pv]
 
 # Post-processing : per-run beamspot from aggregated primary vertices
 ./build/delphi_bs_fit     out_final.edm4hep.root  beamspot_by_run.csv
@@ -680,32 +678,46 @@ originals described in §2.2.
   element length is the parallel `fDST_TE_Segments_Length`.
 - `fDST_TBL_RecoToGen` — `from` re-pointed to `fDST_MAIN_Particles`.
 
-### 2.5 B-tagging (`--btag`, opt-in)
+### 2.5 B-tagging
 
-Both passes take `--btag off|bank|recalc` (default `off`) and `--btag-pv`.
-These map to the SKELANA flags `IFLBTG` and `IFLPVT`:
+Both tags are emitted on every file; there is no flag and no opt-in. DELPHI's
+b-tagging exists in two forms and they are different quantities, so the output
+carries both and the provenance says which is which:
 
-| `--btag` | `IFLBTG` | shortDST (pass 1) | fullDST (pass 2) |
-|---|---|---|---|
-| `off` | 0 | AABTAG not run | AABTAG not run |
-| `bank` | 1 | reads the stored BTAG bank (`PSHBTG`) | **recalculates** (`PSFBTG`) |
-| `recalc` | 2 | recalculates (`PSFBTG`) | recalculates (`PSFBTG`) |
+- `<prefix>_BTG_*` — the tag DELPHI **stored** on the DST, read back with
+  `PSHBTG`. Provenance `Transcribed`. Empty (NaN) on files whose BTAG bank was
+  never written, which includes many shortDSTs.
+- `<prefix>_AABTAG_*` — the tag **recalculated** at conversion time by
+  rerunning AABTAG. Provenance `Derived`.
 
-The asymmetry is SKELANA's, not ours: on a fullDST, `PSHORT` calls `PSFBTG`
-for *any* `IFLBTG > 0`. Output is named for what actually happened —
-`<source>_BTG_*` for a bank transcription, `<source>_AABTAG_*` for a
-conversion-time rerun. `AABTAG` is deliberately not a bank mnemonic; it marks
-values the converter computed rather than read.
+**For analysis, prefer `AABTAG_*`**: rerunning the tagger measurably improves
+data/MC agreement over the stored value. `BTG_*` is kept because it is what
+DELPHI actually recorded, which a reproduction of a published result may need.
 
-Every frame carries source-local provenance regardless of setting:
+Both carry the same event-level quantities — `ProbNegIP`, `ProbPosIP`,
+`ProbAllIP` (each a triplet: hemisphere 1, hemisphere 2, whole event),
+`ThrustAxis` and `ThrustValue`. The per-track layer and AABTAG's primary
+vertex exist **only** for the recalculated tag: the stored bank has no
+per-track content at all.
 
-- `<source>_BTAGCFG_Mode` (`off`/`bank`/`recalc`) and `Recalculated` (0/1);
+The AABTAG primary vertex is emitted as its own collection rather than
+replacing the DELANA one, so both vertices are available and nothing is
+destroyed.
+
+> **AABTAG re-rolls MC smearing.** Rerunning it consumes random numbers that
+> simulation smearing also draws from, so per-event MC values (the beam spot,
+> for instance) differ from a conversion made without it. Distributions are
+> unchanged and real data is unaffected, but an MC file is not event-by-event
+> comparable with output from a converter that did not run AABTAG.
+
+Every frame carries source-local provenance:
+
+- `<prefix>_BTAGCFG_Mode` and `Recalculated`;
 - `SourcePrefix`, which must equal the collection prefix;
 - `BeamSpotErrorCode`, the live `IERRBS` for that pass (do not substitute the
   copied `sDST_EVT_*` value when validating new fDST content);
-- raw `IFLPVT` plus stable semantic `PrimaryVertexPolicy`: `keep-delana` for
-  the default prefix-isolated policy or `replace-with-aabtag` for the legacy
-  `--btag-pv` compatibility switch.
+- raw `IFLPVT` plus stable semantic `PrimaryVertexPolicy`, always
+  `keep-delana`.
 
 `delphi_btag_check --primary-vertex-policy keep-delana` enforces the current
 production contract over every selected-prefix frame and reports both
@@ -738,9 +750,8 @@ on output.
 `AAMAIN` / `AAMNVX` commons:
 
 - `<source>_AABTAG_PrimaryVertex` (Vertex, 1 entry, `algorithmType = 3`) —
-  AAMNVX's vertex output. With the default configuration (without the legacy
-  `--btag-pv` switch), it is emitted *alongside* `sDST_PV_PrimaryVertex` and
-  does not replace it. Treat it as a valid fit only when its coordinates and
+  AAMNVX's vertex output, emitted *alongside* `sDST_PV_PrimaryVertex` rather
+  than replacing it. Treat it as a valid fit only when its coordinates and
   covariance are finite, `<source>_AABTAG_Valid == 1`,
   `NTracksAttached > 0`, and `ndf > 0`.
   A status-zero entry with no attached tracks/ndf is a beamspot-only result,
@@ -778,12 +789,11 @@ of the Track collections — the sign is the physics (the negative-IP side is
 the mistag control sample). Do not mix it with `sDST_QTRAC_Tracks_d0PV` or
 `sDST_PV_Tracks_d0PV`; see §2.2.
 
-`--btag-pv` sets `IFLPVT = 1`, letting AABTAG's vertex overwrite the DELANA
-one inside SKELANA's `PSCVTX`. **Not recommended.** On the beamspot-failure
-path (`IERRBS != 0`) `PSFBTG` writes the `-999` sentinel over the position,
-destroying a good DELANA vertex; and since AABTAG's vertex is emitted as its
-own collection anyway, there is nothing to gain. The flag exists only to
-reproduce the historical `delphi-nanoaod` configuration.
+`IFLPVT` is pinned to 0. Setting it to 1 would let AABTAG's vertex overwrite
+the DELANA one inside SKELANA's `PSCVTX`, and on the beamspot-failure path
+(`IERRBS != 0`) `PSFBTG` writes a `-999` sentinel over the position,
+destroying a good DELANA vertex. Since AABTAG's vertex is emitted as its own
+collection, there is nothing to gain by replacing anything.
 
 ---
 
@@ -876,6 +886,7 @@ tool (e.g. `delphi_bs_fit`) beside the original collection. Event-level summary
 banks without a clean EDM4hep type (jets, trigger, run quality) and a
 few rare/forward per-PA modules are not currently emitted.
 
-B-tagging is the one deliberate exception, and it is opt-in (`--btag`, §2.5):
-`--btag recalc` reruns DELPHI's AABTAG at conversion time, which is a
-reconstruction step rather than a transcription. It is off by default.
+B-tagging is the one place the converter also *recalculates* rather than only
+transcribing (§2.5): AABTAG is rerun at conversion time because the stored tag
+describes data and simulation differently. Both are emitted, and the
+provenance marks the rerun `Derived` and the stored tag `Transcribed`.

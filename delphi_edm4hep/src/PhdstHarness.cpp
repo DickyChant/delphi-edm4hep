@@ -13,7 +13,6 @@
 
 #include "delphi_edm4hep/internal/DstCensus.h"
 
-#include "delphi_edm4hep/BtagMode.h"
 #include "delphi_edm4hep/CollectionWriter.h"
 
 #include "phdst/functions.hpp"   // ph::PHSET, phdst_, ph::IIIRUN etc.
@@ -75,7 +74,7 @@ std::string                        g_callback_failure;
 // analysis processors and are copied verbatim from
 // delphi-nanoaod/config/delphi-nanoaod.yaml (the same values the current
 // SDST converter uses; bit-by-bit-compatible output).
-void setSkelanaFlags(BtagMode btag, BtagPrimaryVertex btag_pv) {
+void setSkelanaFlags() {
   sk::IFLTRA = 1;
   sk::IFLODR = 1;
   sk::IFLVEC = 22;
@@ -84,24 +83,16 @@ void setSkelanaFlags(BtagMode btag, BtagPrimaryVertex btag_pv) {
   sk::IFLRVR = 111;
   sk::IFLSIM = 1;
   sk::IFLBSP = 2;
-  // B-tagging is configurable (see BtagMode.h). Previously both of these
-  // were hard-wired to IFLBTG=2 / IFLPVT=1, copied verbatim from
-  // delphi-raw-nanoaod, which set them to reproduce legacy LVLOCK track
-  // selection bit-for-bit -- not because b-tagging was wanted. The effect
-  // was that AABTAG ran on every event, its output was never read by any
-  // writer, and IFLPVT=1 let it overwrite the primary vertex (with -999
-  // whenever the beamspot lookup failed).
+  // AABTAG runs on every event. PSFBTG fills the per-track b-tag commons
+  // that BtagWriter reads, and the stored BTAG bank is read back separately
+  // so that both the transcribed and the recalculated tag are emitted.
   //
-  // NOTE: changing IFLBTG away from 2 also changes SKELANA's track
-  // selection, so output is no longer bit-compatible with delphi-nanoaod
-  // at the default. That is intentional but must be validated, not
-  // assumed -- see docs/README.md.
-  switch (btag) {
-    case BtagMode::Off:    sk::IFLBTG = 0; break;
-    case BtagMode::Bank:   sk::IFLBTG = 1; break;
-    case BtagMode::Recalc: sk::IFLBTG = 2; break;
-  }
-  sk::IFLPVT = (btag_pv == BtagPrimaryVertex::Replace) ? 1 : 0;
+  // IFLPVT stays 0 so that neither routine overwrites the DELANA primary
+  // vertex -- with 1 they replace it, and write a -999 sentinel over it
+  // whenever the beamspot lookup fails. AABTAG's own vertex is emitted as
+  // its own collection instead, so nothing is lost by keeping both.
+  sk::IFLBTG = 2;
+  sk::IFLPVT = 0;
   sk::IFLVDR = 1;
   sk::IFLFCT = 1;
   sk::IFLRNQ = 0;
@@ -173,7 +164,7 @@ void on_user00() noexcept {
     // transient FPEs in PSHSCT/PSHBANKS would change IREJ outcomes.
     ph::PHSET("FPE", 0);
     sk::PSINI();
-    setSkelanaFlags(g_cfg.btag, g_cfg.btag_pv);
+    setSkelanaFlags();
 
     if (g_cfg.output.empty()) {
       std::cerr << "harness::on_user00: output path not set\n";
