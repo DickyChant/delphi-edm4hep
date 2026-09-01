@@ -88,10 +88,8 @@ cmake --build build -j
 ./build/delphi_bs_fit     out_final.edm4hep.root  beamspot_by_run.csv
 
 # Prefix-specific all-frame AABTAG validation (production policy shown)
-./build/delphi_btag_check --source sDST \
-  --primary-vertex-policy keep-delana out_final.edm4hep.root data recalc
-./build/delphi_btag_check --source fDST \
-  --primary-vertex-policy keep-delana out_final.edm4hep.root data recalc
+./build/delphi_btag_check --source sDST out_final.edm4hep.root data
+./build/delphi_btag_check --source fDST out_final.edm4hep.root data
 ```
 
 Pass 2 matches each fullDST event to the intermediate frame by
@@ -115,8 +113,7 @@ ctest --test-dir build -R cli_sdst  # a subset, by name regex
 Two kinds of test:
 
 - **CLI argument-contract checks** — the passes and checker must reject missing
-  or invalid arguments, including invalid source and primary-vertex-policy
-  values. These need no data files.
+  or invalid arguments. These need no data files.
 - **`tests/align_audit.py`** — audits a converted EDM4hep file for the
   regression class where a UserData array is labelled parallel to the wrong
   collection, or a relation (e.g. RecDqdx → Track) is left unset. It is a
@@ -584,13 +581,11 @@ VD-only and ID+VD-without-z tracks).
 
 - `sDST_TDVD_VDPoints` (TrackerHit3D) — unassociated Vertex-Detector hits.
 - `sDST_TDVD_VDHits` (TrackerHit3D) — Vertex-Detector hits associated to a
-  track. Each owning track links to its own hits through `Track.trackerHits`,
-  so there is no index array to join: go from the track to its hits directly.
-  For both collections `position` is a **cylindrical-mixed** triple
-  `(R, slot2, slot4)` in mm, **not Cartesian** — the module→φ table needed for
-  global (x,y) is not in the DST, so that conversion is left to the consumer.
-  `cellID` = signed module number (sign = Z side); `type` bit 0 marks an R-Z
-  measurement; `eDep` carries the signal-to-noise ratio.
+  track, reachable through `Track.trackerHits`. For both collections
+  `position` is cylindrical-mixed `(R, slot2, slot4)` in mm, not Cartesian:
+  the module→φ table for global (x,y) is not on the DST. `cellID` is the
+  signed module number (sign = Z side), `type` bit 0 marks an R-Z measurement,
+  `eDep` the signal-to-noise ratio.
 - `xsDST_PXTD_PixelHits` (TrackerHitPlane) — Very Forward Tracker pixel
   clusters: `position` in the DELPHI frame (mm), `du`/`dv` the measurement
   errors along the module axes (mm), `cellID` the module number. `u`/`v` are
@@ -688,27 +683,17 @@ does not replace `sDST_PV_PrimaryVertex`.
 
 Every frame carries source-local provenance:
 
-- `<prefix>_BTAGCFG_Mode` and `Recalculated`;
-- `SourcePrefix`, which must equal the collection prefix;
-- `BeamSpotErrorCode`, the live `IERRBS` for that pass (do not substitute the
-  copied `sDST_EVT_*` value when validating new fDST content);
-- raw `IFLPVT` plus stable semantic `PrimaryVertexPolicy`, always
-  `keep-delana`.
+- `<prefix>_BTAGCFG_SourcePrefix`, which must equal the collection prefix;
+- `<prefix>_BTAGCFG_BeamSpotErrorCode`, the live `IERRBS` for that pass (do not
+  substitute the copied `sDST_EVT_*` value when validating fDST content).
 
-`delphi_btag_check --primary-vertex-policy keep-delana` enforces the current
-production contract over every selected-prefix frame and reports both
-`primary_vertex_policy=keep-delana` and `iflpvt=0`. A mismatched expectation is
-a validation failure, not merely a diagnostic label.
-
-The checker also fails closed on the payload itself. A valid AABTAG vertex
-must be primary, carry `algorithmType=3`, have finite position, covariance and
-chi2, and have `ndf` in the representable AABTAG range 0--200. Track impacts
-must be finite; errors and momenta positive finite; chi2 values nonnegative
-finite; `AttachedToPV` boolean; `UsedForTag` nonnegative (it is a category code,
-not a boolean); and the signed VD hit/layer magnitudes no larger than 6/3.
-`off` asserts that neither selected-prefix payload family exists. The retained
-historical shortDST `bank` reader permits individual NaN sentinels but rejects
-a frame whose complete event-level bank payload is missing/NaN.
+`delphi_btag_check` validates the payload: both tags present with their
+probabilities and thrust in range, one `AABTAG_TrackTag` row per track AABTAG
+reports with every value in its allowed domain and a resolvable particle, an
+`AtVertex` state per track, and a vertex whose attached-particle count matches
+`NTracksAttached`. A vertex must be primary, carry `algorithmType = 3`, and
+have a finite position; its chi2 is checked only where `ndf > 0`, since AABTAG
+reports beamspot-only vertices with no fit.
 
 This makes the two pass-2 b-tag payloads independently auditable even though
 event identity remains in `sDST_EVT_runNumber/eventNumber/fileSeq`; pass 2 does
@@ -733,24 +718,20 @@ on output.
   A status-zero entry with no attached tracks/ndf is a beamspot-only result,
   not a track-fitted PV. The collection is empty when `Valid != 1`.
 - `<source>_AABTAG_TrackTag` (ParticleID, `algorithmType = 4`) — one row per
-  track AABTAG used, in its own order 1..`NTracks`, linked to its particle
-  with `setParticle`. `params`: `[0]`/`[1]` per-track probabilities Rφ and z
-  (the jet-probability ingredient), `[2]` χ² to the VD, `[3]` χ² to the PV,
-  `[4]` momentum, `[5]`/`[6]` VD hits Rφ and z, `[7]`/`[8]` VD layers Rφ and
-  z, `[9]` used-for-tag (0 = AABTAG ignored this track), `[10]`
-  attached-to-PV. The four VD counts are raw signed legacy outputs: AAP
-  efficiency/acceptance corrections negate a value to mark rejection, and
-  `abs(value)` is the underlying count.
+  track AABTAG used, linked to its particle. `params`: `[0]`/`[1]` track
+  probabilities Rφ and z, `[2]` χ² to the VD, `[3]` χ² to the primary vertex
+  (attached tracks only; may be slightly negative), `[4]` momentum, `[5]`/`[6]`
+  VD hits Rφ and z, `[7]`/`[8]` VD layers Rφ and z, `[9]` used for the tag,
+  `[10]` attached to the vertex. The hit and layer counts are signed: a
+  negative value marks a rejected track, `abs()` is the count.
 
-  Impact parameters are on the track, not here: each track AABTAG used carries
-  a `TrackState` at `AtVertex` on `sDST_TRAC_Tracks`, with `referencePoint` =
-  AABTAG's vertex, `D0`/`Z0` in mm and their variances in the covariance.
-  Tracks AABTAG did not use have no such state. Reach it with `getParticle()`
-  → `getTracks()`. Unmeasured components (`phi`, `omega`, `tanLambda`, other
-  covariance entries) are NaN.
+  Impact parameters are on the track: each track AABTAG used carries a
+  `TrackState` at `AtVertex`, with `referencePoint` at AABTAG's vertex, `D0`
+  and `Z0` in mm and their variances in the covariance. Unmeasured components
+  are NaN. Reach it with `getParticle()` → `getTracks()`.
 
-  > `D0` follows the EDM4hep sign convention, as the `AtIP` state does, and is
-  > therefore opposite in sign to AABTAG's own value. `Z0` is unchanged.
+  > `D0` uses the EDM4hep sign convention, opposite to AABTAG's. `Z0` is
+  > unchanged.
 - Frame parameters `BadEventCode`, `AlgorithmInvoked`, `Valid`, `NTracksRaw`,
   `NTracks`, `NTracksAttached`, `Truncated`. `BadEventCode` preserves AABTAG's
   raw `IBAD` snapshot (0 success, 1 processing failure, 2 vertex-fit failure),

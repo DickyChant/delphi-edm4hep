@@ -42,8 +42,8 @@ still override if needed.
 ./build/delphi_sdst_pass  in.sdst  inter.edm4hep.root  [-n N]
 ./build/delphi_fdst_pass  inter.edm4hep.root[,more...]  in.fadana  final.edm4hep.root  [-n N]
 ./build/delphi_bs_fit     final.edm4hep.root  beamspot_by_run.csv    # pure podio, no DELPHI env
-./build/delphi_btag_check --source sDST [--primary-vertex-policy keep-delana|replace-with-aabtag] input.edm4hep.root data|NEG_RUN off|bank|recalc [identity-reference.root]
-./build/delphi_btag_check --source fDST [--primary-vertex-policy keep-delana|replace-with-aabtag] final.edm4hep.root data|NEG_RUN off|bank|recalc
+./build/delphi_btag_check --source sDST  input.edm4hep.root data|mc
+./build/delphi_btag_check --source fDST  final.edm4hep.root data|mc
 ```
 
 ## Tests

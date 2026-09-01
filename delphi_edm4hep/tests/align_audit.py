@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 """Alignment / relation audit for delphi_edm4hep EDM4hep output.
 
-For every UserDataCollection the converter emits, the README documents which
-object collection it runs parallel to (index-aligned). This scanner checks
-those length contracts on a real EDM4hep file, plus the RecDqdx -> Track
-relation. It is the regression guard for the bug class where a per-particle
-array is mislabelled as per-track (so consumers indexing by track read the
-wrong row), or a relation is silently left unset -- neither of which the
-momentum/value-level checks (thrust, "dE/dx non-zero") can see. The failure is
-only visible on events that contain a reco neutral (Particles > Tracks), e.g.
-Z->mumu(gamma): a clean 2-track event has Particles==Tracks and hides it.
+A companion UserData array is index-aligned with an object collection: row i
+describes element i of that collection. This scanner checks that contract on a
+real file, plus the RecDqdx -> Track relation and the primary-vertex flags. It
+guards the bug class where a per-particle array is emitted alongside a track
+collection, so consumers read the wrong row. Value-level checks cannot see it,
+and it only shows on events with a reconstructed neutral (Particles > Tracks):
+a clean two-track event has Particles == Tracks and hides it.
 
 Usage:
     align_audit.py <file.edm4hep.root>
@@ -21,37 +19,25 @@ Exit 0 if all contracts hold, 77 if no input is configured (CTest skip), and
 import os
 import sys
 
-# README parallelism contracts: UserData collection -> collection it must
-# match in length, event by event.
-LENGTH_CONTRACTS = {
-    "sDST_TRAC_d0PV":              "sDST_TRAC_Tracks",
-    "sDST_TRAC_z0PV":              "sDST_TRAC_Tracks",
-    "sDST_TRAC_d0BS":              "sDST_TRAC_Tracks",
-    "sDST_VECP_LVLOCK":            "sDST_MAIN_Particles",
-    "sDST_PV_Vertices_StatusBits": "sDST_PV_Vertices",
-    "sDST_TDVD_VDHits_TrackIndex": "sDST_TDVD_VDHits",
-    "sDST_ELTR_ParticleIndex":     "sDST_ELTR_RefitTracks",
-    "fDST_MAIN_MatchProvenance":   "fDST_MAIN_Particles",
+# Most companion arrays name their parent collection as a prefix, and are
+# discovered from the file. These do not.
+PARENT_OVERRIDES = {
+    "fDST_MAIN_MatchProvenance":         "fDST_MAIN_Particles",
+    "sDST_ELTR_ParticleIndex":           "sDST_ELTR_RefitTracks",
+    "sDST_PV_Tracks_ImpactFlag":         "sDST_TRAC_Tracks",
+    "sDST_PV_Tracks_d0PV":               "sDST_TRAC_Tracks",
+    "sDST_PV_Tracks_z0PV":               "sDST_TRAC_Tracks",
+    "sDST_QTRAC_Tracks_d0BS":            "sDST_TRAC_Tracks",
+    "sDST_QTRAC_Tracks_d0PV":            "sDST_TRAC_Tracks",
+    "sDST_QTRAC_Tracks_z0PV":            "sDST_TRAC_Tracks",
+    "sDST_VECP_Particles_SelectionFlag": "sDST_MAIN_Particles",
 }
 
-AABTAG_TRACK_SUFFIXES = (
-    "ParticleIndex",
-    "ImpactParRPhi",
-    "ImpactParRPhiError",
-    "ImpactParZ",
-    "ImpactParZError",
-    "ProbRPhi",
-    "ProbZ",
-    "UsedForTag",
-    "AttachedToPV",
-    "NVDHitsRPhi",
-    "NVDHitsZ",
-    "NVDLayersRPhi",
-    "NVDLayersZ",
-    "Chi2VD",
-    "Chi2PV",
-    "Momentum",
-)
+
+def parent_of(name, names):
+    """The collection a companion array runs parallel to, or None."""
+    parent = PARENT_OVERRIDES.get(name) or name.rsplit("_", 1)[0]
+    return parent if parent in names else None
 
 
 def main():
@@ -68,27 +54,38 @@ def main():
     from podio import root_io
     reader = root_io.Reader(fn)
 
-    len_fail = {}   # (userdata, parallel) -> [(event, got, expected), ...]
+    len_fail = {}       # (array, parent) -> [(event, got, expected), ...]
+    audited = set()
+    unresolved = set()
     dq_missing = dq_total = nev = 0
     dummy_first = dummy_published_as_primary = dummy_chain_marked_primary = 0
-    fdst_btag_tracks = fdst_btag_resolved = fdst_btag_bad_index = 0
-    aabtag_events = aabtag_rows = 0
-    aabtag_missing = {}
-    aabtag_len_fail = {}
     for i, fr in enumerate(reader.get("events")):
         nev += 1
         names = set(fr.getAvailableCollections())
-        size = lambda n: fr.get(n).size() if n in names else None
-        for ud, par in LENGTH_CONTRACTS.items():
-            a, b = size(ud), size(par)
-            if a is not None and b is not None and a != b:
-                len_fail.setdefault((ud, par), []).append((i, a, b))
+
+        for name in names:
+            coll = fr.get(name)
+            if "UserData" not in str(coll.getTypeName()):
+                continue
+            parent = parent_of(name, names)
+            # An array whose parent cannot be resolved is a failure, not a
+            # skip: a renamed collection would otherwise disable its own check.
+            if parent is None:
+                unresolved.add(name)
+                continue
+            audited.add(name)
+            got, expected = coll.size(), fr.get(parent).size()
+            if got != expected:
+                len_fail.setdefault((name, parent), []).append(
+                    (i, got, expected))
+
         for n in names:
             if n.endswith("_RecDqdx"):
                 for dq in fr.get(n):
                     dq_total += 1
                     if dq.getTrack().getObjectID().index < 0:
                         dq_missing += 1
+
         status_name = "sDST_PV_Vertices_StatusBits"
         primary_name = "sDST_PV_PrimaryVertex"
         if status_name in names and primary_name in names:
@@ -100,57 +97,24 @@ def main():
                 vertices = fr.get("sDST_PV_Vertices")
                 if vertices.size() and vertices[0].isPrimary():
                     dummy_chain_marked_primary += 1
-        index_name = "fDST_AABTAG_Tracks_ParticleIndex"
-        particles_name = "fDST_MAIN_Particles"
-        if index_name in names and particles_name in names:
-            particle_count = fr.get(particles_name).size()
-            for raw_index in fr.get(index_name):
-                index = int(raw_index)
-                fdst_btag_tracks += 1
-                if 0 <= index < particle_count:
-                    fdst_btag_resolved += 1
-                elif index != -1:
-                    fdst_btag_bad_index += 1
-        for source in ("sDST", "fDST"):
-            prefix = f"{source}_AABTAG_Tracks_"
-            # The AABTAG PV collection is emitted on every recalculated frame,
-            # even when it is empty for a bad event. Use it as the schema
-            # anchor so wholesale loss of all 16 parallel arrays cannot pass
-            # merely because there is no array left to discover.
-            if f"{source}_AABTAG_PrimaryVertex" not in names:
-                continue
-            present = [suffix for suffix in AABTAG_TRACK_SUFFIXES
-                       if prefix + suffix in names]
-            aabtag_events += 1
-            missing = [suffix for suffix in AABTAG_TRACK_SUFFIXES
-                       if suffix not in present]
-            for suffix in missing:
-                key = prefix + suffix
-                aabtag_missing[key] = aabtag_missing.get(key, 0) + 1
-            sizes = {suffix: size(prefix + suffix) for suffix in present}
-            expected = sizes.get("ParticleIndex")
-            if expected is None:
-                continue
-            aabtag_rows += expected
-            for suffix, actual in sizes.items():
-                if actual != expected:
-                    key = (prefix + suffix, prefix + "ParticleIndex")
-                    aabtag_len_fail.setdefault(key, []).append(
-                        (i, actual, expected))
 
     print(f"align_audit: {fn}  ({nev} events)")
     ok = True
     if nev == 0:
         ok = False
         print("  FAIL  input contains no event frames")
+    if unresolved:
+        ok = False
+        for name in sorted(unresolved):
+            print(f"  FAIL  {name} has no parent collection to align against")
     if len_fail:
         ok = False
-        for (ud, par), lst in sorted(len_fail.items()):
+        for (array, parent), lst in sorted(len_fail.items()):
             e = lst[0]
-            print(f"  FAIL  len({ud}) != len({par}) in {len(lst)}/{nev} events "
-                  f"(e.g. evt{e[0]}: {e[1]} vs {e[2]})")
-    else:
-        print(f"  OK    all {len(LENGTH_CONTRACTS)} length contracts hold")
+            print(f"  FAIL  len({array}) != len({parent}) in {len(lst)}/{nev} "
+                  f"events (e.g. evt{e[0]}: {e[1]} vs {e[2]})")
+    elif audited:
+        print(f"  OK    all {len(audited)} companion arrays match their parent")
     if dq_missing:
         ok = False
         print(f"  FAIL  {dq_missing}/{dq_total} RecDqdx rows missing a Track link")
@@ -170,32 +134,6 @@ def main():
     elif dummy_first:
         print(f"  OK    all {dummy_first} dummy first DELPHI vertices are marked "
               "non-primary in sDST_PV_Vertices")
-    if fdst_btag_bad_index:
-        ok = False
-        print(f"  FAIL  {fdst_btag_bad_index}/{fdst_btag_tracks} fDST AABTAG "
-              "particle indices are outside [-1, len(fDST_MAIN_Particles))")
-    if fdst_btag_tracks and not fdst_btag_resolved:
-        ok = False
-        print(f"  FAIL  all {fdst_btag_tracks} fDST AABTAG particle indices are "
-              "unresolved (-1)")
-    elif fdst_btag_tracks:
-        print(f"  OK    {fdst_btag_resolved}/{fdst_btag_tracks} fDST AABTAG "
-              "particle indices resolve into fDST_MAIN_Particles")
-    if aabtag_missing:
-        ok = False
-        for name, count in sorted(aabtag_missing.items()):
-            print(f"  FAIL  {name} missing in {count} AABTAG event(s)")
-    if aabtag_len_fail:
-        ok = False
-        for (ud, parallel), failures in sorted(aabtag_len_fail.items()):
-            event, got, expected = failures[0]
-            print(f"  FAIL  len({ud}) != len({parallel}) in "
-                  f"{len(failures)} event(s) (e.g. evt{event}: "
-                  f"{got} vs {expected})")
-    elif aabtag_events and not aabtag_missing:
-        print(f"  OK    all {len(AABTAG_TRACK_SUFFIXES)} AABTAG track arrays "
-              f"are mutually aligned in {aabtag_events} event(s), "
-              f"covering {aabtag_rows} rows")
     return 0 if ok else 1
 
 
