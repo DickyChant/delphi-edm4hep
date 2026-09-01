@@ -2,11 +2,15 @@
 
 #include "delphi_edm4hep/Tracking/TrackHybrid.h"
 
+#include "delphi_edm4hep/internal/AabtagTrackState.h"
+#include "delphi_edm4hep/internal/PaWalk.h"
+
 #include <edm4hep/MutableTrack.h>
 #include <edm4hep/TrackCollection.h>
 #include <edm4hep/TrackState.h>
 
 #include <cstddef>
+#include <unordered_map>
 #include <vector>
 
 namespace delphi_edm4hep::track_hybrid {
@@ -44,6 +48,13 @@ void TrackHybridWriter::emit()
   const auto& sdst_tracks =
     frame_.get<edm4hep::TrackCollection>(sdstName("TRAC", "Tracks"));
 
+  // AABTAG's impact parameters ride on the track, and these tracks are clones
+  // that do not carry the pass-1 state, so they are attached again here from
+  // the fullDST commons. Keyed by PA address, which the walk gives per index.
+  const auto lpa_to_btag = aabtag::lpaToTrack();
+  std::unordered_map<int, int> pa_to_lpa;
+  pawalk::forEachPA([&](int lpa, int paIdx) { pa_to_lpa.emplace(paIdx, lpa); });
+
   // sDST Track index -> the fDST PAs the perigee match resolved to it.
   // Usually 1:1, but many-to-one is tolerated.
   std::vector<std::vector<int>> track_to_pas(sdst_tracks.size());
@@ -73,6 +84,11 @@ void TrackHybridWriter::emit()
           paIdx < static_cast<int>(ctx_.trax->pa_to_states.size())) {
         for (const auto& st : ctx_.trax->pa_to_states[paIdx]) {
           out.addToTrackStates(st);
+        }
+      }
+      if (const auto pa = pa_to_lpa.find(paIdx); pa != pa_to_lpa.end()) {
+        if (const auto b = lpa_to_btag.find(pa->second); b != lpa_to_btag.end()) {
+          out.addToTrackStates(aabtag::vertexState(b->second));
         }
       }
     }

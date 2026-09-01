@@ -72,6 +72,7 @@ find_package(DelphiAL9 REQUIRED)
 # linkage happens via the binaries (which need the full --start-group
 # linker dance because the DELPHI archives have circular symbol deps).
 add_library(delphi_edm4hep
+  src/AabtagTrackState.cpp
   src/BankPrefix.cpp
   src/DstCensus.cpp
   src/BankReader.cpp

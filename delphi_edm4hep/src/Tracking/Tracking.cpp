@@ -17,8 +17,7 @@
 
 #include "delphi_edm4hep/Tracking/Tracking.h"
 
-#include "delphi_edm4hep/internal/AabtagCommons.h"
-#include "delphi_edm4hep/internal/AabtagStatus.h"
+#include "delphi_edm4hep/internal/AabtagTrackState.h"
 
 #include "skelana/pscbsp.hpp"
 
@@ -172,18 +171,9 @@ void TrackingWriter::emit()
     lengthCol.push_back(lmain > 0 ? ph::Q(lmain + 9) : 0.f);
   };
 
-  // AABTAG's per-track arrays are indexed 1..NTRK in its own ordering, and
-  // IADTR gives the PA each entry came from. Invert that once so a PA can
-  // find its entry while its track is still mutable. Empty when AABTAG did
-  // not produce a usable result for this event.
-  std::unordered_map<int, int> lpa_to_btag;
-  {
-    const auto st = aabtag::eventStatus(sk::IERRBS, aabtag::IBAD());
-    if (st.valid && st.algorithmInvoked) {
-      const int ntrk = std::clamp(aa::NTRK(), 0, aa::kMaxTracks);
-      for (int i = 1; i <= ntrk; ++i) lpa_to_btag.emplace(aa::IADTR(i), i);
-    }
-  }
+  // AABTAG's impact parameters, keyed by the PA they belong to. Empty when
+  // AABTAG produced nothing usable for this event.
+  const auto lpa_to_btag = aabtag::lpaToTrack();
 
   forEachPA([&](int lpa, int paIdx) {
     // PA.MAIN: per-track summary. Charge code at Q(LMAIN+8):
@@ -246,26 +236,7 @@ void TrackingWriter::emit()
     // measured; the rest stay NaN rather than zero, which would claim a
     // measurement that was never made.
     if (auto it = lpa_to_btag.find(lpa); it != lpa_to_btag.end()) {
-      const int b = it->second;
-      edm4hep::TrackState bs{};
-      bs.location       = edm4hep::TrackState::AtVertex;
-      bs.D0             = static_cast<float>(-aa::PARIMP(b) * kCm2Mm);
-      bs.Z0             = static_cast<float>( aa::EZED  (b) * kCm2Mm);
-      bs.phi            = kNotMeasured;
-      bs.omega          = kNotMeasured;
-      bs.tanLambda      = kNotMeasured;
-      bs.time           = kNotMeasured;
-      bs.referencePoint = {static_cast<float>(aa::POSVX(1) * kCm2Mm),
-                           static_cast<float>(aa::POSVX(2) * kCm2Mm),
-                           static_cast<float>(aa::POSVX(3) * kCm2Mm)};
-      std::array<float, 21> cov;
-      cov.fill(kNotMeasured);
-      const float dD0 = static_cast<float>(aa::SIGIMP(b) * kCm2Mm);
-      const float dZ0 = static_cast<float>(aa::SIGZED(b) * kCm2Mm);
-      cov[0] = dD0 * dD0;   // (D0, D0)
-      cov[9] = dZ0 * dZ0;   // (Z0, Z0)
-      bs.covMatrix = cov;
-      trk.addToTrackStates(bs);
+      trk.addToTrackStates(aabtag::vertexState(it->second));
     }
 
     // Track elements reconstructed from this PA, decoded by
