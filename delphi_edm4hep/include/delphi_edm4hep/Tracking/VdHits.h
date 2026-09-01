@@ -9,10 +9,11 @@
 // Emits:
 //   sDST_TDVD_VDPoints   TrackerHit3DCollection  (PSCVDU, unassociated)
 //   sDST_TDVD_VDHits     TrackerHit3DCollection  (PSCVDA, associated)
-//   sDST_TDVD_VDHits_TrackIndex  UserDataCollection<int32>  (parallel to
-//     VDHits) — 0-based sDST_MAIN_Particles index of the owning track per
-//     hit (-1 if unmapped). The Track.trackerHits relation can't be set
-//     post-put (podio immutability), so the link rides on this array.
+//
+// The associated hits are also handed to TrackingWriter through EventContext,
+// grouped by charged-track ordinal, so each track links its own hits through
+// Track.trackerHits. That is why this writer runs BEFORE the track writer: a
+// track can only be given relations while its own writer still holds it.
 //
 // Per-hit fields (both commons, 5 each): K(1)=module# with sign of Z,
 // Q(2)=local X (or Z since '94), Q(3)=R (−R if R-Z measured), Q(4)=RPhi

@@ -144,6 +144,7 @@ int main(int argc, char** argv) {
     // the track elements while they are still mutable.
     dom::track_elements::TrackElementsWriter(frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::trax::TraxWriter                  (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::vd_hits::VdHitsWriter         (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::tracking::TrackingWriter      (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::truth::TruthRecoLinkWriter    (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::vertex::VertexWriter          (frame, ctx, dom::bank::Pass::Sdst).emit();
@@ -154,7 +155,6 @@ int main(int argc, char** argv) {
     dom::stic_shower::SticShowerWriter     (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::eltr_sdst::EltrSdstWriter         (frame, ctx, dom::bank::Pass::Sdst).emit();
     // §3.3 deferred PSC commons: VD hits + VECP-indexed PID extras.
-    dom::vd_hits::VdHitsWriter             (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::vft_hits::VftHitsWriter           (frame, ctx, dom::bank::Pass::Sdst).emit();
     dom::pid_extras_sdst::PidExtrasSdstWriter(frame, ctx, dom::bank::Pass::Sdst).emit();
 

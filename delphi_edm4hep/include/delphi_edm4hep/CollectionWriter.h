@@ -30,6 +30,7 @@
 #include "delphi_edm4hep/Tracking/TrackElementData.h" // track_elements::Output
 #include "delphi_edm4hep/Tracking/TraxData.h"         // trax::Output
 #include "delphi_edm4hep/Tracking/TrackingData.h"   // tracking::Output
+#include "delphi_edm4hep/Tracking/VdHitData.h"      // vd_hits::Output
 #include "delphi_edm4hep/Truth/TruthData.h"      // truth::GenParticleResult
 #include "delphi_edm4hep/BankPrefix.h"           // bank::Pass, bank::make
 
@@ -59,6 +60,10 @@ struct EventContext {
   // Set by TraxWriter; consumed by the track writers, which append the
   // extrapolation states to the track built from the same PA.
   std::optional<trax::Output> trax;
+
+  // Set by VdHitsWriter; consumed by TrackingWriter, which links each track
+  // to the Vertex-Detector hits assigned to it.
+  std::optional<vd_hits::Output> vd_hits;
 
   // Set by TrackingWriter; consumed by VertexWriter, CalorimeterWriter and
   // ParticleIdWriter, and by particleForPa() in pass 1.

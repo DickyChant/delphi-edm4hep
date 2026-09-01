@@ -312,6 +312,18 @@ void TrackingWriter::emit()
     // (with pion mass) — same fallback the current converter uses.
     const int vecp_i = find_vecp_index(lpa, /*want_charged=*/true);
 
+    // Vertex-Detector hits SKELANA assigned to this track, decoded by
+    // VdHitsWriter and grouped by the same charged-track ordinal. Linked
+    // here, while the track is still mutable.
+    if (ctx_.vd_hits && vecp_i >= 1) {
+      const auto& vd = ctx_.vd_hits->vecp_to_hits;
+      if (vecp_i < static_cast<int>(vd.size())) {
+        for (const auto& hit : vd[static_cast<std::size_t>(vecp_i)]) {
+          trk.addToTrackerHits(hit);
+        }
+      }
+    }
+
     // Charge sign from PA.MAIN. Code 3 ("undefined") -> 0 (we preserve
     // the ambiguity rather than mapping to +1 like the current code does).
     int sign = 0;

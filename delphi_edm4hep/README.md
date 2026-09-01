@@ -590,10 +590,10 @@ VD-only and ID+VD-without-z tracks).
   > rather than inferring from `type`.
 
 - `sDST_TDVD_VDPoints` (TrackerHit3D) — unassociated Vertex-Detector hits.
-- `sDST_TDVD_VDHits` (TrackerHit3D) + `sDST_TDVD_VDHits_TrackIndex`
-  (UserData&lt;int32&gt;) — VD hits associated to a track; the parallel index
-  gives the owning particle.
-  For both VD collections `position` is a **cylindrical-mixed** triple
+- `sDST_TDVD_VDHits` (TrackerHit3D) — Vertex-Detector hits associated to a
+  track. Each owning track links to its own hits through `Track.trackerHits`,
+  so there is no index array to join: go from the track to its hits directly.
+  For both collections `position` is a **cylindrical-mixed** triple
   `(R, slot2, slot4)` in mm, **not Cartesian** — the module→φ table needed for
   global (x,y) is not in the DST, so that conversion is left to the consumer.
   `cellID` = signed module number (sign = Z side); `type` bit 0 marks an R-Z
