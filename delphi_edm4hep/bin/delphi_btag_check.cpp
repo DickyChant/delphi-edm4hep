@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <exception>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -79,14 +80,20 @@ void usage(const char* argv0) {
             << " [--source sDST|fDST] <input.edm4hep.root> <data|mc>\n";
 }
 
+// A value computed in single precision can land one ULP outside a closed
+// bound: a thrust of exactly 1, which is physical, comes back as 1 + 2^-23.
+constexpr float kBoundSlack = std::numeric_limits<float>::epsilon();
+
 // A probability is either the not-computed sentinel (NaN) or in [0, 1].
 bool okProbability(float v) {
-  return std::isnan(v) || (domain::isFinite(v) && v >= 0.f && v <= 1.f);
+  return std::isnan(v) ||
+         (domain::isFinite(v) && v >= -kBoundSlack && v <= 1.f + kBoundSlack);
 }
 
 // A thrust-axis component is a direction cosine, so it spans [-1, 1].
 bool okCosine(float v) {
-  return std::isnan(v) || (domain::isFinite(v) && v >= -1.f && v <= 1.f);
+  return std::isnan(v) || (domain::isFinite(v) &&
+                           v >= -1.f - kBoundSlack && v <= 1.f + kBoundSlack);
 }
 
 }  // namespace
