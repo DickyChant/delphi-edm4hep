@@ -200,8 +200,14 @@ int main(int argc, char** argv) {
         if (params.size() != kTagParams) { ++stats.tagParamCountFailures; continue; }
         if (!okProbability(params[0]) || !okProbability(params[1])) ++stats.tagDomainFailures;
         if (!domain::isNonnegativeFinite(params[2])) ++stats.tagDomainFailures;
-        if (!domain::isFinite(params[3]) || params[3] < -kChi2RoundGuard)
+        // CHI2TR is defined only where AABTAG attached the track; the
+        // converter emits NaN elsewhere, and the checker holds it to that.
+        if (static_cast<std::int32_t>(params[10]) == 1) {
+          if (!domain::isFinite(params[3]) || params[3] < -kChi2RoundGuard)
+            ++stats.tagDomainFailures;
+        } else if (!std::isnan(params[3])) {
           ++stats.tagDomainFailures;
+        }
         if (!domain::isPositiveFinite(params[4])) ++stats.tagDomainFailures;
         if (!domain::isValidSignedCount(static_cast<std::int32_t>(params[5]), domain::kMaxVdHits) ||
             !domain::isValidSignedCount(static_cast<std::int32_t>(params[6]), domain::kMaxVdHits) ||

@@ -726,7 +726,7 @@ on output.
 - `<source>_AABTAG_TrackTag` (ParticleID, `algorithmType = 4`) — one row per
   track AABTAG used, linked to its particle. `params`: `[0]`/`[1]` track
   probabilities Rφ and z, `[2]` χ² to the VD, `[3]` χ² to the primary vertex
-  (attached tracks only; may be slightly negative), `[4]` momentum, `[5]`/`[6]`
+  (NaN unless `[10]` is set; may be slightly negative), `[4]` momentum, `[5]`/`[6]`
   VD hits Rφ and z, `[7]`/`[8]` VD layers Rφ and z, `[9]` used for the tag,
   `[10]` attached to the vertex. The hit and layer counts are signed: a
   negative value marks a rejected track, `abs()` is the count.

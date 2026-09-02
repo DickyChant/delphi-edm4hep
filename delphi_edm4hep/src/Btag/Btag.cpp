@@ -188,11 +188,16 @@ void BtagWriter::emit()
     auto tag = tags.create();
     tag.setAlgorithmType(kAlgoBtagTag);
 
+    // AAMNVX defines CHI2TR for attached tracks only. The slot is not cleared
+    // for the rest, so it holds whatever the fit last left there -- often the
+    // preceding event's value. Publish NaN rather than that.
+    const bool attached = aa::INMVX(i);
+
     // AATPRB leaves the probabilities at 1.0 for tracks it could not use.
     tag.addToParameters(aa::TRPR (i));
     tag.addToParameters(aa::TRPRZ(i));
     tag.addToParameters(aa::CHI2VD(i));
-    tag.addToParameters(aa::CHI2TR(i));
+    tag.addToParameters(attached ? aa::CHI2TR(i) : kNaN);
     tag.addToParameters(aa::PMOM  (i));
     // These count-like legacy values are signed: AAP* efficiency/acceptance
     // corrections negate them to mark rejection; abs(value) is the count.
@@ -201,14 +206,14 @@ void BtagWriter::emit()
     tag.addToParameters(static_cast<float>(aa::NLAY (i)));
     tag.addToParameters(static_cast<float>(aa::NLAYZ(i)));
     tag.addToParameters(static_cast<float>(aa::ISRT(i)));        // 0 = unused
-    tag.addToParameters(static_cast<float>(aa::INMVX(i) ? 1 : 0));
+    tag.addToParameters(static_cast<float>(attached ? 1 : 0));
 
     if (auto it = lpa_to_pa.find(aa::IADTR(i)); it != lpa_to_pa.end()) {
       if (const auto particle = particleForPa(it->second)) {
         tag.setParticle(*particle);
         // Tracks AABTAG attached to its own vertex, as a relation rather
         // than a flag to re-derive.
-        if (pv && aa::INMVX(i)) pv->addToParticles(*particle);
+        if (pv && attached) pv->addToParticles(*particle);
       }
     }
   }
