@@ -21,11 +21,13 @@ ARGS=("$@")
 
 REPO="${GITHUB_WORKSPACE:-$PWD}"
 BIN="${REPO}/build/delphi_sdst_pass"
+BTAG="${REPO}/build/delphi_btag_check"
 TESTS="${REPO}/delphi_edm4hep/tests"
 WORK="${DELPHI_CI_WORK:-${RUNNER_TEMP:-/tmp}/delphi-dt}"
 REFS="${DELPHI_CI_REFS:-/home/delphi-ci/refs}"
 
 [ -x "${BIN}" ] || { echo "no converter at ${BIN} - is the build artifact unpacked?" >&2; exit 1; }
+[ -x "${BTAG}" ] || { echo "no checker at ${BTAG} - is the build artifact unpacked?" >&2; exit 1; }
 PIN="${REPO}/.github/key4hep-production-release"
 K4="$(tr -d '[:space:]' < "${PIN}" 2>/dev/null || true)"
 [ -n "${K4}" ] || { echo "no key4hep release in ${PIN}" >&2; exit 1; }
@@ -56,6 +58,7 @@ echo "data root ${DELPHI_DATA_ROOT}"
 
 exec python3 "${TESTS}/run_tests.py" \
   --bin "${BIN}" \
+  --btag-check "${BTAG}" \
   --work "${WORK}" \
   --refs "${REFS}" \
   --key4hep "${K4}" \

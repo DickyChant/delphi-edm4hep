@@ -22,7 +22,7 @@ Usage:
 
 With no ID arguments every sample runs. Exits 1 if any sample or check failed.
 """
-import argparse, json, shutil, sys
+import argparse, json, shutil, subprocess, sys
 from pathlib import Path
 
 import yaml
@@ -56,6 +56,7 @@ class SampleTest:
         self.id = spec["id"]
         self.selector = spec["select"]
         self.max_events = spec.get("max_events", -1)
+        self.kind = spec["kind"]
         self.opts = opts
         self.work = Path(opts.work) / self.id
         self.ref_dir = Path(opts.refs) / self.id
@@ -118,14 +119,49 @@ class SampleTest:
             cmp_.explain()
         return cmp_.render(self.id), not cmp_.failed
 
+    def check(self, conv):
+        """Content checks on the converted file. Returns (markdown, ok).
+
+        These read the pass-1 output only, so they run in --bless mode too:
+        blessing a file that fails its own content checks would install a
+        broken reference.
+        """
+        runs = [
+            ("align_audit",
+             [sys.executable, str(HERE / "align_audit.py"), str(conv.root)]),
+            ("btag_check",
+             [self.opts.btag_check, "--source", "sDST", str(conv.root),
+              self.kind]),
+        ]
+        rows, ok = [], True
+        for name, cmd in runs:
+            r = subprocess.run(cmd, text=True, capture_output=True)
+            # 77 is the CTest skip code, which these tools use when they have
+            # nothing to work on. Not a failure.
+            passed = r.returncode in (0, 77)
+            ok = ok and passed
+            lines = [l.strip() for l in (r.stdout or r.stderr).splitlines()
+                     if l.strip()]
+            # On failure the failing lines are the point; otherwise summarise.
+            shown = [l for l in lines if "FAIL" in l] or lines
+            detail = "; ".join(shown)[:300] or "(no output)"
+            rows.append(f"| {name} | {'ok' if passed else 'FAIL'} | {detail} |")
+        md = (f"### {self.id} — content checks\n\n"
+              "| check | result | detail |\n|---|---|---|\n"
+              + "\n".join(rows) + "\n")
+        return md, ok
+
     def run(self):
-        """Convert, then either bless or compare. Returns (markdown, ok)."""
+        """Convert, check, then either bless or compare. Returns (markdown, ok)."""
         d, conv = self.convert()
         if d is None:
             return conv, False              # conv holds the failure report
+        check_md, check_ok = self.check(conv)
         if self.opts.bless:
-            return self.bless(d, conv)
-        return self.compare(d, conv)
+            md, ok = self.bless(d, conv)
+        else:
+            md, ok = self.compare(d, conv)
+        return md + "\n" + check_md, ok and check_ok
 
 
 def _fail(sample, cls, detail):
@@ -139,6 +175,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("ids", nargs="*", help="samples to run (default: all)")
     p.add_argument("--bin", required=True, help="delphi_sdst_pass to run")
+    p.add_argument("--btag-check", required=True, help="delphi_btag_check to run")
     p.add_argument("--work", required=True, help="scratch directory")
     p.add_argument("--refs", required=True, help="directory holding the references")
     p.add_argument("--key4hep", required=True, help="release, recorded in the digest")
