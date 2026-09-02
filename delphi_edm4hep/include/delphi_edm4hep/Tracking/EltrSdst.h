@@ -10,7 +10,7 @@
 //   sDST_ELTR_RefitTracks    TrackCollection
 //     one Track per PA carrying an ELTR bank; AtIP TrackState with the
 //     5x5 helix-basis cov pushed forward from the weight matrix.
-//   sDST_ELTR_ParticleIndex  UserDataCollection<int32>  (parallel)
+//   sDST_ELTR_RefitTracks_ParticleIndex  UserDataCollection<int32>
 //     0-based sDST_MAIN_Particles index for each refit track (-1 if the
 //     owning PA produced no Particle). Preserves the electron-candidate
 //     association without re-pointing the already-emitted (immutable)

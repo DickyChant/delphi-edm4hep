@@ -1,16 +1,25 @@
 // Tracking domain — implementation S3 (pass-1).
 //
 // Walks the PA chain (LDTOP-1 -> per-PV -> per-PA), emitting:
-//   <tag>_TRAC_Tracks       (Track + TrackState[AtIP] + 5x5 helix-basis cov)
-//   <tag>_MAIN_Particles    (charged + neutral; 4-mom from sk::VECP)
-//   <tag>_VECP_LVLOCK       (UserData int32 parallel; -1 for neutrals)
-//   <tag>_TRAC_d0PV / z0PV / d0BS  (UserData float; from sk::QTRAC(38..40))
+//   <prefix>_TRAC_Tracks    (Track + TrackState[AtIP] + 5x5 helix-basis cov)
+//   <prefix>_MAIN_Particles (charged + neutral; 4-mom from sk::VECP)
+//   <prefix>_VECP_Particles_SelectionFlag       (UserData int32)
+//   <prefix>_MAIN_Particles_ReconstructionCode  (UserData int32)
+//   <prefix>_MAIN_Particles_DetectorMask        (UserData int32)
+//
+// Each Track links to the track elements from its PA (see TrackElements).
+//   <prefix>_MAIN_Particles_TrackLength         (UserData float, cm)
+//   <prefix>_QTRAC_Tracks_d0PV / _z0PV / _d0BS  (UserData float; QTRAC 38..40)
 //
 // No shape moments, no sigma calibration, no perigee-momentum fallback —
 // bank-truth values only (those custom operations are intentionally
 // dropped).
 
 #include "delphi_edm4hep/Tracking/Tracking.h"
+
+#include "delphi_edm4hep/internal/AabtagTrackState.h"
+
+#include "skelana/pscbsp.hpp"
 
 #include "delphi_edm4hep/Helix.h"
 #include "delphi_edm4hep/internal/PaWalk.h"
@@ -26,11 +35,20 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <limits>
+#include <algorithm>
+#include <unordered_map>
 #include <iostream>
 #include <string>
 
 namespace ph = phdst;
 namespace sk = skelana;
+namespace aa = delphi_edm4hep::aabtag;
+
+namespace {
+constexpr double kCm2Mm = 10.0;
+constexpr float  kNotMeasured = std::numeric_limits<float>::quiet_NaN();
+}  // namespace
 
 namespace delphi_edm4hep::tracking {
 
@@ -67,6 +85,9 @@ void TrackingWriter::emit()
   edm4hep::TrackCollection                 trkCol;
   edm4hep::ReconstructedParticleCollection pfoCol;
   podio::UserDataCollection<std::int32_t>  lvlockCol;
+  podio::UserDataCollection<std::int32_t>  codeCol;
+  podio::UserDataCollection<std::int32_t>  detCol;
+  podio::UserDataCollection<float>         lengthCol;
   podio::UserDataCollection<float>         d0PvCol;
   podio::UserDataCollection<float>         z0PvCol;
   podio::UserDataCollection<float>         d0BsCol;
@@ -99,13 +120,13 @@ void TrackingWriter::emit()
   // Helper: push the BS/PV-corrected impact-parameter triplet for a
   // VECP-matched track, or NaN sentinels if vecp_i is 0.
   //
-  // CONVENTION / FOOTGUN (sDST_TRAC_d0PV / z0PV / d0BS): sk::QTRAC values
+  // CONVENTION / FOOTGUN (QTRAC_Tracks_d0PV / _z0PV / _d0BS): sk::QTRAC values
   // converted cm -> **mm**, DELPHI sign (rho = Vx sinphi - Vy cosphi), parallel
   // to TRAC_Tracks (charged-only). These are EMPTY (0 / -999) in real DATA --
   // the SKELANA QTRAC common is only filled in MC. For a data-usable impact
-  // parameter use sDST_PV_trackD0PV (Vertex.cpp): geometric, also **mm** but
-  // LCIO sign, so sDST_PV_trackD0PV ~= -1 * sDST_TRAC_d0PV. Same units and
-  // parallel collection now; they still differ in SIGN -- do not mix them.
+  // parameter use PV_Tracks_d0PV (Vertex.cpp): geometric, also **mm** but LCIO
+  // sign. Both are filled on MC, where d0 differs by a factor -1 while z0
+  // agrees -- do not mix them.
   static constexpr float kNaN = std::numeric_limits<float>::quiet_NaN();
   auto push_qtrac_or_nan = [&](int vecp_i) {
     if (vecp_i >= 1) {
@@ -133,6 +154,27 @@ void TrackingWriter::emit()
   // 4-momentum). Logged once per event below so the degradation is loud.
   int n_zero_mom_charged = 0;
 
+  // Per-particle words running parallel to <tag>_MAIN_Particles.
+  //
+  //   LVLOCK  selection verdict; 0 = selected. Neutrals are selected too
+  //           (PSHSNT, with the per-table calorimeter thresholds), so they
+  //           carry a real verdict rather than a sentinel.
+  //   code    PXPHOT reconstruction code, IQ(LPA+3) bits 19-25. SKELANA reads
+  //           it to reject VD-only tracks (75 with z, 77 without z, VFT-only
+  //           from ISVER 107) and ID+VD-only tracks without z (72).
+  //   length  track length in cm, the one selection quantity that cannot be
+  //           reconstructed from the other emitted collections.
+  auto push_particle_words = [&](int vecp_i, int lpa, int lmain) {
+    lvlockCol.push_back(vecp_i >= 1 ? sk::LVLOCK(vecp_i) : -1);
+    codeCol.push_back((ph::IQ(lpa + 3) >> 18) & 0x7F);
+    detCol.push_back(ph::IQ(lpa + 2));
+    lengthCol.push_back(lmain > 0 ? ph::Q(lmain + 9) : 0.f);
+  };
+
+  // AABTAG's impact parameters, keyed by the PA they belong to. Empty when
+  // AABTAG produced nothing usable for this event.
+  const auto lpa_to_btag = aabtag::lpaToTrack();
+
   forEachPA([&](int lpa, int paIdx) {
     // PA.MAIN: per-track summary. Charge code at Q(LMAIN+8):
     //   0 = neutral, 1 = positive, 2 = negative, 3 = undefined.
@@ -154,10 +196,9 @@ void TrackingWriter::emit()
       npfo.setMass  (sk::VECP(5, vecp_i));
       npfo.setCharge(0.f);
       record_particle(npfo, vecp_i, paIdx);
-      // Neutrals have no Track. LVLOCK is parallel to Particles (so it gets
-      // the -1 sentinel here); d0PV/z0PV/d0BS are parallel to Tracks
-      // (charged-only), so they are intentionally NOT pushed for neutrals.
-      lvlockCol.push_back(-1);
+      // d0PV/z0PV/d0BS are parallel to Tracks (charged-only) and so are not
+      // pushed for neutrals; the per-particle words are.
+      push_particle_words(vecp_i, lpa, lmain);
       return;
     }
 
@@ -184,6 +225,41 @@ void TrackingWriter::emit()
     auto trk = trkCol.create();
     trk.addToTrackStates(helix.toTrackState(edm4hep::TrackState::AtIP));
 
+    // AABTAG measures an impact parameter for the subset of tracks it can
+    // use, against its own primary vertex. That is a property of the track,
+    // so it rides here as a state at that vertex rather than in a parallel
+    // array; a track AABTAG skipped simply has no AtVertex state.
+    //
+    // D0 is negated into the EDM4hep convention, as the perigee above is
+    // (Helix::fromPerigee) -- AABTAG stores the DELPHI sign. Z0 is not
+    // negated, matching the same routine. Only these two components are
+    // measured; the rest stay NaN rather than zero, which would claim a
+    // measurement that was never made.
+    if (auto it = lpa_to_btag.find(lpa); it != lpa_to_btag.end()) {
+      trk.addToTrackStates(aabtag::vertexState(it->second));
+    }
+
+    // Track elements reconstructed from this PA, decoded by
+    // TrackElementsWriter. Linked here, while the track is still mutable.
+    if (ctx_.track_elements) {
+      const auto& te = *ctx_.track_elements;
+      if (paIdx < static_cast<int>(te.pa_to_segments.size())) {
+        for (const auto& seg : te.pa_to_segments[paIdx]) trk.addToTracks(seg);
+      }
+      if (paIdx < static_cast<int>(te.pa_to_plane_hits.size())) {
+        for (const auto& hit : te.pa_to_plane_hits[paIdx]) {
+          trk.addToTrackerHits(hit);
+        }
+      }
+    }
+
+    // Extrapolation states for this PA, decoded by TraxWriter.
+    if (ctx_.trax && paIdx < static_cast<int>(ctx_.trax->pa_to_states.size())) {
+      for (const auto& st : ctx_.trax->pa_to_states[paIdx]) {
+        trk.addToTrackStates(st);
+      }
+    }
+
     // chi2 / ndf from PA.MAIN. +26/+27 (with VD) preferred, fallback to
     // +16/+17 (without VD). SKELANA sanitises ndf to [0, 1000].
     float chi2_vd = ph::Q(lmain + 26);
@@ -206,6 +282,18 @@ void TrackingWriter::emit()
     // QTRAC reads. If no match, fall back to perigee-derived momentum
     // (with pion mass) — same fallback the current converter uses.
     const int vecp_i = find_vecp_index(lpa, /*want_charged=*/true);
+
+    // Vertex-Detector hits SKELANA assigned to this track, decoded by
+    // VdHitsWriter and grouped by the same charged-track ordinal. Linked
+    // here, while the track is still mutable.
+    if (ctx_.vd_hits && vecp_i >= 1) {
+      const auto& vd = ctx_.vd_hits->vecp_to_hits;
+      if (vecp_i < static_cast<int>(vd.size())) {
+        for (const auto& hit : vd[static_cast<std::size_t>(vecp_i)]) {
+          trk.addToTrackerHits(hit);
+        }
+      }
+    }
 
     // Charge sign from PA.MAIN. Code 3 ("undefined") -> 0 (we preserve
     // the ambiguity rather than mapping to +1 like the current code does).
@@ -239,7 +327,7 @@ void TrackingWriter::emit()
 
     // LVLOCK: per-VECP track-quality bitmask. -1 sentinel if no VECP
     // match. Stored as int32 so bit 32 (REMCLU overlap) is preserved.
-    lvlockCol.push_back(vecp_i >= 1 ? sk::LVLOCK(vecp_i) : -1);
+    push_particle_words(vecp_i, lpa, lmain);
 
     // BS/PV-corrected impact parameters from sk::QTRAC(38..40, vecp_i).
     // PSCTRA indexes by the charged-VECP ordinal which matches vecp_i
@@ -255,12 +343,15 @@ void TrackingWriter::emit()
 
   // Push all collections into the Frame via the base class's put().
   // Handles in `result` remain valid afterwards.
-  put(std::move(trkCol),    "TRAC", "Tracks");
-  put(std::move(pfoCol),    "MAIN", "Particles");
-  put(std::move(lvlockCol), "VECP", "LVLOCK");
-  put(std::move(d0PvCol),   "TRAC", "d0PV");
-  put(std::move(z0PvCol),   "TRAC", "z0PV");
-  put(std::move(d0BsCol),   "TRAC", "d0BS");
+  put(std::move(trkCol),    "TRAC", "Tracks", Provenance::Derived);
+  put(std::move(pfoCol),    "MAIN", "Particles", Provenance::Derived);
+  put(std::move(lvlockCol), "VECP", "Particles_SelectionFlag", Provenance::Derived);
+  put(std::move(codeCol),   "MAIN", "Particles_ReconstructionCode", Provenance::Transcribed);
+  put(std::move(detCol),    "MAIN", "Particles_DetectorMask",       Provenance::Transcribed);
+  put(std::move(lengthCol), "MAIN", "Particles_TrackLength",        Provenance::Transcribed);
+  put(std::move(d0PvCol),   "QTRAC", "Tracks_d0PV", Provenance::Derived);
+  put(std::move(z0PvCol),   "QTRAC", "Tracks_z0PV", Provenance::Derived);
+  put(std::move(d0BsCol),   "QTRAC", "Tracks_d0BS", Provenance::Derived);
 
   // Hand off to downstream writers via the shared context.
   ctx_.tracking = std::move(result);

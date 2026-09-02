@@ -1,5 +1,5 @@
 // Event domain: PHCIII + PSCEVT + PXCONS + PSCBSP + per-event B field.
-// EventWriter emits per-event Frame parameters under "<source_tag>_EVT_*".
+// EventWriter emits per-event Frame parameters under "<prefix>_EVT_*".
 
 #pragma once
 

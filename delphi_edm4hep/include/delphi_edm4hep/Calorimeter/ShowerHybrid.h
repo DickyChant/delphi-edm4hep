@@ -6,6 +6,7 @@
 //
 //   sDST_EMNC_Showers → fDST_EMNC_Showers
 //   sDST_HCNC_Showers → fDST_HCNC_Showers
+//   sDST_HCAL_Showers → fDST_HCAL_Showers
 //
 // Per §4.2, the showers were also to gain `addToHits` references into
 // the per-pad fDST_EMCA_HPCClusters / fDST_HCAL_Towers. That link is

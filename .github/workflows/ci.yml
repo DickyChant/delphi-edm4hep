@@ -57,6 +57,7 @@ jobs:
           path: |
             build/delphi_sdst_pass
             build/delphi_fdst_pass
+            build/delphi_btag_check
           retention-days: 5
 
   # The build stays on the GitHub-hosted runner; only the binaries are sent to
@@ -86,7 +87,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with: { name: build, path: build }
-      - run: chmod +x build/delphi_sdst_pass build/delphi_fdst_pass
+      - run: chmod +x build/delphi_sdst_pass build/delphi_fdst_pass build/delphi_btag_check
       - name: Convert and compare against the blessed references
         run: bash .github/scripts/data-test.sh
 

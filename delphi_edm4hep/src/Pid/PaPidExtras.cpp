@@ -1,4 +1,4 @@
-// FdstPidExtrasWriter — pass-2 implementation.
+// PaPidExtrasWriter — implementation. Runs in both passes.
 //
 // Bank layouts (verified against the legacy delphi_fdst_pad_dump readers):
 //
@@ -17,7 +17,7 @@
 //     +2  jet_sector (signed)
 //     +3..+26  24 raw drift times -> aggregate (n_valid>0, sum)
 
-#include "delphi_edm4hep/Pid/FdstPidExtras.h"
+#include "delphi_edm4hep/Pid/PaPidExtras.h"
 
 #include "delphi_edm4hep/internal/PaWalk.h"
 
@@ -30,7 +30,7 @@
 
 namespace ph = phdst;
 
-namespace delphi_edm4hep::fdst_pid_extras {
+namespace delphi_edm4hep::pa_pid_extras {
 
 namespace {
 constexpr std::int32_t kAlgoMu   = 4;
@@ -38,41 +38,23 @@ constexpr std::int32_t kAlgoEl   = 5;
 constexpr std::int32_t kAlgoTdid = 17;
 }  // namespace
 
-void FdstPidExtrasWriter::emit()
+void PaPidExtrasWriter::emit()
 {
   edm4hep::ParticleIDCollection muCol;
   edm4hep::ParticleIDCollection elCol;
   edm4hep::ParticleIDCollection tdidCol;
 
-  if (!ctx_.fdst_pa_to_sdst_particle) {
-    put(std::move(muCol),   "MU",   "MuonChambers");
-    put(std::move(elCol),   "EL",   "ElectronExtra");
-    put(std::move(tdidCol), "TDID", "DriftCalib");
-    return;
-  }
-  const auto& pa_to_particle = *ctx_.fdst_pa_to_sdst_particle;
-  // fDST_MAIN_Particles (created by MainHybrid, which runs before this writer;
-  // 1:1 with sDST_MAIN_Particles by clone index).
-  const auto& fdst_particles =
-    frame_.get<edm4hep::ReconstructedParticleCollection>("fDST_MAIN_Particles");
-
-  auto matched_particle = [&](int paIdx) -> int {
-    if (paIdx >= static_cast<int>(pa_to_particle.size())) return -1;
-    const int p = pa_to_particle[paIdx];
-    if (p < 0 || p >= static_cast<int>(fdst_particles.size())) return -1;
-    return p;
-  };
 
   pawalk::forEachPA([&](int lpa, int paIdx) {
-    const int particle_idx = matched_particle(paIdx);
-    if (particle_idx < 0) return;   // unmatched fDST PA, drop
+    const auto particle = particleForPa(paIdx);
+    if (!particle) return;
 
     // ---- PA.MU (muon-chamber refit summary) ----
     if (const int lmu = pawalk::lphpa("MU", lpa); lmu > 0) {
       auto pid = muCol.create();
       pid.setAlgorithmType(kAlgoMu);
       for (int off = 2; off <= 13; ++off) pid.addToParameters(ph::Q(lmu + off));
-      pid.setParticle(fdst_particles[particle_idx]);
+      pid.setParticle(*particle);
     }
 
     // ---- PA.EL (electron extra-module header) ----
@@ -83,7 +65,7 @@ void FdstPidExtrasWriter::emit()
       pid.setAlgorithmType(kAlgoEl);
       pid.addToParameters(static_cast<float>(det));
       pid.addToParameters(static_cast<float>(nshow));
-      pid.setParticle(fdst_particles[particle_idx]);
+      pid.setParticle(*particle);
     }
 
     // ---- PA.TDID (ID drift-time calibration) ----
@@ -100,13 +82,13 @@ void FdstPidExtrasWriter::emit()
       pid.addToParameters(jet_sector);
       pid.addToParameters(static_cast<float>(n_valid));
       pid.addToParameters(drift_sum);
-      pid.setParticle(fdst_particles[particle_idx]);
+      pid.setParticle(*particle);
     }
   });
 
-  put(std::move(muCol),   "MU",   "MuonChambers");
-  put(std::move(elCol),   "EL",   "ElectronExtra");
-  put(std::move(tdidCol), "TDID", "DriftCalib");
+  put(std::move(muCol),   "MU",   "MuonChambers", Provenance::Transcribed);
+  put(std::move(elCol),   "EL",   "ElectronExtra", Provenance::Transcribed);
+  put(std::move(tdidCol), "TDID", "DriftCalib", Provenance::Transcribed);
 }
 
-}  // namespace delphi_edm4hep::fdst_pid_extras
+}  // namespace delphi_edm4hep::pa_pid_extras

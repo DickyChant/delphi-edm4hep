@@ -37,8 +37,25 @@ namespace skelana
 
   /* +KEEP,PSCSTC
    *                            ( PA extra-module SSTC (33) )
+   *
+   * Layout follows stdcdes.car:1402-1436, the deck compiled into
+   * libskelanaxx.a. The SKELANA manual section A.3.3 documents an older
+   * six-word form and does not match the library; PSFSTC writes KSTIC(7..9)
+   * at skelana.car:6412-6415.
+   *
+   *   QSTIC(1,I) energy   QSTIC(2,I) theta   QSTIC(3,I) phi
+   *   KSTIC(4,I) number of towers
+   *   KSTIC(5,I) charged tag, large veto
+   *   KSTIC(6,I) charged tag, combined veto
+   *   KSTIC(7,I) veto multiplicity side A
+   *   KSTIC(8,I) veto multiplicity side B
+   *   KSTIC(9,I) silicon strip vertex position
+   *
+   * Word 5 carries different values on the two fill paths: PSHSTC (shortDST)
+   * uses -2 tight photon / -1 loose photon / 0 none / 1 electron, PSFSTC
+   * (fullDST) uses SDVETO's 0..3. Only PSFSTC fills words 7 and 8.
    */
-  inline const int LENSTC = 6;
+  inline const int LENSTC = 9;
   extern "C" struct
   {
     int nstic;

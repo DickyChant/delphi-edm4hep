@@ -7,6 +7,8 @@
 
 #include "delphi_edm4hep/Tracking/VdHits.h"
 
+#include <algorithm>
+
 #include "skelana/pscvda.hpp"
 #include "skelana/pscvdu.hpp"
 #include "skelana/pscvec.hpp"   // NCVECP (charged-track count)
@@ -40,7 +42,7 @@ void VdHitsWriter::emit()
 {
   edm4hep::TrackerHit3DCollection pointsCol;   // PSCVDU, unassociated
   edm4hep::TrackerHit3DCollection hitsCol;     // PSCVDA, associated
-  podio::UserDataCollection<std::int32_t> trkIdxCol;
+  Output out;
 
   // ---- Unassociated (PSCVDU) ----
   for (int n = 1; n <= sk::NVDUN; ++n) {
@@ -50,33 +52,35 @@ void VdHitsWriter::emit()
             sk::QVDUN(sk::IVDUSTN, n));
   }
 
-  // ---- Associated (PSCVDA), per track j ----
-  // Map the SKELANA track ordinal j -> sDST_MAIN_Particles index via the
-  // tracking VECP->particle table (charged tracks share that ordinal).
-  const auto* vecp_to_particle =
-    ctx_.tracking ? &ctx_.tracking->vecp_to_particle : nullptr;
+  // ---- Associated (PSCVDA), per charged track j ----
+  // Hits are grouped by the SKELANA charged-track ordinal and handed to
+  // TrackingWriter, which links them onto the track built from the same
+  // ordinal. Keying by the ordinal rather than by an emitted-particle index
+  // is what lets this run BEFORE the track writer: a track is only mutable
+  // while its own writer holds it.
+  //
   // PSCVDA is per CHARGED track; bound j to the charged-track count (NCVECP),
-  // not the MTRACK array maximum -- stale NASHT slots past the populated tracks
-  // would otherwise emit fake hits (TrackIndex=-1). j is the charged VECP
-  // ordinal (vecp_to_particle below maps it). Inner loop already clamps to NHIT.
-  for (int j = 1; j <= sk::NCVECP && j <= skelana::MTRACK; ++j) {
+  // not the MTRACK array maximum -- stale NASHT slots past the populated
+  // tracks would otherwise emit hits belonging to nothing. The inner loop
+  // clamps to NHIT.
+  const int ntrk = std::min(sk::NCVECP, static_cast<int>(skelana::MTRACK));
+  out.vecp_to_hits.assign(static_cast<std::size_t>(std::max(0, ntrk) + 1), {});
+  for (int j = 1; j <= ntrk; ++j) {
     const int nhit = sk::NASHT(j);
     if (nhit <= 0) continue;
-    int p_idx = -1;
-    if (vecp_to_particle && j < static_cast<int>(vecp_to_particle->size()))
-      p_idx = (*vecp_to_particle)[j];
     for (int n = 1; n <= nhit && n <= sk::NHIT; ++n) {
-      fillHit(hitsCol.create(),
+      auto hit = hitsCol.create();
+      fillHit(hit,
               sk::KVDAS(sk::IVDAMOD, j, n), sk::QVDAS(sk::IVDAXLC, j, n),
               sk::QVDAS(sk::IVDARCO, j, n), sk::QVDAS(sk::IVDARPH, j, n),
               sk::QVDAS(sk::IVDASTN, j, n));
-      trkIdxCol.push_back(p_idx);
+      out.vecp_to_hits[static_cast<std::size_t>(j)].push_back(hit);
     }
   }
 
-  put(std::move(pointsCol), "TDVD", "VDPoints");
-  put(std::move(hitsCol),   "TDVD", "VDHits");
-  put(std::move(trkIdxCol), "TDVD", "VDHits_TrackIndex");
+  put(std::move(pointsCol), "TDVD", "VDPoints", Provenance::Transcribed);
+  put(std::move(hitsCol),   "TDVD", "VDHits", Provenance::Transcribed);
+  ctx_.vd_hits = std::move(out);
 }
 
 }  // namespace delphi_edm4hep::vd_hits

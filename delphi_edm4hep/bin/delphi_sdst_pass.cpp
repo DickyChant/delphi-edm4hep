@@ -8,6 +8,7 @@
 //        delphi_sdst_pass -P|--pdl <pdlinput> <output.edm4hep.root> [-n MAX]
 
 #include "delphi_edm4hep/CollectionWriter.h"   // EventContext
+#include "delphi_edm4hep/Btag/Btag.h"
 #include "delphi_edm4hep/PhdstHarness.h"
 #include "delphi_edm4hep/Calorimeter/Calorimeter.h"
 #include "delphi_edm4hep/Tracking/EltrSdst.h"
@@ -17,6 +18,14 @@
 #include "delphi_edm4hep/Pid/SdstPaExtras.h"
 #include "delphi_edm4hep/Calorimeter/SticShower.h"
 #include "delphi_edm4hep/Tracking/VdHits.h"
+#include "delphi_edm4hep/Tracking/VftHits.h"
+#include "delphi_edm4hep/Calorimeter/Emca.h"
+#include "delphi_edm4hep/Calorimeter/Tdha.h"
+#include "delphi_edm4hep/Pid/Mtpc.h"
+#include "delphi_edm4hep/Pid/PaPidExtras.h"
+#include "delphi_edm4hep/Pid/Tof.h"
+#include "delphi_edm4hep/Tracking/Trax.h"
+#include "delphi_edm4hep/Tracking/TrackElements.h"
 #include "delphi_edm4hep/Tracking/Tracking.h"
 #include "delphi_edm4hep/Truth/Truth.h"
 #include "delphi_edm4hep/Vertex/Vertex.h"
@@ -37,10 +46,10 @@ namespace dom     = delphi_edm4hep;
 // stubs and a double-archive-definition would error at link time.
 // We forward into the harness which dispatches to the configured hooks.
 extern "C" {
-  void user00_()           { harness::on_user00();        }
-  void user01_(int* need)  { harness::on_user01(need);    }
-  void user02_()           { harness::on_user02();        }
-  void user99_()           { harness::on_user99();        }
+  void user00_() noexcept          { harness::on_user00();        }
+  void user01_(int* need) noexcept { harness::on_user01(need);    }
+  void user02_() noexcept          { harness::on_user02();        }
+  void user99_() noexcept          { harness::on_user99();        }
 }
 
 static void usage(const char* argv0) {
@@ -120,27 +129,45 @@ int main(int argc, char** argv) {
   // Per-event dispatch: Event scalars first, then Truth gen-particles
   // (since RecoToGen links need them), then Tracking (which Vertex /
   // V0 / PhotonConv depend on), then the RecoToGen link emission, then
-  // Vertex. Source tag is "sDST" for the pass-1 output.
+  // Vertex. Writers run under Pass::Sdst; the prefix on each
+  // collection follows its bank.
   cfg.on_event = [](podio::Frame& frame, int /*run*/, int /*evt*/) {
     delphi_edm4hep::EventContext ctx;
 
     // All writers (CollectionWriter base + ctx-mediated I/O).
     // Pipeline ordering: scalars first, then truth-gen, then tracks (so
     // ctx.tracking is set), then everything downstream that needs it.
-    dom::event::EventWriter            (frame, ctx, "sDST").emit();
-    dom::truth::TruthGenWriter         (frame, ctx, "sDST").emit();
-    dom::tracking::TrackingWriter      (frame, ctx, "sDST").emit();
-    dom::truth::TruthRecoLinkWriter    (frame, ctx, "sDST").emit();
-    dom::vertex::VertexWriter          (frame, ctx, "sDST").emit();
-    dom::calorimeter::CalorimeterWriter(frame, ctx, "sDST").emit();
-    dom::particleid::ParticleIdWriter  (frame, ctx, "sDST").emit();
+    dom::event::EventWriter            (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::truth::TruthGenWriter         (frame, ctx, dom::bank::Pass::Sdst).emit();
+    // TrackElements runs before Tracking so the mother tracks can link to
+    // the track elements while they are still mutable.
+    dom::track_elements::TrackElementsWriter(frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::trax::TraxWriter                  (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::vd_hits::VdHitsWriter         (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::tracking::TrackingWriter      (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::truth::TruthRecoLinkWriter    (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::vertex::VertexWriter          (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::emca::EmcaWriter               (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::calorimeter::CalorimeterWriter(frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::particleid::ParticleIdWriter  (frame, ctx, dom::bank::Pass::Sdst).emit();
     // sDST-only PA extras: PHOT/ODHI ParticleID, SSTC STIC showers.
-    dom::sdst_pa_extras::SdstPaExtrasWriter(frame, ctx, "sDST").emit();
-    dom::stic_shower::SticShowerWriter     (frame, ctx, "sDST").emit();
-    dom::eltr_sdst::EltrSdstWriter         (frame, ctx, "sDST").emit();
+    dom::sdst_pa_extras::SdstPaExtrasWriter(frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::stic_shower::SticShowerWriter     (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::eltr_sdst::EltrSdstWriter         (frame, ctx, dom::bank::Pass::Sdst).emit();
     // §3.3 deferred PSC commons: VD hits + VECP-indexed PID extras.
-    dom::vd_hits::VdHitsWriter             (frame, ctx, "sDST").emit();
-    dom::pid_extras_sdst::PidExtrasSdstWriter(frame, ctx, "sDST").emit();
+    dom::vft_hits::VftHitsWriter           (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::pid_extras_sdst::PidExtrasSdstWriter(frame, ctx, dom::bank::Pass::Sdst).emit();
+
+    // PA modules that are on the (X)shortDST as well as the fullDST. Each is
+    // empty when its module is absent, which depends on the processing rather
+    // than on the era -- see the availability table in the README.
+    dom::mtpc::MtpcWriter                (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::tof::TofWriter                  (frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::pa_pid_extras::PaPidExtrasWriter(frame, ctx, dom::bank::Pass::Sdst).emit();
+    dom::tdha::TdhaWriter                (frame, ctx, dom::bank::Pass::Sdst).emit();
+    // B-tagging. After Tracking (needs ctx.tracking to resolve AABTAG's
+    // PA addresses onto emitted Particles).
+    dom::btag::BtagWriter(frame, ctx, dom::bank::Pass::Sdst).emit();
   };
 
   return harness::run(cfg);

@@ -61,9 +61,9 @@ void MatchProvenanceWriter::emit()
   // missing (e.g. pass-1 produced no charged tracks), emit empty
   // provenance and bail.
   const auto& sdst_tracks =
-    frame_.get<edm4hep::TrackCollection>("sDST_TRAC_Tracks");
+    frame_.get<edm4hep::TrackCollection>(sdstName("TRAC", "Tracks"));
   const auto& sdst_particles =
-    frame_.get<edm4hep::ReconstructedParticleCollection>("sDST_MAIN_Particles");
+    frame_.get<edm4hep::ReconstructedParticleCollection>(sdstName("MAIN", "Particles"));
 
   podio::UserDataCollection<std::int32_t> prov;
   prov.resize(sdst_particles.size());
@@ -137,7 +137,7 @@ void MatchProvenanceWriter::emit()
   // Bank prefix is MAIN, not TRAC: this collection is parallel to
   // fDST_MAIN_Particles (charged + neutral), NOT to fDST_TRAC_Tracks
   // (charged only). The -1 = neutral value is a per-particle concept.
-  put(std::move(prov), "MAIN", "MatchProvenance");
+  put(std::move(prov), "MAIN", "Particles_MatchProvenance", Provenance::Custom);
 }
 
 }  // namespace delphi_edm4hep::matchprov

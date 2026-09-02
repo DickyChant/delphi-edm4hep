@@ -1,4 +1,5 @@
-// FdstPidExtras domain — pass-2 only.
+// PaPidExtras domain — runs in both passes: PA.MU, PA.EL and PA.TDID are on
+// the XSDST as well as the fullDST.
 //
 // Three thin fDST-only PA diagnostic modules that are genuinely
 // per-particle scalar/quality summaries, so ParticleID is the correct
@@ -22,12 +23,12 @@
 
 #include "delphi_edm4hep/CollectionWriter.h"
 
-namespace delphi_edm4hep::fdst_pid_extras {
+namespace delphi_edm4hep::pa_pid_extras {
 
-class FdstPidExtrasWriter : public CollectionWriter {
+class PaPidExtrasWriter : public CollectionWriter {
 public:
   using CollectionWriter::CollectionWriter;
   void emit() override;
 };
 
-}  // namespace delphi_edm4hep::fdst_pid_extras
+}  // namespace delphi_edm4hep::pa_pid_extras

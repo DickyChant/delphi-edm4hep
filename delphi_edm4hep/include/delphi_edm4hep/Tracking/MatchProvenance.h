@@ -6,7 +6,7 @@
 // both DSTs.
 //
 // Emits:
-//   <tag>_MAIN_MatchProvenance   UserDataCollection<int32>
+//   <tag>_MAIN_Particles_MatchProvenance   UserDataCollection<int32>
 //     parallel to sDST_MAIN_Particles (charged + neutral, in PA-walk
 //     order from pass-1). Values per legacy commit fb62da1:
 //       +1 charged PFO matched perigee with a fDST PA

@@ -8,8 +8,10 @@
 //   sDST_HAID_HadronID       → fDST_HAID_HadronID
 //   sDST_MUID_MuonID         → fDST_MUID_MuonID
 //   sDST_ELID_ElectronID     → fDST_ELID_ElectronID
-//   sDST_HAID_dEdx           → fDST_HAID_dEdx
-//   sDST_HAID_dEdx_RecDqdx   → fDST_HAID_dEdx_RecDqdx
+//   sDST_<algo>_Dedx         → fDST_<algo>_Dedx
+//   sDST_<algo>_DedxRecDqdx  → fDST_<algo>_DedxRecDqdx
+//
+// <algo> is BBDXGET or GETDEDX, whichever pass 1 wrote (ParticleId.cpp).
 //
 // Uses the identity 1:1 mapping (sDST_MAIN_Particles[i] ↔
 // fDST_MAIN_Particles[i]).

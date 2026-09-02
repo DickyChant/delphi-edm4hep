@@ -9,9 +9,13 @@ namespace skelana
     extern "C" void psruns_(int *);
     extern "C" void psenrg_();
     extern "C" void psbhpc_();
+    // Reads the stored BTAG bank into PSCBTG. Cheap and, with IFLPVT = 0,
+    // free of side effects on the primary vertex.
+    extern "C" void pshbtg_();
 
     inline void PSINI() { psini_(); }
     inline void PSBEG() { psbeg_(); }
+    inline void PSHBTG() { pshbtg_(); }
     inline void PSRUNQ(int &&n) { psrunq_(&n); }
     inline int PSRUNS()
     {

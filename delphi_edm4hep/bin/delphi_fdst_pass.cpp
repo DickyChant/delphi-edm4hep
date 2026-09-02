@@ -10,23 +10,24 @@
 //                        <output.edm4hep.root> [-n MAX]
 
 #include "delphi_edm4hep/CollectionWriter.h"   // EventContext
+#include "delphi_edm4hep/Btag/Btag.h"
 #include "delphi_edm4hep/PhdstHarness.h"
-#include "delphi_edm4hep/Calorimeter/CcalFdst.h"
-#include "delphi_edm4hep/Calorimeter/EmcaFdst.h"
-#include "delphi_edm4hep/Pid/FdstPidExtras.h"
+#include "delphi_edm4hep/Calorimeter/Emca.h"
+#include "delphi_edm4hep/Pid/PaPidExtras.h"
 #include "delphi_edm4hep/Calorimeter/HcalFdst.h"
 #include "delphi_edm4hep/Tracking/MainHybrid.h"
 #include "delphi_edm4hep/Tracking/MatchProvenance.h"
-#include "delphi_edm4hep/Pid/MtpcFdst.h"
+#include "delphi_edm4hep/Pid/Mtpc.h"
 #include "delphi_edm4hep/Pid/PidHybrid.h"
 #include "delphi_edm4hep/Calorimeter/ShowerHybrid.h"
 #include "delphi_edm4hep/Calorimeter/SticShower.h"
 #include "delphi_edm4hep/Truth/TblHybrid.h"
-#include "delphi_edm4hep/Calorimeter/TdhaFdst.h"
-#include "delphi_edm4hep/Tracking/TeStateMerge.h"
-#include "delphi_edm4hep/Tracking/TraxFdst.h"
+#include "delphi_edm4hep/Calorimeter/Tdha.h"
+#include "delphi_edm4hep/Tracking/TrackElements.h"
+#include "delphi_edm4hep/Tracking/TrackHybrid.h"
+#include "delphi_edm4hep/Tracking/Trax.h"
 #include "delphi_edm4hep/Calorimeter/TeadFdst.h"
-#include "delphi_edm4hep/Pid/TofFdst.h"
+#include "delphi_edm4hep/Pid/Tof.h"
 
 #include <charconv>
 #include <cstdlib>
@@ -40,10 +41,10 @@ namespace harness = delphi_edm4hep::harness;
 // PHDST user-hook overrides — must live in the binary TU. Forward
 // straight to the harness (same pattern as delphi_sdst_pass).
 extern "C" {
-  void user00_()           { harness::on_user00();      }
-  void user01_(int* need)  { harness::on_user01(need);  }
-  void user02_()           { harness::on_user02();      }
-  void user99_()           { harness::on_user99();      }
+  void user00_() noexcept          { harness::on_user00();      }
+  void user01_(int* need) noexcept { harness::on_user01(need);  }
+  void user02_() noexcept          { harness::on_user02();      }
+  void user99_() noexcept          { harness::on_user99();      }
 }
 
 static void usage(const char* argv0) {
@@ -126,34 +127,38 @@ int main(int argc, char** argv) {
     // MatchProvenanceWriter must run FIRST: it populates
     // ctx.fdst_pa_to_sdst_particle (and _track) which the other
     // pass-2 writers consume for their setParticle linkage.
-    matchprov::MatchProvenanceWriter(frame, ctx, "fDST").emit();
-    te_merge::TeStateMergeWriter    (frame, ctx, "fDST").emit();
-    emca_fdst::EmcaFdstWriter       (frame, ctx, "fDST").emit();
-    hcal_fdst::HcalFdstWriter       (frame, ctx, "fDST").emit();
-    tead_fdst::TeadFdstWriter       (frame, ctx, "fDST").emit();
-    tdha_fdst::TdhaFdstWriter       (frame, ctx, "fDST").emit();
-    stic_shower::SticShowerWriter   (frame, ctx, "fDST").emit();
-    ccal_fdst::CcalFdstWriter       (frame, ctx, "fDST").emit();
+    matchprov::MatchProvenanceWriter(frame, ctx, bank::Pass::Fdst).emit();
+    // TrackElements decodes the PA.TE* modules and must run before
+    // TrackHybrid, which links each cloned track to them.
+    track_elements::TrackElementsWriter(frame, ctx, bank::Pass::Fdst).emit();
+    trax::TraxWriter                (frame, ctx, bank::Pass::Fdst).emit();
+    track_hybrid::TrackHybridWriter (frame, ctx, bank::Pass::Fdst).emit();
+    emca::EmcaWriter       (frame, ctx, bank::Pass::Fdst).emit();
+    hcal_fdst::HcalFdstWriter       (frame, ctx, bank::Pass::Fdst).emit();
+    tead_fdst::TeadFdstWriter       (frame, ctx, bank::Pass::Fdst).emit();
+    tdha::TdhaWriter       (frame, ctx, bank::Pass::Fdst).emit();
+    stic_shower::SticShowerWriter   (frame, ctx, bank::Pass::Fdst).emit();
     // ShowerHybrid clones sDST_EMNC/HCNC_Showers into fDST_* and must run
     // BEFORE MainHybrid: the Particle→Cluster relation lives on the
     // (mutable) particle, so MainHybrid re-points it onto these clones
     // while fDST_MAIN_Particles is still being built.
-    shower_hybrid::ShowerHybridWriter(frame, ctx, "fDST").emit();
-    // MainHybrid must run AFTER TeStateMerge (consumes fDST_TRAC_Tracks)
+    shower_hybrid::ShowerHybridWriter(frame, ctx, bank::Pass::Fdst).emit();
+    // MainHybrid must run AFTER TrackHybrid (consumes fDST_TRAC_Tracks)
     // and ShowerHybrid (consumes fDST_EMNC/HCNC_Showers), and BEFORE the
     // hybrid writers that consume fDST_MAIN_Particles.
-    main_hybrid::MainHybridWriter   (frame, ctx, "fDST").emit();
+    main_hybrid::MainHybridWriter   (frame, ctx, bank::Pass::Fdst).emit();
     // These PA ParticleID writers link setParticle() to fDST_MAIN_Particles
     // (1:1 with sDST_MAIN_Particles by clone index), so they MUST run AFTER
     // MainHybrid creates it. They previously ran earlier and linked to the
     // pass-1 sDST_MAIN_Particles, leaving final-file PID->particle relations
     // inconsistent with the PidHybrid-repointed clones. (MU/EL/TDID + TOF + MTPC + TRAX.)
-    tof_fdst::TofFdstWriter         (frame, ctx, "fDST").emit();
-    mtpc_fdst::MtpcFdstWriter       (frame, ctx, "fDST").emit();
-    trax_fdst::TraxFdstWriter       (frame, ctx, "fDST").emit();
-    fdst_pid_extras::FdstPidExtrasWriter(frame, ctx, "fDST").emit();
-    pid_hybrid::PidHybridWriter     (frame, ctx, "fDST").emit();
-    tbl_hybrid::TblHybridWriter     (frame, ctx, "fDST").emit();
+    tof::TofWriter         (frame, ctx, bank::Pass::Fdst).emit();
+    mtpc::MtpcWriter              (frame, ctx, bank::Pass::Fdst).emit();
+    pa_pid_extras::PaPidExtrasWriter(frame, ctx, bank::Pass::Fdst).emit();
+    pid_hybrid::PidHybridWriter     (frame, ctx, bank::Pass::Fdst).emit();
+    tbl_hybrid::TblHybridWriter     (frame, ctx, bank::Pass::Fdst).emit();
+    // B-tagging. fulldst=true: SKELANA recalculates for ANY IFLBTG > 0 on
+    btag::BtagWriter                (frame, ctx, bank::Pass::Fdst).emit();
   };
 
   return harness::run(cfg);

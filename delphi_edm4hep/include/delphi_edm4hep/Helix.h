@@ -75,12 +75,17 @@ class Helix {
   // DELPHI TE / TRAX surface (PA.TE*, PA.TRAX): reference point
   //   (c1, c2, c3) [cm] + direction (theta, phi) [rad] + invP [1/GeV],
   //   TE-basis 6×6 cov, track charge (+1/-1/0) and B [T]. D0 = Z0 = 0 at
-  //   the reference point by construction; referencePoint = (c1,c2,c3)×10mm.
+  //   the reference point by construction.
   //   invPt: true if `invP` is 1/|p_T| (TE descriptor bit 11), false if 1/|p|;
   //   omega is formed accordingly so it equals the transverse curvature.
+  //   cylindrical: true when the surface is a cylinder (TE descriptor bit 1),
+  //   where the coordinates are stored as (R, R*Phi, z) rather than (x, y, z).
+  //   Such an element is confined to its surface, so R is fixed and the
+  //   covariance covers only (R*Phi, z): expressed in Cartesian terms its
+  //   transverse block is rank one, along the azimuthal direction.
   static Helix fromTrackElement(double c1, double c2, double c3,
                                 double theta, double phi, double invP,
-                                bool invPt,
+                                bool invPt, bool cylindrical,
                                 const CovMatrix6& teCov,
                                 int charge, double B);
 

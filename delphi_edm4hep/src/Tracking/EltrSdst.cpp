@@ -28,8 +28,9 @@ void EltrSdstWriter::emit()
   podio::UserDataCollection<std::int32_t> idxCol;
 
   if (!ctx_.tracking) {
-    put(std::move(trkCol), "ELTR", "RefitTracks");
-    put(std::move(idxCol), "ELTR", "ParticleIndex");
+    put(std::move(trkCol), "ELTR", "RefitTracks", Provenance::Transcribed);
+    put(std::move(idxCol), "ELTR", "RefitTracks_ParticleIndex",
+        Provenance::Transcribed);
     return;
   }
   const auto& tracking = *ctx_.tracking;
@@ -58,8 +59,9 @@ void EltrSdstWriter::emit()
     idxCol.push_back(p_idx);
   });
 
-  put(std::move(trkCol), "ELTR", "RefitTracks");
-  put(std::move(idxCol), "ELTR", "ParticleIndex");
+  put(std::move(trkCol), "ELTR", "RefitTracks", Provenance::Transcribed);
+  put(std::move(idxCol), "ELTR", "RefitTracks_ParticleIndex",
+        Provenance::Transcribed);
 }
 
 }  // namespace delphi_edm4hep::eltr_sdst

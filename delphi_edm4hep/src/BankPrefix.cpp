@@ -1,16 +1,42 @@
 #include "delphi_edm4hep/BankPrefix.h"
 
-#include <string>
+#include <algorithm>
+#include <array>
 
 namespace delphi_edm4hep::bank {
+namespace {
 
-std::string make(std::string_view source_tag,
-        std::string_view bank,
-        std::string_view readable_name)
-{
+// PA modules a plain shortDST does not keep, present on both the extended
+// shortDST and the longDST. The TE family spans this class and the
+// extended-shortDST-only one, so it is named for the weaker requirement.
+constexpr std::array<std::string_view, 15> kExtendedOnly = {
+    "EMCA", "HCAL", "HCMU", "MRIC", "MUFI", "PXTD", "STIC",
+    "STTD", "TDID", "TE",   "TERB", "TERF", "TEST", "TEVF",
+    "TOF",
+};
+
+// PA modules only the longDST keeps.
+constexpr std::array<std::string_view, 4> kLongOnly = {"EL", "MU", "TDHA", "TRAX"};
+
+template <std::size_t N>
+bool listed(const std::array<std::string_view, N>& table, std::string_view bank) {
+  return std::find(table.begin(), table.end(), bank) != table.end();
+}
+
+}  // namespace
+
+std::string_view prefixFor(Pass pass, std::string_view bank) {
+  if (pass == Pass::Fdst) return "fDST";
+  if (listed(kLongOnly, bank)) return "lDST";
+  if (listed(kExtendedOnly, bank)) return "xsDST";
+  return "sDST";
+}
+
+std::string make(Pass pass, std::string_view bank, std::string_view readable_name) {
+  const std::string_view prefix = prefixFor(pass, bank);
   std::string out;
-  out.reserve(source_tag.size() + 1 + bank.size() + 1 + readable_name.size());
-  out.append(source_tag);
+  out.reserve(prefix.size() + bank.size() + readable_name.size() + 2);
+  out.append(prefix);
   out.push_back('_');
   out.append(bank);
   out.push_back('_');

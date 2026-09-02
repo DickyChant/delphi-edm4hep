@@ -10,18 +10,20 @@ namespace delphi_edm4hep::te_bank {
 
 namespace {
 
+// A TER occupies 10 + m words: descriptor, three coordinates, theta, phi,
+// 1/P, m covariance entries, then ndf, chi2 and track length.
+constexpr int kTerFixedWords = 10;
+
 // Map from descriptor bit (1-indexed) to TE-basis field index (0..5).
 // Returns -1 if the bit doesn't contribute to the 6-component basis.
-//   bit 6  → 0 (c1)
-//   bit 7  → 2 if cylindrical else 1   (c3 or c2)
-//   bit 8  → 3 (theta)
-//   bit 9  → 4 (phi)
-//   bit 10 → 5 (1/P)
-//   bit 11 → 5 (1/Pt — alias)
+//
+// The measured coordinates are the stored triple minus the one the surface
+// fixes (exx.car:5045-5055): a cylinder fixes R, leaving (R*Phi, z), while a
+// plane fixes z, leaving (x, y).
 int basisIndexForBit(int bit, bool cylindrical) {
   switch (bit) {
-    case 6:  return 0;
-    case 7:  return cylindrical ? 2 : 1;
+    case 6:  return cylindrical ? 1 : 0;   // R*Phi on a cylinder, x on a plane
+    case 7:  return cylindrical ? 2 : 1;   // z         "          y     "
     case 8:  return 3;
     case 9:  return 4;
     case 10: return 5;
@@ -34,19 +36,29 @@ inline int lowerTriOffset(int i, int j) {
   return i * (i + 1) / 2 + j;
 }
 
-}  // namespace
+// Number of error-matrix words this descriptor implies: the lower triangle
+// over the fields it flags as measured.
+int covEntries(int descriptor, bool cylindrical) {
+  int n = 0;
+  for (int bit = 6; bit <= 11; ++bit) {
+    if (((descriptor >> (bit - 1)) & 0x1) &&
+        basisIndexForBit(bit, cylindrical) >= 0) {
+      ++n;
+    }
+  }
+  return n * (n + 1) / 2;
+}
 
-Decoded decode(int lte, int blen) {
+// Decode the record whose descriptor sits at word `w`. The caller has already
+// checked that the whole record lies inside the bank.
+Decoded decodeElement(int lte, int w, int descriptor) {
   Decoded d;
-  if (lte <= 0 || blen < 12) return d;  // bank too small for any TER
-
-  const float w2 = ph::Q(lte + 2);
-  const int descriptor = static_cast<int>(std::lround(w2));
-  d.descriptor = descriptor;
+  d.descriptor     = descriptor;
   d.is_cylindrical = (descriptor & 0x1) != 0;
-  d.invPt = ((descriptor >> 10) & 0x1) != 0;   // bit 11
+  d.invPt          = ((descriptor >> 10) & 0x1) != 0;   // bit 11
 
-  // Collect measured bits in ascending order, mapped to TE-basis idx.
+  // Measured fields in ascending bit order; the error matrix rows follow the
+  // same order.
   int meas_basis_idx[6];
   int n = 0;
   for (int bit = 6; bit <= 11; ++bit) {
@@ -58,42 +70,61 @@ Decoded decode(int lte, int blen) {
       }
     }
   }
-  d.n_measured = n;
+  d.n_measured    = n;
   d.m_cov_entries = n * (n + 1) / 2;
 
-  const int expected_blen = 11 + d.m_cov_entries;
-  d.ok = (blen == expected_blen);
+  d.coord[0] = ph::Q(lte + w + 1);
+  d.coord[1] = ph::Q(lte + w + 2);
+  d.coord[2] = ph::Q(lte + w + 3);
+  d.theta    = ph::Q(lte + w + 4);
+  d.phi      = ph::Q(lte + w + 5);
+  d.invP     = ph::Q(lte + w + 6);
 
-  // Read cov entries in measured-field order (lower-tri row-major),
-  // mapping back to TE-basis 6x6 sparse storage. Each entry lives at
-  // Q(lte + 9 + slot); the bank's last valid word is Q(lte + blen), so
-  // skip any slot that would fall past the bank end and leave that cov
-  // element at 0. This guards a truncated/malformed bank (blen < 11 + m,
-  // already flagged ok=false): without it the loop would read into the
-  // neighbouring ZEBRA bank and store garbage covariances. For a
-  // multi-TER stack (blen > 11 + m) every slot is in-bounds, so nothing
-  // is skipped and the behaviour is unchanged.
+  // Lower-tri row-major over the measured fields, scattered into the sparse
+  // 6x6 TE-basis storage.
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j <= i; ++j) {
-      const int slot = lowerTriOffset(i, j);   // 0-based slot within m
-      if (9 + slot > blen) continue;           // past bank end leave 0
-      const float v  = ph::Q(lte + 9 + slot);
-      const int bi = meas_basis_idx[i];
-      const int bj = meas_basis_idx[j];
-      d.cov[covOffset(bi, bj)] = v;
+      d.cov[covOffset(meas_basis_idx[i], meas_basis_idx[j])] =
+        ph::Q(lte + w + 7 + lowerTriOffset(i, j));
     }
   }
 
-  // ndf / chi2 / length at +9+m, +10+m, +11+m. Only safe to read if
-  // expected blen matches actual (multi-TER stacks would put garbage
-  // here for the first TER's predicted offsets).
-  if (d.ok) {
-    d.ndf    = ph::Q(lte + 9  + d.m_cov_entries);
-    d.chi2   = ph::Q(lte + 10 + d.m_cov_entries);
-    d.length = ph::Q(lte + 11 + d.m_cov_entries);
-  }
-
+  d.ndf    = ph::Q(lte + w + 7 + d.m_cov_entries);
+  d.chi2   = ph::Q(lte + w + 8 + d.m_cov_entries);
+  d.length = ph::Q(lte + w + 9 + d.m_cov_entries);
   return d;
+}
+
+}  // namespace
+
+Module decodeModule(int lte, int blen) {
+  Module mod;
+  if (lte <= 0 || blen < 1 + kTerFixedWords) return mod;
+
+  // From PXDST 2.87 the label carries the reconstruction stage as its first
+  // decimal: 42.1 is the very forward tracker, stage 1.
+  const double label_word = ph::Q(lte + 1);
+  mod.label = static_cast<int>(label_word);
+  mod.stage = static_cast<int>(std::lround(label_word * 10)) - mod.label * 10;
+
+  for (int w = 2; w <= blen; ) {
+    // Each record sizes itself, so the stride is only known once its
+    // descriptor is read and a module may mix measurement codes.
+    const int descriptor =
+      static_cast<int>(std::lround(ph::Q(lte + w)));
+    const int last =
+      w + kTerFixedWords - 1 +
+      covEntries(descriptor, (descriptor & 0x1) != 0);
+
+    // Stop rather than read into the neighbouring ZEBRA bank. `ok` then stays
+    // false, recording that the walk did not account for every word.
+    if (last > blen) break;
+
+    mod.elements.push_back(decodeElement(lte, w, descriptor));
+    w = last + 1;              // the next descriptor, or blen + 1 when done
+    mod.ok = (w == blen + 1);
+  }
+  return mod;
 }
 
 }  // namespace delphi_edm4hep::te_bank

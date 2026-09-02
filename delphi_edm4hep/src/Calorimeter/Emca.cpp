@@ -1,4 +1,4 @@
-// EmcaFdstWriter — pass-2 implementation.
+// EmcaWriter — implementation. Runs in both passes.
 //
 // PA.EMCA bank layout (per shower, header at show_ofs):
 //   show_ofs+1   len  (length in words of this shower record)
@@ -13,7 +13,7 @@
 // internal::hpc::padDecode → (E, layer, X, Y, Z, sigma_z).
 // FEMC layers are (energy, packed=layer*1000+nhits).
 
-#include "delphi_edm4hep/Calorimeter/EmcaFdst.h"
+#include "delphi_edm4hep/Calorimeter/Emca.h"
 
 #include "delphi_edm4hep/internal/HpcPadDecoder.h"
 #include "delphi_edm4hep/internal/PaWalk.h"
@@ -26,7 +26,7 @@
 
 namespace ph = phdst;
 
-namespace delphi_edm4hep::emca_fdst {
+namespace delphi_edm4hep::emca {
 
 namespace {
 
@@ -38,12 +38,26 @@ constexpr int   kNwdFEMC  = 2;
 
 }  // namespace
 
-void EmcaFdstWriter::emit()
+void EmcaWriter::emit()
 {
   edm4hep::CalorimeterHitCollection hpc_col;
   edm4hep::CalorimeterHitCollection femc_col;
 
-  pawalk::forEachPA([&](int lpa, int /*paIdx*/) {
+  Output out;
+
+  auto record = [&](int paIdx, int ns, const edm4hep::CalorimeterHit& hit) {
+    if (paIdx < 0) return;
+    if (paIdx >= static_cast<int>(out.pa_shower_hits.size())) {
+      out.pa_shower_hits.resize(static_cast<std::size_t>(paIdx) + 1);
+    }
+    auto& showers = out.pa_shower_hits[static_cast<std::size_t>(paIdx)];
+    if (ns >= static_cast<int>(showers.size())) {
+      showers.resize(static_cast<std::size_t>(ns) + 1);
+    }
+    showers[static_cast<std::size_t>(ns)].push_back(hit);
+  };
+
+  pawalk::forEachPA([&](int lpa, int paIdx) {
     const int lemca = pawalk::lphpa("EMCA", lpa);
     if (lemca <= 0) return;
     const int nsh = static_cast<int>(std::lround(ph::Q(lemca + 2)));
@@ -80,6 +94,7 @@ void EmcaFdstWriter::emit()
             pyc * kCm2Mm,
             pzc * kCm2Mm,
           });
+          record(paIdx, ns, hit);
         }
       } else if (idet == kIdetFEMC && nclu > 0 && nclu <= 10 && nwdcl == kNwdFEMC) {
         // FEMC: per-layer (energy, packed = layer*1000 + nhits).
@@ -106,6 +121,7 @@ void EmcaFdstWriter::emit()
             showY * kCm2Mm,
             showZ * kCm2Mm,
           });
+          record(paIdx, ns, hit);
         }
       }
 
@@ -114,8 +130,9 @@ void EmcaFdstWriter::emit()
     }
   });
 
-  put(std::move(hpc_col),  "EMCA", "HPCClusters");
-  put(std::move(femc_col), "EMCA", "FEMCLayers");
+  ctx_.emca = std::move(out);
+  put(std::move(hpc_col),  "EMCA", "HPCClusters", Provenance::Transcribed);
+  put(std::move(femc_col), "EMCA", "FEMCLayers", Provenance::Transcribed);
 }
 
-}  // namespace delphi_edm4hep::emca_fdst
+}  // namespace delphi_edm4hep::emca

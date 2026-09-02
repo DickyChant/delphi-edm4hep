@@ -1,4 +1,5 @@
-// EmcaFdst domain — pass-2 pure-fDST writer.
+// Emca domain — runs in both passes: PA.EMCA is on the XSDST as well as the
+// fullDST.
 //
 // Walks fDST PA chain, reads PA.EMCA (the fDST-only per-cluster bank
 // — distinct from PA.EMNC, which is the sDST shower summary). Each
@@ -21,12 +22,12 @@
 
 #include "delphi_edm4hep/CollectionWriter.h"
 
-namespace delphi_edm4hep::emca_fdst {
+namespace delphi_edm4hep::emca {
 
-class EmcaFdstWriter : public CollectionWriter {
+class EmcaWriter : public CollectionWriter {
 public:
   using CollectionWriter::CollectionWriter;
   void emit() override;
 };
 
-}  // namespace delphi_edm4hep::emca_fdst
+}  // namespace delphi_edm4hep::emca

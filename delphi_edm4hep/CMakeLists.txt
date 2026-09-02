@@ -72,37 +72,43 @@ find_package(DelphiAL9 REQUIRED)
 # linkage happens via the binaries (which need the full --start-group
 # linker dance because the DELPHI archives have circular symbol deps).
 add_library(delphi_edm4hep
+  src/AabtagTrackState.cpp
   src/BankPrefix.cpp
+  src/DstCensus.cpp
+  src/BankReader.cpp
+  src/CollectionWriter.cpp
   src/PerigeeMatch.cpp
   src/Helix.cpp
   src/TeBank.cpp
   src/PhdstHarness.cpp
   src/Event/Event.cpp
   src/Vertex/Vertex.cpp
+  src/Btag/Btag.cpp
+  src/Tracking/TrackElements.cpp
   src/Tracking/Tracking.cpp
   src/Calorimeter/Calorimeter.cpp
   src/Pid/ParticleId.cpp
   src/Truth/Truth.cpp
   src/Tracking/MatchProvenance.cpp
-  src/Pid/TofFdst.cpp
-  src/Pid/MtpcFdst.cpp
-  src/Tracking/TeStateMerge.cpp
-  src/Calorimeter/EmcaFdst.cpp
+  src/Pid/Tof.cpp
+  src/Pid/Mtpc.cpp
+  src/Tracking/TrackHybrid.cpp
+  src/Calorimeter/Emca.cpp
   src/Calorimeter/HcalFdst.cpp
   src/Calorimeter/TeadFdst.cpp
   src/Tracking/MainHybrid.cpp
   src/Pid/PidHybrid.cpp
   src/Calorimeter/ShowerHybrid.cpp
   src/Truth/TblHybrid.cpp
-  src/Pid/FdstPidExtras.cpp
-  src/Calorimeter/TdhaFdst.cpp
+  src/Pid/PaPidExtras.cpp
+  src/Calorimeter/Tdha.cpp
   src/Pid/SdstPaExtras.cpp
   src/Calorimeter/SticShower.cpp
   src/Tracking/EltrSdst.cpp
-  src/Tracking/TraxFdst.cpp
+  src/Tracking/Trax.cpp
   src/Tracking/VdHits.cpp
+  src/Tracking/VftHits.cpp
   src/Pid/PidExtrasSdst.cpp
-  src/Calorimeter/CcalFdst.cpp
 )
 target_include_directories(delphi_edm4hep
   PUBLIC
@@ -152,6 +158,14 @@ target_link_libraries(delphi_bs_fit
   PRIVATE EDM4HEP::edm4hep podio::podio podio::podioRootIO ROOT::Core ROOT::RIO
 )
 
+# Integrity/provenance check used by resumable b-tag conversion campaigns.
+# Standalone EDM4hep/podio/ROOT tool: it does not load the DELPHI runtime.
+add_executable(delphi_btag_check bin/delphi_btag_check.cpp)
+target_include_directories(delphi_btag_check PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(delphi_btag_check
+  PRIVATE EDM4HEP::edm4hep podio::podio podio::podioRootIO ROOT::Core ROOT::RIO
+)
+
 # ---------------------------------------------------------------------------
 # Tests (subtask 5+; for now just smoke).
 enable_testing()
@@ -163,6 +177,7 @@ endif()
 # Install rules.
 include(GNUInstallDirs)
 install(TARGETS delphi_edm4hep delphi_sdst_pass delphi_fdst_pass delphi_bs_fit
+                delphi_btag_check
   EXPORT  delphi_edm4hepTargets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

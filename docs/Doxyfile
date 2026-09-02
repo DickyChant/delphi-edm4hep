@@ -13,6 +13,7 @@ GENERATE_LATEX         = NO
 # The converter sources plus the markdown docs. The vendored PHDST/SKELANA
 # wrapper headers (extern/) are third-party and deliberately not documented.
 INPUT                  = README.md \
+                         docs/README.md \
                          delphi_edm4hep/README.md \
                          scripts/data-reco/README.md \
                          delphi_edm4hep/extern/delphi-analysis/README.md \

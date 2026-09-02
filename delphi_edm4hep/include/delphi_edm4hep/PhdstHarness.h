@@ -14,6 +14,7 @@
 
 #pragma once
 
+
 #include <podio/Frame.h>
 #include <podio/ROOTReader.h>
 #include <podio/ROOTWriter.h>
@@ -69,16 +70,21 @@ struct Config {
 };
 
 // Run the PHDST event loop with `cfg`. Writes a PDLINPUT in cwd per
-// cfg.input_mode (see InputMode above), drives phdst_(), blocks until
-// done. Returns process exit code (0 OK); 1 if no events were written.
+// cfg.input_mode (see InputMode above), drives phdst_(), and blocks until
+// done. File mode points PDLINPUT at a short cwd-local symlink rather than
+// the real path, because the legacy fixed-format parser truncates long ones.
+// Returns 0 only when at least one event was written.
 int run(const Config& cfg);
 
 // User-callback forwarders. The binary's extern "C" user*_ overrides
 // invoke these. They consult the static config + state set by `run`.
-void on_user00();
-void on_user01(int* need);
-void on_user02();
-void on_user99();
+// Every forwarder is noexcept. Throwing init, event, finalize, or writer code
+// is converted into a controlled job failure before control returns through
+// an extern "C" userNN_ callback into PHDST/Fortran.
+void on_user00() noexcept;
+void on_user01(int* need) noexcept;
+void on_user02() noexcept;
+void on_user99() noexcept;
 
 // Accessor for the pass-1 intermediate frame (when cfg.input_edm4hep is
 // non-empty). Returns nullptr otherwise or before user02 has loaded the
