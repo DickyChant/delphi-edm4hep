@@ -67,6 +67,8 @@ std::set<std::pair<int, int>>           g_processed;
 const podio::Frame*                g_current_sdst_frame = nullptr;
 long                               g_n_seen = 0;
 long                               g_n_written = 0;
+long                               g_n_no_dst = 0;
+long                               g_n_redelivered = 0;
 bool                               g_callback_failed = false;
 std::string                        g_callback_failure;
 
@@ -236,19 +238,23 @@ static void on_user02_impl() {
 
   sk::PSBEG();
 
+  // Records with no DST bank are not events. File headers and end-of-run
+  // trailers reach this callback too, and can appear mid-file. They carry
+  // no event of their own: the SKELANA commons still hold the preceding
+  // event's values, so emitting one produces a frame whose event-level
+  // quantities belong to a different event.
+  if (ph::LDTOP <= 0) { ++g_n_no_dst; return; }
+
   // Dedup. The data fullDST (.fadana) delivers each physical event as
   // ~3 separate PHDST DST records (Records/DST ~ 3.0); the .sdst/.al
   // streams deliver one. Without this guard we write 3 identical frames
   // per event. Recording both written AND skipped (run,evt) here means
   // any later re-delivery of the same event is a no-op, regardless of
-  // record count. Placed before the first-event skip so a re-delivered
-  // begin-of-run record can never slip through and get written.
+  // record count. Placed after the no-DST test so a header record cannot
+  // consume the key of a later real event, and before the first-event skip
+  // so a re-delivered begin-of-run record can never slip through.
   const std::pair<int, int> key{ph::IIIRUN, ph::IIIEVT};
-  if (!g_processed.insert(key).second) return;
-
-  // Records with no DST bank are not events. File headers and end-of-run
-  // trailers reach this callback too, and can appear mid-file.
-  if (ph::LDTOP <= 0) return;
+  if (!g_processed.insert(key).second) { ++g_n_redelivered; return; }
 
   // DELSIM's event 1 is a setup record that has a DST bank but no PV chain;
   // drop it so the output event count equals the number of physics events.
@@ -346,6 +352,18 @@ void on_user99() noexcept {
   finishWriterNoexcept("user99 writer finalization");
   guardCallback("user99 provenance summary", [] { reportProvenance(); });
 
+  // PHDST hands this callback every record, not every event. Report what was
+  // dropped, so a change in the output count can be accounted for from the
+  // job's own log rather than by comparing against PHDST's record footer.
+  try {
+    if (g_n_no_dst || g_n_redelivered) {
+      std::cout << "delphi_edm4hep::harness: skipped " << g_n_no_dst
+                << " records with no DST bank, " << g_n_redelivered
+                << " re-delivered events\n";
+    }
+  } catch (...) {
+  }
+
   // The canonical success footer is consumed by campaign audits. Never emit
   // it for a failed/partial job, even though run() will also return nonzero.
   try {
@@ -367,6 +385,8 @@ int run(const Config& cfg) {
   g_cfg                  = cfg;
   g_n_seen               = 0;
   g_n_written            = 0;
+  g_n_no_dst             = 0;
+  g_n_redelivered        = 0;
   g_callback_failed      = false;
   g_callback_failure.clear();
   g_current_sdst_frame   = nullptr;
