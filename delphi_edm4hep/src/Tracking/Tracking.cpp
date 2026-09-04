@@ -19,8 +19,6 @@
 
 #include "delphi_edm4hep/internal/AabtagTrackState.h"
 
-#include "skelana/pscbsp.hpp"
-
 #include "delphi_edm4hep/Helix.h"
 #include "delphi_edm4hep/internal/PaWalk.h"
 #include "skelana/pscvec.hpp"

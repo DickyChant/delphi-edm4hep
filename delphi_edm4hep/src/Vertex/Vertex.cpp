@@ -1,6 +1,6 @@
 // Vertex domain — implementation S4.
 //
-// Reads PSCVTX (reco PV chain + simulation PV chain), PSCBSP (beam spot),
+// Reads PSCVTX (reco PV chain + simulation PV chain), direct beamspot state,
 // PSCRV0 (Delphi-official V0), PSCPHC (photon conversions). All positions
 // converted from DELPHI cm to EDM4hep mm. Vertex-to-Particle relations are
 // collection-specific: the reco PV chain carries DELPHI's outgoing PA
@@ -9,7 +9,7 @@
 
 #include "delphi_edm4hep/Vertex/Vertex.h"
 
-#include "skelana/pscbsp.hpp"
+#include "delphi_edm4hep/Event/EventInfo.h"
 #include "skelana/pscphc.hpp"
 #include "skelana/pscrv0.hpp"
 #include "skelana/pscvtx.hpp"
@@ -287,24 +287,25 @@ void VertexWriter::emit()
     statusBits.push_back(sk::KVTX(17, j));
   }
 
-  // ----- Beam spot (PSCBSP) -----
+  // ----- Beam spot (direct VD package result) -----
   {
+    const auto& beamSpot = event::current().beamSpot;
     auto bs = bspCol.create();
     bs.setPrimary(false);
     bs.setAlgorithmType(kAlgoBeamSpot);
     bs.setPosition({
-      sk::XYZBS(1) * static_cast<float>(kCm2Mm),
-      sk::XYZBS(2) * static_cast<float>(kCm2Mm),
-      sk::XYZBS(3) * static_cast<float>(kCm2Mm),
+      beamSpot.positionCm[0] * static_cast<float>(kCm2Mm),
+      beamSpot.positionCm[1] * static_cast<float>(kCm2Mm),
+      beamSpot.positionCm[2] * static_cast<float>(kCm2Mm),
     });
-    // PSCBSP stores per-axis sigmas; we diagonalise (no off-diag info).
+    // VDBSPT returns per-axis sigmas; we diagonalise (no off-diag info).
     bs.setCovMatrix({
-      sk::DXYZBS(1) * sk::DXYZBS(1) * kCm2Mm2_f,   // XX
-      0.f,                                          // XY
-      sk::DXYZBS(2) * sk::DXYZBS(2) * kCm2Mm2_f,   // YY
-      0.f,                                          // XZ
-      0.f,                                          // YZ
-      sk::DXYZBS(3) * sk::DXYZBS(3) * kCm2Mm2_f,   // ZZ
+      beamSpot.sigmaCm[0] * beamSpot.sigmaCm[0] * kCm2Mm2_f,  // XX
+      0.f,                                                       // XY
+      beamSpot.sigmaCm[1] * beamSpot.sigmaCm[1] * kCm2Mm2_f,  // YY
+      0.f,                                                       // XZ
+      0.f,                                                       // YZ
+      beamSpot.sigmaCm[2] * beamSpot.sigmaCm[2] * kCm2Mm2_f,  // ZZ
     });
   }
 

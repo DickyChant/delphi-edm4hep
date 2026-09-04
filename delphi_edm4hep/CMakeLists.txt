@@ -81,8 +81,10 @@ add_library(delphi_edm4hep
   src/Helix.cpp
   src/TeBank.cpp
   src/PhdstHarness.cpp
+  src/Event/EventInfo.cpp
   src/Event/Event.cpp
   src/Vertex/Vertex.cpp
+  src/Btag/BtagInfo.cpp
   src/Btag/Btag.cpp
   src/Tracking/TrackElements.cpp
   src/Tracking/Tracking.cpp
