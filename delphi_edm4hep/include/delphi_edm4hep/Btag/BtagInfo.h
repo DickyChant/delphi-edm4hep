@@ -14,11 +14,25 @@ struct EventLevelTag {
 
 struct BtagInfo {
   EventLevelTag stored;
+  EventLevelTag recalculated;
+  bool algorithmInvoked = false;
 };
 
-// Read the original BTAG bank directly without using PSHBTG or mutating the
-// recalculated AABTAG state held by the remaining PSBEG sequence.
+// Set the one process-global AABTAG name default expected before AADATA.
+// This is deliberately separate from initializeRecalculation(): the latter
+// must run only after the first event has supplied DSTQID state.
+void initialize();
+
+// Read the original BTAG bank directly without using PSHBTG.
 void refresh();
+
+// Recalculate AABTAG directly from the current event and converter-owned
+// beamspot. This is the PSFBTG contract without its SKELANA common block.
+void recalculate();
+
+// Validation-oracle adapter: preserve the result produced by optional PSBEG
+// reference binaries without exposing the legacy common to writers.
+void setLegacyRecalculated(const EventLevelTag& tag, bool algorithmInvoked);
 
 const BtagInfo& current();
 

@@ -30,8 +30,8 @@ namespace {
 }
 
 void checkEventIsUsable(const delphi_edm4hep::event::EventInfo& info) {
-  // EBEAM = ECMAS/2 is both a track cut and a denominator in SKELANA; at zero
-  // it rejects every charged track.
+  // EBEAM = ECMAS/2 is both a track cut and a denominator in the direct
+  // selection and DELPHI tagging services; at zero every charged track fails.
   if (info.centreOfMassEnergy <= 0.f) {
     refuse("centre-of-mass energy is " +
            std::to_string(info.centreOfMassEnergy) + " GeV");
@@ -67,16 +67,15 @@ void EventWriter::emit() {
   stored("experiment",  ph::IIIEXP);
   stored("dstVersion",  info.dstVersion);
 
-  // Era identifiers. The processing tag selects the calibration SKELANA uses —
-  // its first two characters pick the RICH refractive index — and the PXDST
-  // version selects between algorithm generations.
+  // Era identifiers. The processing tag selects DELPHI calibration data — its
+  // first two characters pick the RICH refractive index — and the PXDST version
+  // selects between algorithm generations.
   stored("dstProcessingTag", info.processingTag);
   stored("pxdstVersion",     ph::LDTOP > 0 ? ph::IQ(ph::LDTOP + 3) : 0);
 
-  // Centre-of-mass energy from the DANA pilot blocklet. SKELANA substitutes
-  // 91.250 GeV when that blocklet is absent, which at LEP2 would be wrong by
-  // more than a factor of two; check BeamSpotErrorCode and the energy itself
-  // before relying on it.
+  // Centre-of-mass energy from the DANA pilot blocklet. Refuse a missing block
+  // instead of silently substituting the historical 91.250 GeV default, which
+  // would be wrong by more than a factor of two at LEP2.
   stored("ECMS", info.centreOfMassEnergy);
 
   // Per-event solenoid field and the curvature-to-momentum factor, both from
@@ -84,8 +83,8 @@ void EventWriter::emit() {
   stored("BField",         info.magneticFieldTesla);
   stored("BFieldGevPerCm", info.magneticFieldGevPerCm);
 
-  // Multiplicities and summed energies counted by SKELANA over the PA chain
-  // under cuts hard-coded in PSHEVT — a momentum, track-length, impact-
+  // Multiplicities and summed energies counted directly over the PA chain
+  // under the historical PSHEVT cuts — a momentum, track-length, impact-
   // parameter and polar-angle selection independent of IFLCUT and of the
   // LVLOCK track selection. Two events with the same nCharged can therefore
   // disagree with a count made from MAIN_Particles and LVLOCK.

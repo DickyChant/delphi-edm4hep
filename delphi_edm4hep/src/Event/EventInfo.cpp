@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace ph = phdst;
 
@@ -19,6 +20,7 @@ extern "C" {
   void setbs_(int* mode, int* index, float* sigma);
   void vdbspt_(float* position, float* sigma, int* error);
   void vdidst_();
+  void makemod8_(int* lpa, int* refit, int* error);
 
 }
 
@@ -28,6 +30,12 @@ namespace {
 EventInfo info;
 bool vdInitialized = false;
 bool beamDefaultsInitialized = false;
+std::array<float, 3> configuredBeamSigma{};
+int configuredBeamMode = 1;
+int configuredBeamIndex = 1;
+int module8Particle = 0;
+int module8Refit = 0;
+int module8Error = 0;
 
 constexpr std::array<std::array<float, 3>, 12> beamSigmaDefaults{{
     {0.0157f, 0.0010f, 0.930f}, {0.0102f, 0.0010f, 0.710f},
@@ -62,10 +70,12 @@ int defaultBeamSigmaIndex(const std::string& tag) {
 
 void refreshBeamSpot(const std::string& tag) {
   if (!beamDefaultsInitialized) {
-    auto sigma = beamSigmaDefaults.at(defaultBeamSigmaIndex(tag));
-    int mode = 1;
-    int index = 1;
-    setbs_(&mode, &index, sigma.data());
+    // SETBS registers the array with the legacy bank package, whose LOCB
+    // address check requires persistent data-segment storage (not a stack
+    // temporary) and may retain the address after this call.
+    configuredBeamSigma = beamSigmaDefaults.at(defaultBeamSigmaIndex(tag));
+    setbs_(&configuredBeamMode, &configuredBeamIndex,
+           configuredBeamSigma.data());
     beamDefaultsInitialized = true;
   }
   vdbspt_(info.beamSpot.positionCm.data(), info.beamSpot.sigmaCm.data(),
@@ -148,6 +158,22 @@ void refresh() {
   refreshBeamSpot(info.processingTag);
   refreshCounts();
 }
+
+void repairSecondaryHadronicInteractions() {
+  pawalk::forEachPA([](int lpa, int) {
+    const int reconstructionCode =
+        (static_cast<unsigned>(ph::IQ(lpa + 3)) >> 18) & 0x7fU;
+    if (reconstructionCode != 120) return;
+    // MAKEMOD8 also feeds its argument through LOCF. The original Fortran
+    // caller's locals were static; mirror that storage class here.
+    module8Particle = lpa;
+    module8Refit = 0;  // Fortran LOGICAL .FALSE.
+    module8Error = 0;
+    makemod8_(&module8Particle, &module8Refit, &module8Error);
+  });
+}
+
+void setLegacySnapshot(EventInfo snapshot) { info = std::move(snapshot); }
 
 const EventInfo& current() { return info; }
 

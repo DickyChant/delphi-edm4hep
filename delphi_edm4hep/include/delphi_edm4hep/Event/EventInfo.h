@@ -37,6 +37,14 @@ void initialize();
 // packages. Must be called after PHDST has loaded a DST record.
 void refresh();
 
+// Recreate the TRAC module for code-120 secondary hadronic interactions,
+// matching the small pre-PSHORT repair performed by PSBEG on short DSTs.
+void repairSecondaryHadronicInteractions();
+
+// Validation-oracle seam. The optional PSBEG reference adapter copies
+// PSHEVT/PSBEAM's results here so the harness does not invoke VDBSPT twice.
+void setLegacySnapshot(EventInfo snapshot);
+
 const EventInfo& current();
 
 }  // namespace delphi_edm4hep::event

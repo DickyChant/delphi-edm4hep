@@ -11,6 +11,7 @@
 
 #include "delphi_edm4hep/CollectionWriter.h"   // EventContext
 #include "delphi_edm4hep/Btag/Btag.h"
+#include "delphi_edm4hep/Btag/BtagInfo.h"
 #include "delphi_edm4hep/PhdstHarness.h"
 #include "delphi_edm4hep/Calorimeter/Emca.h"
 #include "delphi_edm4hep/Pid/PaPidExtras.h"
@@ -21,6 +22,7 @@
 #include "delphi_edm4hep/Pid/PidHybrid.h"
 #include "delphi_edm4hep/Calorimeter/ShowerHybrid.h"
 #include "delphi_edm4hep/Calorimeter/SticShower.h"
+#include "delphi_edm4hep/Calorimeter/SticInfo.h"
 #include "delphi_edm4hep/Truth/TblHybrid.h"
 #include "delphi_edm4hep/Calorimeter/Tdha.h"
 #include "delphi_edm4hep/Tracking/TrackElements.h"
@@ -28,6 +30,11 @@
 #include "delphi_edm4hep/Tracking/Trax.h"
 #include "delphi_edm4hep/Calorimeter/TeadFdst.h"
 #include "delphi_edm4hep/Pid/Tof.h"
+
+#if defined(DELPHI_FDST_SKELANA_REFERENCE) || \
+    defined(DELPHI_FDST_SKELANA_INIT_REFERENCE)
+#include "delphi_edm4hep/internal/LegacySkelana.h"
+#endif
 
 #include <charconv>
 #include <cstdlib>
@@ -73,6 +80,26 @@ int main(int argc, char** argv) {
   if (argc < 4) { usage(argv[0]); return 1; }
 
   harness::Config cfg;
+#ifdef DELPHI_FDST_SKELANA_REFERENCE
+  cfg.on_init = delphi_edm4hep::legacy_skelana::initialize;
+  cfg.on_record = delphi_edm4hep::legacy_skelana::processRecord;
+  cfg.event_info_supplied_by_record_hook = true;
+#elif defined(DELPHI_FDST_SKELANA_INIT_REFERENCE)
+  // Migration-only diagnostic: retain PSINI's one-time side effects, but
+  // prepare every event through the converter-owned readers. Comparing this
+  // executable with the full PSBEG oracle identifies whether a discrepancy
+  // belongs to initialization or to SKELANA's per-event processing graph.
+  cfg.on_init = delphi_edm4hep::legacy_skelana::initialize;
+  cfg.on_prepare_event = [] {
+    delphi_edm4hep::btag::recalculate();
+    delphi_edm4hep::stic::refreshFromFullDst();
+  };
+#else
+  cfg.on_prepare_event = [] {
+    delphi_edm4hep::btag::recalculate();
+    delphi_edm4hep::stic::refreshFromFullDst();
+  };
+#endif
   // argv[1] may be a comma-separated list of intermediates. A long run's
   // official short-DST events span several .al tape files; pass all the
   // tapes that contain this run so every reconstructed event finds its
@@ -157,7 +184,7 @@ int main(int argc, char** argv) {
     pa_pid_extras::PaPidExtrasWriter(frame, ctx, bank::Pass::Fdst).emit();
     pid_hybrid::PidHybridWriter     (frame, ctx, bank::Pass::Fdst).emit();
     tbl_hybrid::TblHybridWriter     (frame, ctx, bank::Pass::Fdst).emit();
-    // B-tagging. fulldst=true: SKELANA recalculates for ANY IFLBTG > 0 on
+    // B-tagging is recalculated directly during on_prepare_event.
     btag::BtagWriter                (frame, ctx, bank::Pass::Fdst).emit();
   };
 

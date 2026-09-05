@@ -67,10 +67,9 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 find_package(DelphiAL9 REQUIRED)
 
 # ---------------------------------------------------------------------------
-# delphi_edm4hep library: pure C++, depends on edm4hep + podio + ROOT +
-# DelphiAL9. No Fortran symbols are pulled in here directly; the Fortran
-# linkage happens via the binaries (which need the full --start-group
-# linker dance because the DELPHI archives have circular symbol deps).
+# delphi_edm4hep library: C++ converter code, depending on edm4hep + podio +
+# ROOT + selected DELPHI services. The Fortran archives are linked only by the
+# binaries, using a --start-group linker group for circular dependencies.
 add_library(delphi_edm4hep
   src/AabtagTrackState.cpp
   src/BankPrefix.cpp
@@ -106,6 +105,7 @@ add_library(delphi_edm4hep
   src/Calorimeter/Tdha.cpp
   src/Pid/SdstPaExtras.cpp
   src/Calorimeter/SticShower.cpp
+  src/Calorimeter/SticInfo.cpp
   src/Tracking/EltrSdst.cpp
   src/Tracking/Trax.cpp
   src/Tracking/VdHits.cpp
@@ -140,18 +140,59 @@ target_link_libraries(delphi_fortran_link
     gfortran dl m z crypt
 )
 
+add_library(delphi_fortran_no_skelana_link INTERFACE)
+target_link_libraries(delphi_fortran_no_skelana_link
+  INTERFACE
+    DelphiAL9::fortran_group_no_skelana
+    gfortran dl m z crypt
+)
+
 # ---------------------------------------------------------------------------
 # Pass-1 binary (sDST -> intermediate edm4hep).
 add_executable(delphi_sdst_pass bin/delphi_sdst_pass.cpp)
 target_link_libraries(delphi_sdst_pass
-  PRIVATE delphi_edm4hep delphi_fortran_link
+  PRIVATE delphi_edm4hep delphi_fortran_no_skelana_link
 )
 
 # Pass-2 binary (intermediate edm4hep + fDST -> final edm4hep).
 add_executable(delphi_fdst_pass bin/delphi_fdst_pass.cpp)
 target_link_libraries(delphi_fdst_pass
-  PRIVATE delphi_edm4hep delphi_fortran_link
+  PRIVATE delphi_edm4hep delphi_fortran_no_skelana_link
 )
+
+# Migration-only A/B oracle. It compiles the identical fDST writer graph but
+# prepares each event through PSINI/PSBEG. Deliberately OFF by default and not
+# installed, so production remains provably free of libskelanaxx.
+option(DELPHI_BUILD_SKELANA_REFERENCE
+  "Build non-installed sDST/fDST PSBEG reference executables" OFF)
+if(DELPHI_BUILD_SKELANA_REFERENCE)
+  add_library(delphi_skelana_reference_adapter STATIC src/LegacySkelana.cpp)
+  target_include_directories(delphi_skelana_reference_adapter
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(delphi_skelana_reference_adapter
+    PRIVATE delphi_edm4hep DelphiAL9::headers)
+
+  add_executable(delphi_sdst_skelana_reference bin/delphi_sdst_pass.cpp)
+  target_compile_definitions(delphi_sdst_skelana_reference
+    PRIVATE DELPHI_SDST_SKELANA_REFERENCE=1)
+  target_link_libraries(delphi_sdst_skelana_reference
+    PRIVATE delphi_edm4hep delphi_skelana_reference_adapter
+            delphi_fortran_link)
+
+  add_executable(delphi_fdst_skelana_reference bin/delphi_fdst_pass.cpp)
+  target_compile_definitions(delphi_fdst_skelana_reference
+    PRIVATE DELPHI_FDST_SKELANA_REFERENCE=1)
+  target_link_libraries(delphi_fdst_skelana_reference
+    PRIVATE delphi_edm4hep delphi_skelana_reference_adapter
+            delphi_fortran_link)
+
+  add_executable(delphi_fdst_skelana_init_reference bin/delphi_fdst_pass.cpp)
+  target_compile_definitions(delphi_fdst_skelana_init_reference
+    PRIVATE DELPHI_FDST_SKELANA_INIT_REFERENCE=1)
+  target_link_libraries(delphi_fdst_skelana_init_reference
+    PRIVATE delphi_edm4hep delphi_skelana_reference_adapter
+            delphi_fortran_link)
+endif()
 
 # Standalone post-processing tool: per-run beamspot from aggregated PVs.
 # Pure podio/ROOT — no PHDST, no DELPHI Fortran link group.

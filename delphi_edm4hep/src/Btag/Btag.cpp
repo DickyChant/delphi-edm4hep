@@ -1,8 +1,8 @@
 // Btag.cpp — b-tagging domain implementation.
 //
-// Reads the stored BTAG result directly from the DST. While the monolithic
-// PSBEG sequence remains, the recalculated result comes from PSCBTG plus the
-// AAMAIN / AAMNVX package commons (per-track impact parameters,
+// Reads the stored BTAG result directly from the DST and the recalculated
+// event tag from the converter-owned BtagInfo service. The rich package
+// output still comes from AAMAIN / AAMNVX (per-track impact parameters,
 // probabilities, VD quality, and AABTAG's own primary vertex).
 
 #include "delphi_edm4hep/Btag/Btag.h"
@@ -12,8 +12,6 @@
 #include "delphi_edm4hep/internal/AabtagCommons.h"
 #include "delphi_edm4hep/internal/AabtagStatus.h"
 #include "delphi_edm4hep/internal/PaWalk.h"
-
-#include "skelana/pscbtg.hpp"
 
 #include <edm4hep/MutableParticleID.h>
 #include <edm4hep/ParticleIDCollection.h>
@@ -30,7 +28,6 @@
 #include <vector>
 
 namespace aa = delphi_edm4hep::aabtag;
-namespace sk = skelana;
 
 namespace delphi_edm4hep::btag {
 
@@ -58,16 +55,6 @@ float prob(float v) { return (v >= 1.999f) ? kNaN : v; }
 // LUTHRU reports failure with THRVAL=-1 or -2; PSCBTG otherwise uses the 2.0
 // prefill sentinel. Physical thrust is in [0,1], so map both failure domains.
 float thrustValue(float v) { return (v < 0.f || v >= 1.999f) ? kNaN : v; }
-
-EventLevelTag recalculatedEventTag() {
-  EventLevelTag tag;
-  tag.probabilityNegative = {sk::QBTPRN(1), sk::QBTPRN(2), sk::QBTPRN(3)};
-  tag.probabilityPositive = {sk::QBTPRP(1), sk::QBTPRP(2), sk::QBTPRP(3)};
-  tag.probabilityAll = {sk::QBTPRS(1), sk::QBTPRS(2), sk::QBTPRS(3)};
-  tag.thrustAxis = {sk::QBTTHR(1), sk::QBTTHR(2), sk::QBTTHR(3)};
-  tag.thrustValue = sk::QBTTHR(4);
-  return tag;
-}
 
 }  // namespace
 
@@ -117,13 +104,12 @@ void BtagWriter::emit()
   const auto status = aa::eventStatus(beamSpotError, aa::IBAD());
   const bool tagValid = status.valid;
   const auto& eventTags = current();
-  const auto recalculated = recalculatedEventTag();
 
   // Both tags are emitted from the direct runtime snapshot. The stored tag
   // needs no validity gate: an absent bank retains the 2.0 sentinel, which
   // prob() maps to NaN.
   emitEventLevel("AABTAG", Provenance::Derived, tagValid,
-                 recalculated);
+                 eventTags.recalculated);
   emitEventLevel("BTG", Provenance::Transcribed, /*valid=*/true,
                  eventTags.stored);
 

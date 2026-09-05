@@ -1,18 +1,25 @@
 #include "delphi_edm4hep/Btag/BtagInfo.h"
 
 #include "delphi_edm4hep/Event/EventInfo.h"
+#include "delphi_edm4hep/internal/AabtagCommons.h"
+#include "delphi_edm4hep/internal/PaWalk.h"
 #include "delphi_edm4hep/internal/PilotRecord.h"
 
 #include "phdst/functions.hpp"
 #include "phdst/uxcom.hpp"
 #include "phdst/uxlink.hpp"
 
+#include <algorithm>
+#include <array>
+
 namespace ph = phdst;
+namespace aa = delphi_edm4hep::aabtag;
 
 namespace delphi_edm4hep::btag {
 namespace {
 
 BtagInfo info;
+bool recalculationInitialized = false;
 
 EventLevelTag readStoredTag() {
   EventLevelTag tag;
@@ -57,7 +64,66 @@ EventLevelTag readStoredTag() {
 
 }  // namespace
 
+void initialize() {
+  // PSINI supplied this DATA default before PSFBTG. AADATA may overwrite it,
+  // but the caller-visible processing name is restored below, exactly as in
+  // PSFBTG. Fortran CHARACTER*4 is blank-padded and has no terminator.
+  info = {};
+  std::copy_n("NDEF", 4, aa::aaparm_.namdst);
+  recalculationInitialized = false;
+}
+
 void refresh() { info.stored = readStoredTag(); }
+
+void recalculate() {
+  if (!recalculationInitialized) {
+    recalculationInitialized = true;
+    const std::array<char, 4> name{{aa::aaparm_.namdst[0],
+                                    aa::aaparm_.namdst[1],
+                                    aa::aaparm_.namdst[2],
+                                    aa::aaparm_.namdst[3]}};
+    aa::aadata_();
+    std::copy(name.begin(), name.end(), aa::aaparm_.namdst);
+    aa::IFK0ST() = 1;
+    aa::IFRFIX() = 1;
+  }
+
+  info.recalculated = {};
+  info.algorithmInvoked = event::current().beamSpot.errorCode == 0;
+  if (!info.algorithmInvoked) return;
+
+  auto& tag = info.recalculated;
+  const auto& beam = event::current().beamSpot;
+  // PSHEVT did this before PSFBTG. AABTGS calls BPILOT/EPILOT itself, but
+  // parts of the package still read the historical PXCONS value directly.
+  aa::EBEAM() = event::current().centreOfMassEnergy / 2.f;
+  auto position = beam.positionCm;
+  auto sigma = beam.sigmaCm;
+  aa::aabtgs_(position.data(), sigma.data(),
+              &tag.probabilityNegative[2], &tag.probabilityPositive[2],
+              &tag.probabilityAll[2]);
+  aa::aahemi_(tag.probabilityNegative.data(), tag.probabilityPositive.data(),
+              tag.probabilityAll.data(), tag.thrustAxis.data());
+  tag.thrustValue = aa::THRVAL();
+
+  // Preserve PSFBTG's only intentional PA mutation: publish AABTAG's VD-hit
+  // chi2 back into MAIN word 18 for packages that historically consume it.
+  pawalk::forEachPA([](int lpa, int) {
+    const int main = pawalk::lphpa("MAIN", lpa);
+    if (main <= 0) return;
+    for (int i = 1; i <= aa::NTRK(); ++i) {
+      if (aa::IADTR(i) == lpa) {
+        ph::Q(main + 18) = aa::CHI2VD(i);
+        break;
+      }
+    }
+  });
+}
+
+void setLegacyRecalculated(const EventLevelTag& tag, bool algorithmInvoked) {
+  info.recalculated = tag;
+  info.algorithmInvoked = algorithmInvoked;
+}
 
 const BtagInfo& current() { return info; }
 
