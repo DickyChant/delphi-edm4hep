@@ -42,3 +42,7 @@ INTERACTIVE_SVG        = YES
 
 WARN_IF_UNDOCUMENTED   = NO
 QUIET                  = YES
+
+# The collection map is copied into the site root; CI renders it before
+# the docs build.
+HTML_EXTRA_FILES       = docs/collection-map/collection_map.html

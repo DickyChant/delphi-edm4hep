@@ -91,21 +91,20 @@ jobs:
       - name: Convert and compare against the blessed references
         run: bash .github/scripts/data-test.sh
 
-  # The docs build runs on every PR too, so a broken Doxyfile or a missing
-  # input is caught before merge rather than after.
+  # Runs where the blessed references live, and only once the identity test has
+  # accepted them: the collection map is generated from those references, so
+  # the page cannot describe an output the tests have not seen.
   docs-build:
     name: docs (build)
-    runs-on: ubuntu-latest
+    needs: data-test
+    runs-on: [self-hosted, delphi-eos]
     permissions:
-      contents: read          # actions/checkout
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install doxygen
-        run: sudo apt-get update -q && sudo apt-get install -y -q doxygen graphviz
-
-      - name: Build API docs
-        run: doxygen docs/Doxyfile
+      - name: Build the collection map and the API docs
+        run: bash .github/scripts/docs-build.sh
 
       - uses: actions/upload-pages-artifact@v3
         with:
