@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DELPHI EDM4hep collection map</title>
+<style>{style}</style>
+<body>
+<div id="left">
+  <header>
+    <h1>DELPHI EDM4hep collection map</h1>
+    <input id="find" placeholder="search collection, bank, type">
+    <label><input type="checkbox" id="show-companions" checked> parallel arrays</label>
+    <div id="prov">
+      <label><input type="checkbox" class="prov" value="transcribed" checked> transcribed (DST bank)</label>
+      <label><input type="checkbox" class="prov" value="derived" checked> derived (SKELANA)</label>
+      <label><input type="checkbox" class="prov" value="custom" checked> custom (converter)</label>
+    </div>
+    <div id="keys">
+      <div id="legend">{legend}</div>
+      <div id="states">
+        <span class="state"><svg width="13" height="13"><circle class="sw" cx="6.5" cy="6.5" r="5"/></svg>sDST</span>
+        <span class="state"><svg width="13" height="13"><circle class="sw xsDST" cx="6.5" cy="6.5" r="5"/></svg>xsDST</span>
+        <span class="state"><svg width="13" height="13"><circle class="sw lDST" cx="6.5" cy="6.5" r="5"/></svg>lDST</span>
+      </div>
+    </div>
+  </header>
+  {svg}
+</div>
+<div id="panel">{intro}</div>
+<script type="application/json" id="data">{data}</script>
+<script>const INTRO = {intro_json};
+{script}</script>
+</body>

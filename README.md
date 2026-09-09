@@ -43,6 +43,12 @@ the converter reads DELPHI files via PHDST). `delphi_edm4hep/README.md`
 documents the full collection schema; `scripts/data-reco/README.md`
 documents the 94c data drivers and their environment knobs.
 
+## Collection map
+
+**[What is in a converted file](https://delphi-fulldst-edm4hep.github.io/delphi-edm4hep/collection_map.html)**
+— every collection, the domain it belongs to, how the collections link to each
+other, and where each value came from.
+
 ## Dependency versions
 
 This repository does not pin a key4hep stack in its build system. `CMakeLists.txt`
