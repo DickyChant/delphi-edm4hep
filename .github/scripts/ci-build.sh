@@ -25,12 +25,16 @@ CHANNEL=${1:-production}
 # it as a release name).
 set --
 
-# OS bits the toolchains expect from the base system: glibc dev files for
-# the key4hep (spack) gcc, plus the -lz / -lcrypt dev symlinks needed by the
-# DELPHI Fortran link line. Everything else (gcc, cmake, make, ROOT, ...)
-# comes from cvmfs.
+# OS bits the toolchains expect from the base system:
+#   glibc-devel                 dev files for the compiler
+#   zlib-devel libxcrypt-devel  -lz / -lcrypt for the DELPHI Fortran link line
+#   lz4-devel                   Arrow, pulled in by podio, resolves lz4 from
+#                               the system; the LCG view does not carry it
+#   which make                  the LCG view resolves CC/CXX/FC through `which`
+#                               and ships no make
+# Everything else (gcc, cmake, ROOT, ...) comes from cvmfs.
 dnf install -y -q --setopt=install_weak_deps=False \
-  glibc-devel zlib-devel libxcrypt-devel
+  glibc-devel zlib-devel libxcrypt-devel lz4-devel which make
 
 # DELPHI first, then key4hep (same order as the README). The DELPHI profile
 # prints harmless 'gcc: command not found' probe warnings in a bare container.
@@ -65,8 +69,19 @@ if [ -z "${KEY4HEP_STACK:-}" ]; then
   echo "ERROR: key4hep setup did not export \$KEY4HEP_STACK — stack not set up" >&2
   exit 1
 fi
-# $KEY4HEP_STACK is the concrete dated release
-KEY4HEP_RELEASE=$(echo "${KEY4HEP_STACK}" | sed -n 's|.*/releases/\([^/]*\)/.*|\1|p')
+# $KEY4HEP_STACK names the concrete stack, but its shape depends on the
+# channel: spack releases live under .../releases/<date>/..., while the
+# nightly LCG view is .../views/<view>/<day>/<platform>/setup.sh.
+case "${KEY4HEP_STACK}" in
+  */releases/*)
+    KEY4HEP_RELEASE=$(echo "${KEY4HEP_STACK}" | sed -n 's|.*/releases/\([^/]*\)/.*|\1|p') ;;
+  */views/*)
+    KEY4HEP_RELEASE=$(echo "${KEY4HEP_STACK}" | sed -n 's|.*/views/\(.*\)/setup\.sh$|\1|p') ;;
+esac
+if [ -z "${KEY4HEP_RELEASE:-}" ]; then
+  echo "ERROR: cannot identify the release from '${KEY4HEP_STACK}'" >&2
+  exit 1
+fi
 echo "channel ${CHANNEL} -> key4hep release ${KEY4HEP_RELEASE}"
 # Marker for the workflows: written before the build so it survives a build
 # failure, letting a red run still name the release it was testing.
