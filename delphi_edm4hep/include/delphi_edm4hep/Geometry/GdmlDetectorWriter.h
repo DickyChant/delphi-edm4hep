@@ -13,6 +13,7 @@ struct GdmlDetectorRoot {
   std::string path;
   // Empty for passive roots; otherwise a Code4hep SensDet value.
   std::string sensitiveDetector;
+  double maximumStepCm{};
 };
 
 // Write one or more top-level DELPHI detector trees into the authoritative

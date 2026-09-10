@@ -118,15 +118,20 @@ int main() {
 
   std::ostringstream detectorOutput;
   delphi_edm4hep::geometry::writeGdmlDetector(
-      detectorOutput, model, {{"/BEA*.B", {}}, {"/TPC*.B", "si_tracker_sd"}},
-      "/DELF.B", "fixture");
+      detectorOutput, model,
+      {{"/BEA*.B", {}, 0.0}, {"/TPC*.B", "step_tracker_sd", 1.0}}, "/DELF.B",
+      "fixture");
   const auto detector = detectorOutput.str();
   require(detector.find("<tessellated name=\"delphi_node__TPC__SECT") !=
               std::string::npos,
           "POL6 was not rendered as a tessellated solid");
   require(occurrences(detector, "<triangular vertex1=") == 20,
           "POL6 does not have the expected closed 20-facet triangulation");
-  require(detector.find("auxtype=\"SensDet\" auxvalue=\"si_tracker_sd\"") !=
+  require(detector.find("auxtype=\"SensDet\" auxvalue=\"step_tracker_sd\"") !=
               std::string::npos,
           "TPC root was not marked tracker-sensitive");
+  require(
+      detector.find("auxtype=\"StepLimit\" auxvalue=\"1\" auxunit=\"cm\"") !=
+          std::string::npos,
+      "TPC root did not preserve the DELPHI one-centimetre step");
 }

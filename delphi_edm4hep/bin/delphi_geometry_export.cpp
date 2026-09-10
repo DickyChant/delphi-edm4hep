@@ -34,7 +34,8 @@ int main(int argc, char **argv) {
                                                   "/BEA*.B", argv[inputIndex]);
     } else if (mode == "--tpc") {
       delphi_edm4hep::geometry::writeGdmlDetector(
-          output, model, {{"/BEA*.B", {}}, {"/TPC*.B", "si_tracker_sd"}},
+          output, model,
+          {{"/BEA*.B", {}, 0.0}, {"/TPC*.B", "step_tracker_sd", 1.0}},
           "/DELF.B", argv[inputIndex]);
     } else {
       delphi_edm4hep::geometry::writeGdmlWorld(output, model, "/DELF.B",

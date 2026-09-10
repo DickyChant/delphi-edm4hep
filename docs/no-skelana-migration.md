@@ -114,9 +114,10 @@ mapped explicitly to a positive Geant4 transport vacuum of `1e-25 g/cm3`.
 The generic writer also supports the complete 81-node `/TPC*` hierarchy.
 DELPHI `POL6` endplate sectors are reconstructed from the three radial edges
 defined by `DLPOL6` and emitted as closed twelve-vertex tessellated solids;
-the TPC gas root is tagged as a Code4hep tracker-sensitive volume. The original
-v94c beam-pipe plus TPC output is accepted by the Code4hep Geant4 driver at
-1.2312434 T and produces a persistent physical tracker hit in the controlled
+the TPC gas root is tagged as a step-preserving Code4hep tracker-sensitive
+volume with DELPHI's `TPCSTP=1 cm` transport limit. The original v94c beam-pipe
+plus TPC output is accepted by the Code4hep Geant4 driver at 1.2312434 T and
+produces persistent step-level physical tracker hits in the controlled
 one-muon transport test.
 
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a

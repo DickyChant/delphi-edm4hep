@@ -447,6 +447,7 @@ void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
   std::vector<RenderNode> nodes;
   std::vector<std::size_t> rootIndices;
   std::unordered_map<std::string, std::string> sensitiveByInstance;
+  std::unordered_map<std::string, double> stepLimitByInstance;
   for (const auto &root : roots) {
     const auto *record = model.findNode(root.path);
     if (record == nullptr) {
@@ -464,6 +465,10 @@ void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
     if (!root.sensitiveDetector.empty()) {
       sensitiveByInstance.emplace(tree.front().instancePath,
                                   root.sensitiveDetector);
+    }
+    if (root.maximumStepCm > 0) {
+      stepLimitByInstance.emplace(tree.front().instancePath,
+                                  root.maximumStepCm);
     }
     nodes.insert(nodes.end(), std::make_move_iterator(tree.begin()),
                  std::make_move_iterator(tree.end()));
@@ -555,6 +560,11 @@ void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
         sensitive != sensitiveByInstance.end()) {
       output << "      <auxiliary auxtype=\"SensDet\" auxvalue=\""
              << xmlEscape(sensitive->second) << "\"/>\n";
+    }
+    if (const auto limit = stepLimitByInstance.find(node->instancePath);
+        limit != stepLimitByInstance.end()) {
+      output << "      <auxiliary auxtype=\"StepLimit\" auxvalue=\""
+             << limit->second << "\" auxunit=\"cm\"/>\n";
     }
     for (const auto childIndex : node->children) {
       const auto &child = nodes[childIndex];
