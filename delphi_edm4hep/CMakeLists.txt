@@ -67,12 +67,16 @@ message(STATUS
 # linking the legacy database runtime into Code4hep.
 add_library(delphi_geometry STATIC
   src/Geometry/CargoDatabase.cpp
+  src/Geometry/GdmlWorldWriter.cpp
   src/Geometry/GeometryModel.cpp
 )
 target_include_directories(delphi_geometry
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>)
+
+add_executable(delphi_geometry_export bin/delphi_geometry_export.cpp)
+target_link_libraries(delphi_geometry_export PRIVATE delphi_geometry)
 
 # DELPHI almalinux-9 Fortran libraries (custom find module).
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)

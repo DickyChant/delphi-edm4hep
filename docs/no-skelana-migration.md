@@ -101,6 +101,15 @@ into DD4hep/GDML one detector subsystem at a time and compare the result
 against the DELSIM database hierarchy; it must not substitute an illustrative
 detector for the database geometry.
 
+`delphi_geometry_export` provides the first deliberately narrow renderer. It
+writes `/DELF.B` as a GDML cylindrical world using the snapshot's primary
+`SHAP` bounds (680 cm radius and 1,170 cm total length) and its `AIR*` material
+parameters. The snapshot path is retained as GDML auxiliary provenance. The
+writer rejects a missing or structurally different world instead of silently
+falling back. It does not yet render any child detector node; the beam pipe is
+the next bounded subsystem, followed by sensitive tracking and calorimeter
+volumes.
+
 The generic Code4hep Geant4 driver now requires `magneticFieldTesla` in its
 detector configuration instead of hiding a 0.1 T value in C++. It persists
 that value as the `sim_detector_magneticFieldTesla` Frame parameter. For the

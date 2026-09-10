@@ -43,6 +43,10 @@ add_executable(geometry_model_test geometry_model_test.cpp)
 target_link_libraries(geometry_model_test PRIVATE delphi_geometry)
 add_test(NAME geometry_model_contract COMMAND geometry_model_test)
 
+add_executable(gdml_world_writer_test gdml_world_writer_test.cpp)
+target_link_libraries(gdml_world_writer_test PRIVATE delphi_geometry)
+add_test(NAME gdml_world_writer_contract COMMAND gdml_world_writer_test)
+
 # PHDST-sample-backed fault injection for the C++/Fortran callback boundary.
 # The runner skips when DELPHI_PHDST_SAMPLE is not set, like alignment_audit.
 add_executable(harness_exception_probe harness_exception_probe.cpp)
