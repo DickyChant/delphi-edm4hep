@@ -79,6 +79,7 @@ add_library(delphi_geometry STATIC
   src/Simulation/TpcWireResponse.cpp
   src/Simulation/VertexChannelResponse.cpp
   src/Simulation/VertexDigitizationConditions.cpp
+  src/Simulation/VertexReadoutGeometry.cpp
 )
 target_include_directories(delphi_geometry
   PUBLIC
@@ -90,6 +91,9 @@ target_link_libraries(delphi_geometry_export PRIVATE delphi_geometry)
 
 add_executable(delphi_tpc_readout_audit bin/delphi_tpc_readout_audit.cpp)
 target_link_libraries(delphi_tpc_readout_audit PRIVATE delphi_geometry)
+
+add_executable(delphi_vertex_readout_audit bin/delphi_vertex_readout_audit.cpp)
+target_link_libraries(delphi_vertex_readout_audit PRIVATE delphi_geometry)
 
 # DELPHI almalinux-9 Fortran libraries (custom find module).
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -331,7 +335,7 @@ include(GNUInstallDirs)
 set(_delphi_install_targets
   delphi_edm4hep delphi_geometry delphi_sdst_pass delphi_fdst_pass
   delphi_bs_fit delphi_btag_check delphi_geometry_audit
-  delphi_geometry_export delphi_tpc_readout_audit)
+  delphi_geometry_export delphi_tpc_readout_audit delphi_vertex_readout_audit)
 if(TARGET delphiRun)
   list(APPEND _delphi_install_targets delphiRun)
 endif()

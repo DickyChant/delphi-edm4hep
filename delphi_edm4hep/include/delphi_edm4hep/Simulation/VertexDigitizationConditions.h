@@ -12,35 +12,50 @@ enum class VertexBarrelLayer : std::uint8_t {
   Outer = 3,
 };
 
+enum class VertexLongitudinalRegion : std::uint8_t {
+  Central = 0,
+  Peripheral = 1,
+};
+
+// Readout topology for one physical silicon plaquette. VDSIM 4.6 models the
+// P side with an intermediate floating strip, hence the physical pitch is
+// half the readout pitch. The closer-layer central N side has two pitch zones;
+// all other N layouts use only the first zone.
 struct VertexPlaquetteConditions {
-  std::uint32_t pStrips{};
-  std::uint32_t nStrips{};
+  std::uint32_t pReadoutChannels{};
+  std::uint32_t pPhysicalStrips{};
   double pReadoutPitchCm{};
-  double nReadoutPitchCm{};
-  double pActiveLengthCm{};
-  double nActiveLengthCm{};
+  double pPhysicalPitchCm{};
+  std::uint32_t nReadoutChannels{};
+  std::uint32_t nFirstPitchChannels{};
+  double nFirstPitchCm{};
+  double nSecondPitchCm{};
+  double nSecondZoneOffsetCm{};
+  VertexLongitudinalRegion longitudinalRegion{};
+
+  bool nReadoutEnabled() const { return nReadoutChannels != 0; }
 };
 
 struct VertexLayerConditions {
   std::uint32_t modules{};
-  std::uint32_t plaquettes{};
-  std::uint32_t pReadoutChannelsPerHalfModule{};
-  std::uint32_t nReadoutChannelsPerHalfModule{};
+  std::uint32_t physicalPlaquettesPerModule{};
   double pNoiseElectrons{};
   double nNoiseElectrons{};
   double pThresholdSigma{};
   double nThresholdSigma{};
-  std::array<VertexPlaquetteConditions, 4> plaquette;
 };
 
 class VertexDigitizationConditions {
 public:
-  // Defaults hard-coded by VDSIM 6.3 in SVBCAL/SVBINI for the 1994 geometry.
+  // Defaults hard-coded by VDSIM 4.6 in the v94c release (SVCALB/SVINI).
   static VertexDigitizationConditions legacyV94c();
 
   const VertexLayerConditions &layer(VertexBarrelLayer layer) const;
-  const VertexPlaquetteConditions &plaquette(VertexBarrelLayer layer,
-                                             std::size_t number) const;
+  VertexPlaquetteConditions plaquette(VertexBarrelLayer layer,
+                                      std::size_t module,
+                                      std::size_t physicalPlaquette) const;
+  static VertexLongitudinalRegion
+  longitudinalRegion(std::size_t physicalPlaquette);
 
   double trackingStepCm() const { return trackingStepCm_; }
   std::uint32_t minimumActiveSteps() const { return minimumActiveSteps_; }
@@ -61,13 +76,12 @@ private:
   double trackingStepCm_{0.001};
   std::uint32_t minimumActiveSteps_{3};
   double electronsPerAdc_{1000.0};
-  // Silicon pair-creation energy used to connect Geant4 energy deposition to
-  // VDSIM's electron-domain pulse/noise calibration.
+  // Geant4 bridge into VDSIM's electron-domain pulse calibration.
   double electronHoleEnergyEv_{3.6};
   double lorentzShiftCm_{0.0008};
   bool crossTalkEnabled_{false};
   bool noiseClustersEnabled_{true};
-  std::uint32_t minimumNoiseClusterSize_{4};
+  std::uint32_t minimumNoiseClusterSize_{2};
   std::array<double, 4> crossTalkFractions_{0.7490, 0.0991, 0.0180, 0.0078};
 };
 

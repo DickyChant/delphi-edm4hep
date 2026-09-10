@@ -1,0 +1,48 @@
+# Native DELPHI pipeline in Code4hep
+
+## Design boundary
+
+The full rewrite is feasible, but “entirely in Code4hep” should describe the
+execution architecture, not put DELPHI detector physics into the framework
+core. Code4hep owns configuration, scheduling, event setup, deterministic
+random streams, product provenance, concurrency, and EDM4hep I/O. A native C++
+DELPHI library owns snapshot decoding, detector geometry, conditions, response,
+pattern recognition, calibration, and legacy-compatible algorithms. Thin
+scheduled producers connect the two.
+
+No native producer may depend on ZEBRA banks, CERNLIB, PHDST callbacks,
+SKELANA lifecycle routines, or mutable Fortran COMMON blocks. Legacy programs
+remain validation oracles until each replacement reaches physics closure.
+
+## Replacement map
+
+| Pipeline stage | Native implementation now | Remaining replacement |
+|---|---|---|
+| Configuration and execution | `delphiRun`, checked-in Python steering, Code4hep scheduler | Remove the legacy-linked launcher after native input no longer needs PHDST |
+| Event provenance and conditions seams | processing tag, beamspot, uniform magnetic field in EDM4hep/frame metadata | run-dependent conditions service and spatial UFIELD map |
+| Primary generation | Code4hep generator products | campaign-specific generator steering and full validation |
+| Detector geometry | CARGO parser and exact GDML for beam pipe, VD, ID, TPC, OD | remaining tracking structures, calorimeters, RICH, TOF, muon system, forward detectors |
+| Particle transport | Code4hep Geant4 with persistent truth-linked hits and semantic cell IDs | detector-specific sensitive actions where step hits are insufficient |
+| VD | release-matched v94c conditions, electronics kernel, 288-sensor readout catalogue | charge sharing, strip aggregation, raw product, clustering, truth links |
+| ID | authoritative sensitive geometry and transport hits | wire/cell response, hit building, truth links |
+| TPC | calibrated readout geometry, wire/pad/time/FADC response, scheduled digitization and hit reconstruction | closure tuning and run-dependent conditions |
+| OD | authoritative sensitive geometry and transport hits | drift response, hit building, truth links |
+| Central tracking | subsystem hit products | pattern recognition, ambiguity resolution, fit, material effects, track truth |
+| Vertexing and beamspot | legacy event decoding and standalone beamspot fit | native primary/secondary vertexing and run-level beamspot feedback |
+| Calorimetry and muons | legacy conversion only | geometry, transport response, digitization, clustering, calibration, truth |
+| PID and particle flow | legacy conversion only | native dE/dx, RICH, TOF, lepton/photon/hadron ID and combined particles |
+| Flavour tagging | AABTAG can be recalculated in the transitional path | native tagger or an explicitly isolated compatibility algorithm |
+| Analysis output | EDM4hep collections and metadata | stable native event model, validation contract, removal of transitional bank-derived collections |
+
+## Migration rule
+
+Each vertical slice is complete only when it has authoritative geometry and
+conditions, a scheduled producer, persistent EDM4hep output, truth relations,
+deterministic replay, unit tests, a real-event or real-simulation CI smoke test,
+and quantitative closure against the legacy oracle. The legacy implementation
+can then be removed for that slice without waiting for the whole detector.
+
+The critical path is VD strip reconstruction, ID/OD hit reconstruction,
+central track finding and fitting, then vertexing. Calorimeters, PID and
+event-level reconstruction can proceed as independent slices once their
+geometry roots and product contracts are fixed.

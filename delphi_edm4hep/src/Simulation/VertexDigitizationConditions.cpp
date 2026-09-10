@@ -5,53 +5,28 @@
 namespace delphi_edm4hep::simulation {
 namespace {
 
-VertexPlaquetteConditions makePlaquette(std::uint32_t pStrips,
-                                        std::uint32_t nStrips, double nPitchCm,
-                                        double pActiveLengthCm,
-                                        double nActiveLengthCm) {
-  return {pStrips, nStrips, 0.0050, nPitchCm, pActiveLengthCm, nActiveLengthCm};
+constexpr double pReadoutPitchCm = 0.0050;
+constexpr double pPhysicalPitchCm = 0.0025;
+
+VertexPlaquetteConditions
+makePlaquette(std::uint32_t pChannels, std::uint32_t nChannels,
+              std::uint32_t nFirstPitchChannels, double nFirstPitchCm,
+              double nSecondPitchCm, double nSecondZoneOffsetCm,
+              VertexLongitudinalRegion region) {
+  return {pChannels,           2 * pChannels,
+          pReadoutPitchCm,     pPhysicalPitchCm,
+          nChannels,           nFirstPitchChannels,
+          nFirstPitchCm,       nSecondPitchCm,
+          nSecondZoneOffsetCm, region};
 }
 
 } // namespace
 
 VertexDigitizationConditions VertexDigitizationConditions::legacyV94c() {
   VertexDigitizationConditions conditions;
-  conditions.layers_[0] = {24,
-                           2,
-                           384,
-                           384,
-                           2400.0,
-                           1850.0,
-                           5.0,
-                           5.0,
-                           {makePlaquette(384, 1152, 0.00495, 7.737, 1.915),
-                            makePlaquette(384, 384, 0.00990, 5.836, 1.915),
-                            {},
-                            {}}};
-  conditions.layers_[1] = {20,
-                           4,
-                           640,
-                           640,
-                           1550.0,
-                           1850.0,
-                           5.0,
-                           5.0,
-                           {makePlaquette(640, 0, 0.0, 0.0, 0.0),
-                            makePlaquette(640, 0, 0.0, 0.0, 0.0),
-                            makePlaquette(640, 1280, 0.00420, 5.444, 3.204),
-                            makePlaquette(640, 640, 0.00840, 5.444, 3.204)}};
-  conditions.layers_[2] = {24,
-                           4,
-                           640,
-                           640,
-                           850.0,
-                           1200.0,
-                           5.0,
-                           5.0,
-                           {makePlaquette(640, 1280, 0.00440, 5.836, 3.187),
-                            makePlaquette(640, 640, 0.00440, 5.836, 3.187),
-                            makePlaquette(640, 320, 0.00880, 5.836, 3.187),
-                            makePlaquette(640, 320, 0.00880, 5.836, 3.187)}};
+  conditions.layers_[0] = {24, 4, 2500.0, 2500.0, 5.0, 5.0};
+  conditions.layers_[1] = {24, 4, 1700.0, 0.0, 5.0, 0.0};
+  conditions.layers_[2] = {24, 4, 2500.0, 2500.0, 5.0, 5.0};
   return conditions;
 }
 
@@ -64,14 +39,46 @@ VertexDigitizationConditions::layer(VertexBarrelLayer layerValue) const {
   return layers_[index - 1];
 }
 
-const VertexPlaquetteConditions &
-VertexDigitizationConditions::plaquette(VertexBarrelLayer layerValue,
-                                        std::size_t number) const {
-  const auto &layerConditions = layer(layerValue);
-  if (number < 1 || number > layerConditions.plaquettes) {
-    throw std::out_of_range("invalid DELPHI vertex plaquette number");
+VertexLongitudinalRegion VertexDigitizationConditions::longitudinalRegion(
+    std::size_t physicalPlaquette) {
+  if (physicalPlaquette < 1 || physicalPlaquette > 4) {
+    throw std::out_of_range("invalid DELPHI vertex physical plaquette");
   }
-  return layerConditions.plaquette[number - 1];
+  return physicalPlaquette == 2 || physicalPlaquette == 3
+             ? VertexLongitudinalRegion::Central
+             : VertexLongitudinalRegion::Peripheral;
+}
+
+VertexPlaquetteConditions
+VertexDigitizationConditions::plaquette(VertexBarrelLayer layerValue,
+                                        std::size_t module,
+                                        std::size_t physicalPlaquette) const {
+  const auto &layerConditions = layer(layerValue);
+  if (module < 1 || module > layerConditions.modules || physicalPlaquette < 1 ||
+      physicalPlaquette > layerConditions.physicalPlaquettesPerModule) {
+    throw std::out_of_range("invalid DELPHI vertex module or plaquette");
+  }
+  const auto region = longitudinalRegion(physicalPlaquette);
+  switch (layerValue) {
+  case VertexBarrelLayer::Closer:
+    if (region == VertexLongitudinalRegion::Central) {
+      // VDSIM's VD94 transition uses 768 channels at 49.5 um followed by
+      // 384 channels at 99 um, with a half-physical-strip boundary repair.
+      return makePlaquette(384, 1152, 768, 0.00495, 0.00990, -0.0025, region);
+    }
+    return makePlaquette(384, 384, 384, 0.0150, 0.0, 0.0, region);
+  case VertexBarrelLayer::Inner:
+    // SVCALB models the shorter odd modules with 512 P channels and the even
+    // modules with 640. The v94c inner layer has no N-side readout.
+    return makePlaquette(module % 2 == 0 ? 640 : 512, 0, 0, 0.0, 0.0, 0.0,
+                         region);
+  case VertexBarrelLayer::Outer:
+    if (region == VertexLongitudinalRegion::Central) {
+      return makePlaquette(640, 1280, 1280, 0.00420, 0.0, 0.0, region);
+    }
+    return makePlaquette(640, 640, 640, 0.00840, 0.0, 0.0, region);
+  }
+  throw std::out_of_range("invalid DELPHI vertex barrel layer");
 }
 
 } // namespace delphi_edm4hep::simulation

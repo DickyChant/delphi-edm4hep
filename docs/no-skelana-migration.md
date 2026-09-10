@@ -154,13 +154,14 @@ its `MCParticle` relation. Later response modules can therefore consume their
 own subsystem without radius cuts or knowledge of Geant4 collection order.
 
 `VertexDigitizationConditions` removes the first VDSIM COMMON-block boundary.
-It ports the complete barrel defaults hard-coded in `SVBCAL` and `SVBINI`:
-the 24/20/24 module topology, every plaquette's P/N strip count and readout
-pitch, inactive inner plaquettes, active lengths, all six noise levels,
-five-sigma thresholds, three-step acceptance, 1,000-electron ADC calibration,
-8 micrometre Lorentz shift, and the default noise-cluster/cross-talk switches.
-These values are regression-tested independently before the scheduled VD
-digitizer consumes them.
+It now uses the release-matched VDSIM 4.6 source shipped with v94c, rather than
+the later VDSIM 6.3 upgrade geometry. The port fixes the 24/24/24-module,
+four-plaquette topology; odd/even inner-module P-channel counts; the closer
+layer's two-zone N pitch; the outer central/peripheral N layouts; the five
+noise zones; five-sigma thresholds; three-step acceptance; 1,000-electron ADC
+calibration; 8 micrometre Lorentz shift; two-strip minimum noise cluster; and
+the default noise-cluster/cross-talk switches. These values are regression
+tested independently before the scheduled VD digitizer consumes them.
 
 `VertexChannelResponse` now supplies the first electronics kernel. It converts
 Geant4 silicon energy deposition through the 3.6 eV electron-hole creation
@@ -169,6 +170,16 @@ reproduces `SVPACK`/`SVFORM`'s 1,000-electron ADC calibration, quarter-ADC
 integer encoding, 13-bit signal word, 8-bit noise word, and five-sigma
 single-channel diagnostic. Random deviates remain explicit inputs so the
 scheduled producer can own deterministic run/event seeding.
+
+`VertexReadoutGeometry` binds those v94c conditions to the authoritative
+CARGO geometry. It enumerates all 288 barrel sensors in exactly the same order
+used by the persisted semantic transport cell IDs, decodes layer, module,
+half-module and physical plaquette, attaches the DBF `MTRX` transformations and
+`USER` active-area endpoints for the P plane and the 192 instrumented N planes,
+and provides checked local/global transforms. The snapshot audit pins the
+known sensor-22 mapping and verifies cell-ID and coordinate round trips for
+every sensor. This is the geometry contract needed by the scheduled strip
+digitizer; it is not yet itself digitization.
 
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms

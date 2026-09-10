@@ -19,70 +19,74 @@ bool close(double left, double right) {
 } // namespace
 
 int main() {
-  using delphi_edm4hep::simulation::VertexBarrelLayer;
-  using delphi_edm4hep::simulation::VertexDigitizationConditions;
+  using namespace delphi_edm4hep::simulation;
 
   const auto conditions = VertexDigitizationConditions::legacyV94c();
   const auto &closer = conditions.layer(VertexBarrelLayer::Closer);
   const auto &inner = conditions.layer(VertexBarrelLayer::Inner);
   const auto &outer = conditions.layer(VertexBarrelLayer::Outer);
 
-  require(closer.modules == 24 && closer.plaquettes == 2,
-          "closer topology differs from SVPARW");
-  require(inner.modules == 20 && inner.plaquettes == 4,
-          "inner topology differs from SVPARW");
-  require(outer.modules == 24 && outer.plaquettes == 4,
-          "outer topology differs from SVPARW");
-  require(closer.pReadoutChannelsPerHalfModule == 384 &&
-              inner.pReadoutChannelsPerHalfModule == 640 &&
-              outer.pReadoutChannelsPerHalfModule == 640,
-          "readout-channel counts differ from SVBCAL");
+  require(closer.modules == 24 && inner.modules == 24 && outer.modules == 24 &&
+              closer.physicalPlaquettesPerModule == 4 &&
+              inner.physicalPlaquettesPerModule == 4 &&
+              outer.physicalPlaquettesPerModule == 4,
+          "barrel topology differs from v94c SVCALB");
 
-  require(
-      close(conditions.plaquette(VertexBarrelLayer::Closer, 1).pReadoutPitchCm,
-            0.0050) &&
-          close(conditions.plaquette(VertexBarrelLayer::Closer, 1)
-                    .nReadoutPitchCm,
-                0.00495) &&
-          close(conditions.plaquette(VertexBarrelLayer::Closer, 2)
-                    .nReadoutPitchCm,
-                0.00990),
-      "closer strip pitches differ from SVBCAL");
-  require(
-      conditions.plaquette(VertexBarrelLayer::Inner, 1).nStrips == 0 &&
-          conditions.plaquette(VertexBarrelLayer::Inner, 3).nStrips == 1280 &&
-          close(
-              conditions.plaquette(VertexBarrelLayer::Inner, 4).nReadoutPitchCm,
-              0.00840),
-      "inner inactive/active plaquettes differ from SVBCAL");
-  require(
-      conditions.plaquette(VertexBarrelLayer::Outer, 1).nStrips == 1280 &&
-          conditions.plaquette(VertexBarrelLayer::Outer, 4).nStrips == 320 &&
-          close(
-              conditions.plaquette(VertexBarrelLayer::Outer, 3).nReadoutPitchCm,
-              0.00880),
-      "outer strip layout differs from SVBCAL");
+  const auto closerCentral =
+      conditions.plaquette(VertexBarrelLayer::Closer, 1, 2);
+  const auto closerPeripheral =
+      conditions.plaquette(VertexBarrelLayer::Closer, 1, 1);
+  require(closerCentral.pReadoutChannels == 384 &&
+              closerCentral.pPhysicalStrips == 768 &&
+              close(closerCentral.pReadoutPitchCm, 0.0050) &&
+              close(closerCentral.pPhysicalPitchCm, 0.0025),
+          "closer P topology differs from v94c SVCALB/SVINI");
+  require(closerCentral.nReadoutChannels == 1152 &&
+              closerCentral.nFirstPitchChannels == 768 &&
+              close(closerCentral.nFirstPitchCm, 0.00495) &&
+              close(closerCentral.nSecondPitchCm, 0.00990) &&
+              close(closerCentral.nSecondZoneOffsetCm, -0.0025) &&
+              closerPeripheral.nReadoutChannels == 384 &&
+              close(closerPeripheral.nFirstPitchCm, 0.0150),
+          "closer N pitch zones differ from v94c SVCALB/SVAAR");
 
-  require(close(closer.pNoiseElectrons, 2400.0) &&
-              close(closer.nNoiseElectrons, 1850.0) &&
-              close(inner.pNoiseElectrons, 1550.0) &&
-              close(outer.pNoiseElectrons, 850.0) &&
-              close(outer.nNoiseElectrons, 1200.0),
-          "VD noise values differ from SVBINI");
+  const auto innerOdd = conditions.plaquette(VertexBarrelLayer::Inner, 1, 2);
+  const auto innerEven = conditions.plaquette(VertexBarrelLayer::Inner, 2, 2);
+  require(innerOdd.pReadoutChannels == 512 &&
+              innerEven.pReadoutChannels == 640 && !innerOdd.nReadoutEnabled(),
+          "inner odd/even readout differs from v94c SVCALB");
+
+  const auto outerCentral =
+      conditions.plaquette(VertexBarrelLayer::Outer, 1, 3);
+  const auto outerPeripheral =
+      conditions.plaquette(VertexBarrelLayer::Outer, 1, 4);
+  require(outerCentral.nReadoutChannels == 1280 &&
+              close(outerCentral.nFirstPitchCm, 0.00420) &&
+              outerPeripheral.nReadoutChannels == 640 &&
+              close(outerPeripheral.nFirstPitchCm, 0.00840),
+          "outer N topology differs from v94c SVCALB/SVAAR");
+
+  require(close(closer.pNoiseElectrons, 2500.0) &&
+              close(closer.nNoiseElectrons, 2500.0) &&
+              close(inner.pNoiseElectrons, 1700.0) &&
+              close(inner.nNoiseElectrons, 0.0) &&
+              close(outer.pNoiseElectrons, 2500.0) &&
+              close(outer.nNoiseElectrons, 2500.0),
+          "VD noise zones differ from v94c SVINI");
   require(close(closer.pThresholdSigma, 5.0) &&
               close(outer.nThresholdSigma, 5.0),
-          "VD thresholds differ from SVBINI");
+          "VD thresholds differ from v94c SVINI");
   require(close(conditions.trackingStepCm(), 0.001) &&
               conditions.minimumActiveSteps() == 3 &&
               close(conditions.electronsPerAdc(), 1000.0) &&
               close(conditions.lorentzShiftCm(), 0.0008),
-          "VD global response values differ from VDSIM");
+          "VD global response values differ from v94c VDSIM");
   require(!conditions.crossTalkEnabled() && conditions.noiseClustersEnabled() &&
-              conditions.minimumNoiseClusterSize() == 4,
-          "VD default response switches differ from SVBINI");
+              conditions.minimumNoiseClusterSize() == 2,
+          "VD default response switches differ from v94c SVINI");
   require(close(conditions.crossTalkFractions()[0], 0.7490) &&
               close(conditions.crossTalkFractions()[3], 0.0078),
-          "VD cross-talk kernel differs from SVBINI");
+          "VD P-side cross-talk kernel differs from v94c SVINI");
 
-  std::cout << "Vertex digitization conditions closure passed\n";
+  std::cout << "Vertex v94c digitization conditions closure passed\n";
 }

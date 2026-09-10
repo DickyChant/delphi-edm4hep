@@ -25,20 +25,20 @@ int main() {
   // 36 keV in silicon is exactly 10,000 electron-hole pairs at 3.6 eV.
   const auto closerP = response.digitize(36.0e-6, VertexBarrelLayer::Closer,
                                          VertexReadoutSide::P, 0.5);
-  require(close(closerP.signalElectrons, 11200.0),
+  require(close(closerP.signalElectrons, 11250.0),
           "energy/noise conversion is wrong");
-  require(close(closerP.signalAdc, 11.2) &&
+  require(close(closerP.signalAdc, 11.25) &&
               closerP.packedSignalQuarterAdc == 45,
           "SVPACK/SVFORM signal conversion is wrong");
-  require(close(closerP.noiseAdc, 2.4) && closerP.packedNoiseQuarterAdc == 10,
+  require(close(closerP.noiseAdc, 2.5) && closerP.packedNoiseQuarterAdc == 10,
           "SVPACK/SVFORM noise conversion is wrong");
   require(!closerP.aboveSingleChannelThreshold,
-          "closer P threshold should be 12,000 electrons");
+          "closer P threshold should be 12,500 electrons");
 
   const auto outerP = response.digitize(36.0e-6, VertexBarrelLayer::Outer,
                                         VertexReadoutSide::P, 0.0);
-  require(outerP.aboveSingleChannelThreshold,
-          "outer P threshold should be 4,250 electrons");
+  require(!outerP.aboveSingleChannelThreshold,
+          "outer P threshold should be 12,500 electrons");
   require(close(outerP.chargeFc, 1.602176634, 1.0e-12),
           "integrated charge conversion is wrong");
 
