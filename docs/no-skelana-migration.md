@@ -164,6 +164,15 @@ own and seed the random stream without hiding global Fortran RNG state. FADC
 noise, saturation, threshold clustering, and EDM4hep `TimeSeries` publication
 remain to be connected.
 
+`TpcFadc` ports STFADC's two-range calibrated conversion, common and
+per-sample pedestal fluctuations, integer truncation, and 8-bit saturation.
+Its zero-suppression step preserves STODIG's 20-count pad threshold, two past
+samples, two future samples, five-below-sample closure, and 20-cluster limit.
+As with the pulse shaper, Gaussian draws are inputs rather than hidden global
+state. The remaining integration work is to aggregate all step contributions
+per pad, publish the surviving waveforms as EDM4hep `TimeSeries`, and attach
+truth links.
+
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
 Fine-grained TPC pad response and the other sensitive tracking and calorimeter

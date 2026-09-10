@@ -69,6 +69,10 @@ add_executable(tpc_time_response_test tpc_time_response_test.cpp)
 target_link_libraries(tpc_time_response_test PRIVATE delphi_geometry)
 add_test(NAME tpc_time_response_contract COMMAND tpc_time_response_test)
 
+add_executable(tpc_fadc_test tpc_fadc_test.cpp)
+target_link_libraries(tpc_fadc_test PRIVATE delphi_geometry)
+add_test(NAME tpc_fadc_contract COMMAND tpc_fadc_test)
+
 # PHDST-sample-backed fault injection for the C++/Fortran callback boundary.
 # The runner skips when DELPHI_PHDST_SAMPLE is not set, like alignment_audit.
 add_executable(harness_exception_probe harness_exception_probe.cpp)

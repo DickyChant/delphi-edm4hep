@@ -71,6 +71,7 @@ add_library(delphi_geometry STATIC
   src/Geometry/GdmlWorldWriter.cpp
   src/Geometry/GeometryModel.cpp
   src/Simulation/TpcDigitizationConditions.cpp
+  src/Simulation/TpcFadc.cpp
   src/Simulation/TpcPadResponse.cpp
   src/Simulation/TpcReadoutGeometry.cpp
   src/Simulation/TpcTimeResponse.cpp
