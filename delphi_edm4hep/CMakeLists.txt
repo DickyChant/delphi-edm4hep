@@ -73,7 +73,7 @@ find_package(DelphiAL9 REQUIRED)
 # A Code4hep source is a shared plugin.  The legacy DELPHI and CERNLIB
 # archives are not position independent, so they cannot be linked into that
 # plugin.  In the embedded build this converter library is shared and leaves
-# its Fortran references for the delphi_cmsRun executable to provide.
+# its Fortran references for the delphiRun executable to provide.
 set(_delphi_library_type STATIC)
 if(COMMAND c4h_add_plugin)
   set(_delphi_library_type SHARED)
@@ -200,7 +200,7 @@ if(DELPHI_BUILD_CODE4HEP_SOURCE)
   # Do not make the plugin DT_NEEDED on libdelphi_edm4hep: that library has
   # legacy COMMON-block data references which can only be resolved by the
   # non-PIE launcher.  Function references stay lazy while edmWriteConfigs
-  # and edmPluginRefresh inspect the plugin, and resolve from delphi_cmsRun
+  # and edmPluginRefresh inspect the plugin, and resolve from delphiRun
   # when the source is actually constructed.
   target_link_libraries(plugin_DelphiInputPlugins
     PUBLIC Threads::Threads)
@@ -208,12 +208,12 @@ if(DELPHI_BUILD_CODE4HEP_SOURCE)
   # The DELPHI/CERNLIB archives are non-PIC and therefore belong in an
   # executable, not in the DelphiSource shared plugin.  This compact
   # Code4hep runner exports their symbols to dynamically loaded plugins.
-  add_executable(delphi_cmsRun code4hep/DelphiCmsRun.cpp)
-  target_link_options(delphi_cmsRun PRIVATE
+  add_executable(delphiRun code4hep/DelphiCmsRun.cpp)
+  target_link_options(delphiRun PRIVATE
     -no-pie
     -Wl,--export-dynamic
     -Wl,--undefined=phdst_)
-  target_link_libraries(delphi_cmsRun PRIVATE
+  target_link_libraries(delphiRun PRIVATE
     delphi_edm4hep
     delphi_fortran_no_skelana_link
     Stitched::FWCore_Framework
@@ -292,8 +292,8 @@ include(GNUInstallDirs)
 set(_delphi_install_targets
   delphi_edm4hep delphi_sdst_pass delphi_fdst_pass delphi_bs_fit
   delphi_btag_check)
-if(TARGET delphi_cmsRun)
-  list(APPEND _delphi_install_targets delphi_cmsRun)
+if(TARGET delphiRun)
+  list(APPEND _delphi_install_targets delphiRun)
 endif()
 install(TARGETS ${_delphi_install_targets}
   EXPORT  delphi_edm4hepTargets

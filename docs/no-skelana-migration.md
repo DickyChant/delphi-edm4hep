@@ -5,7 +5,7 @@ call `PSINI`, `PSBEG`, or any other SKELANA entry point. Both link through the
 DELPHI archive group that deliberately omits `libskelanaxx`.
 
 The native Code4hep `DelphiSource` uses these same production pipelines. Its
-`delphi_cmsRun` launcher also links only the archive group without
+`delphiRun` launcher also links only the archive group without
 `libskelanaxx`; SKELANA is not hidden in the plugin boundary.
 
 SKELANA remains available only as an optional, non-installed validation oracle

@@ -102,7 +102,7 @@ cmake --build build -j
 
 When this project is added to the Code4hep build through
 `CODE4HEP_DELPHI_SOURCE_DIR`, it also builds `DelphiSource` and the
-`delphi_cmsRun` launcher. The source runs the same converter-owned sDST/fDST
+`delphiRun` launcher. The source runs the same converter-owned sDST/fDST
 pipelines in memory, publishes each collection as a Stitched event product,
 and lets ordinary Code4hep paths consume or write the result:
 
@@ -122,7 +122,7 @@ process.output = cms.OutputModule(
 process.end = cms.EndPath(process.output)
 ```
 
-Run the configuration with `delphi_cmsRun config.py`. The dedicated launcher
+Run the configuration with `delphiRun config.py`. The dedicated launcher
 is required because the non-PIC DELPHI/CERNLIB archives must live in an
 executable and export their symbols to the dynamically loaded source plugin.
 It links the production archive group, which excludes `libskelanaxx`.

@@ -91,7 +91,7 @@ int main(int argc, const char* argv[]) {
   [[maybe_unused]] void (*volatile phdstEntry)() = &phdst_;
 
   if (argc < 2) {
-    std::cerr << "usage: delphi_cmsRun CONFIG.py [CONFIG-ARG ...]\n";
+    std::cerr << "usage: delphiRun CONFIG.py [CONFIG-ARG ...]\n";
     return 2;
   }
 
@@ -101,9 +101,9 @@ int main(int argc, const char* argv[]) {
   } catch (cms::Exception const& error) {
     std::cerr << error.explainSelf() << '\n';
   } catch (std::exception const& error) {
-    std::cerr << "delphi_cmsRun: " << error.what() << '\n';
+    std::cerr << "delphiRun: " << error.what() << '\n';
   } catch (...) {
-    std::cerr << "delphi_cmsRun: unknown exception\n";
+    std::cerr << "delphiRun: unknown exception\n";
   }
   return 1;
 }
