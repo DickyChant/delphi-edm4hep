@@ -1,7 +1,9 @@
 #include "delphi_edm4hep/Geometry/CargoDatabase.h"
 #include "delphi_edm4hep/Geometry/GeometryModel.h"
+#include "delphi_edm4hep/Simulation/TpcPadResponse.h"
 #include "delphi_edm4hep/Simulation/TpcReadoutGeometry.h"
 
+#include <algorithm>
 #include <cmath>
 #include <exception>
 #include <iostream>
@@ -26,7 +28,9 @@ int main(int argc, char **argv) {
                         [](unsigned int total, const auto &row) {
                           return total + row.padCount;
                         });
+    const delphi_edm4hep::simulation::TpcPadResponse response(readout);
     unsigned int centrePadMismatches{};
+    unsigned int stampaResponseMismatches{};
     for (const auto &sector : readout.sectors()) {
       const auto angle = sector.rotationDegrees * std::numbers::pi / 180.0;
       const auto radius = readout.rows().front().radiusCm;
@@ -50,6 +54,22 @@ int main(int argc, char **argv) {
                   << " pad=" << (address ? address->pad : 0) << '\n';
         ++centrePadMismatches;
       }
+      const auto induced = response.induce(
+          sector.translationXCm + std::cos(angle) * localX -
+              std::sin(angle) * localY,
+          sector.translationYCm + std::sin(angle) * localX +
+              std::cos(angle) * localY,
+          sector.endcap == 0 ? -140.0 : 140.0, -std::sin(angle),
+          std::cos(angle), 1.0);
+      const auto peak =
+          std::max_element(induced.begin(), induced.end(),
+                           [](const auto &left, const auto &right) {
+                             return left.signal < right.signal;
+                           });
+      if (induced.size() != 5 || peak == induced.end() ||
+          peak->address.pad != readout.rows().front().padCount / 2) {
+        ++stampaResponseMismatches;
+      }
     }
     std::cout << "rows=" << readout.rows().size() << '\n'
               << "pads_per_sector=" << pads << '\n'
@@ -58,7 +78,10 @@ int main(int argc, char **argv) {
               << "first_row_radius_cm=" << readout.rows().front().radiusCm
               << '\n'
               << "last_row_radius_cm=" << readout.rows().back().radiusCm << '\n'
-              << "centre_pad_mismatches=" << centrePadMismatches << '\n';
+              << "drift_half_length_cm=" << readout.driftHalfLengthCm() << '\n'
+              << "centre_pad_mismatches=" << centrePadMismatches << '\n'
+              << "stampa_response_mismatches=" << stampaResponseMismatches
+              << '\n';
   } catch (const std::exception &error) {
     std::cerr << "delphi_tpc_readout_audit: " << error.what() << '\n';
     return 1;

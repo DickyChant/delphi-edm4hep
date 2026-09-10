@@ -76,9 +76,11 @@ std::string sectorPath(unsigned int endcap, unsigned int geometrySector) {
 } // namespace
 
 TpcReadoutGeometry::TpcReadoutGeometry(std::vector<TpcPadRow> rows,
-                                       std::vector<TpcSectorTransform> sectors)
-    : rows_(std::move(rows)), sectors_(std::move(sectors)) {
-  if (rows_.empty() || sectors_.empty()) {
+                                       std::vector<TpcSectorTransform> sectors,
+                                       double driftHalfLengthCm)
+    : rows_(std::move(rows)), sectors_(std::move(sectors)),
+      driftHalfLengthCm_(driftHalfLengthCm) {
+  if (rows_.empty() || sectors_.empty() || driftHalfLengthCm_ <= 0) {
     throw std::runtime_error("TPC readout geometry must not be empty");
   }
   for (std::size_t index = 0; index < rows_.size(); ++index) {
@@ -111,6 +113,7 @@ TpcReadoutGeometry::fromCargo(const geometry::CargoDatabase &database,
   }
 
   std::vector<TpcSectorTransform> sectors;
+  double driftHalfLengthCm{};
   for (unsigned int endcap = 0; endcap < 2; ++endcap) {
     for (unsigned int slot = 0; slot < 6; ++slot) {
       const auto geometrySector = 2 * slot + endcap;
@@ -118,6 +121,15 @@ TpcReadoutGeometry::fromCargo(const geometry::CargoDatabase &database,
           geometryModel.findNode(sectorPath(endcap, geometrySector));
       if (node == nullptr || node->references.size() != 1) {
         throw std::runtime_error("invalid TPC sector transform");
+      }
+      if (endcap == 0 && slot == 0) {
+        if (node->shapes.size() != 1 || node->shapes.front().tag != "POL6" ||
+            node->shapes.front().parameters.size() != 13) {
+          throw std::runtime_error("invalid TPC sector drift geometry");
+        }
+        // STINI assigns ZMAXTP=ABS(SCSHAP(7)); the C++ shape payload omits
+        // the Fortran field count, making that value parameters[6].
+        driftHalfLengthCm = std::abs(node->shapes.front().parameters[6]);
       }
       const auto readoutSector = endcap == 0 ? slot + 1 : 12 - slot;
       const auto &reference = node->references.front();
@@ -130,7 +142,7 @@ TpcReadoutGeometry::fromCargo(const geometry::CargoDatabase &database,
             [](const auto &left, const auto &right) {
               return left.readoutSector < right.readoutSector;
             });
-  return {std::move(rows), std::move(sectors)};
+  return {std::move(rows), std::move(sectors), driftHalfLengthCm};
 }
 
 std::optional<TpcPadAddress>

@@ -38,13 +38,15 @@ struct TpcPadAddress {
 class TpcReadoutGeometry {
 public:
   TpcReadoutGeometry(std::vector<TpcPadRow> rows,
-                     std::vector<TpcSectorTransform> sectors);
+                     std::vector<TpcSectorTransform> sectors,
+                     double driftHalfLengthCm);
 
   static TpcReadoutGeometry fromCargo(const geometry::CargoDatabase &database,
                                       const geometry::GeometryModel &geometry);
 
   const std::vector<TpcPadRow> &rows() const { return rows_; }
   const std::vector<TpcSectorTransform> &sectors() const { return sectors_; }
+  double driftHalfLengthCm() const { return driftHalfLengthCm_; }
 
   std::optional<TpcPadAddress> locatePad(double xCm, double yCm, double zCm,
                                          double rowToleranceCm = 1.0) const;
@@ -53,6 +55,7 @@ public:
 private:
   std::vector<TpcPadRow> rows_;
   std::vector<TpcSectorTransform> sectors_;
+  double driftHalfLengthCm_{};
 };
 
 } // namespace delphi_edm4hep::simulation

@@ -23,7 +23,9 @@ int main() {
   TpcReadoutGeometry geometry(
       std::vector<TpcPadRow>{{1, 64, 36.5, 0.959, 0.547},
                              {2, 80, 41.175, 0.842, 0.624}},
-      std::vector<TpcSectorTransform>{{1, 0, 0, 0, 0, 0}, {12, 1, 1, 0, 0, 0}});
+      std::vector<TpcSectorTransform>{{1, 0, 0, 0, 0, 0},
+                                      {12, 1, 1, 0, 0, 0}},
+      145.0);
 
   const auto onAxis = geometry.locatePad(0, 36.5, -10);
   require(onAxis && onAxis->sector == 1 && onAxis->row == 1 &&

@@ -132,8 +132,18 @@ aligned sector transform.
 consumes step-level `SimTrackerHit` objects, applies the calibrated sector and
 row window, and publishes persistent `TrackerHit3D` pad hits with an explicit
 endcap/sector/row/pad cell ID. This establishes the deterministic simulation to
-readout boundary; `STAMPA` charge sharing, drift diffusion, thresholds, and ADC
-response remain to be ported before claiming legacy digitization equivalence.
+readout boundary.
+
+`TpcPadResponse` is the next deliberately framework-independent layer. It
+reproduces STAMPA's deterministic induction onto the central pad and its two
+neighbors on either side. The response width uses the v94c `STSPRF` constants,
+the measured row pitch, drift distance, local track incidence, and DELPHI's
+Lorentz-angle term. The drift half-length is read from the selected sector
+geometry rather than duplicated as steering configuration. The returned signal
+retains caller-defined units because the preceding primary-ionization and
+Landau-fluctuation model has not yet been ported. Drift diffusion, time-bin
+shaping, calibration-dependent pedestal noise, thresholds, and FADC response
+also remain before claiming legacy digitization equivalence.
 
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
