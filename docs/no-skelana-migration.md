@@ -146,6 +146,13 @@ next 24 bits identify the rendered sensor, and Code4hep supplies the physical
 copy number in the low 32 bits. This replaces the former accidental dependence
 on Geant4 hit-collection ordering.
 
+`DelphiTrackerHitPartitionProducer` is the first scheduled consumer of that
+contract. It splits the common Code4hep transport collection into ordinary
+`VertexSimHits`, `InnerDetectorSimHits`, `TpcSimHits`, and
+`OuterDetectorSimHits` products, copying the complete simulated-hit payload and
+its `MCParticle` relation. Later response modules can therefore consume their
+own subsystem without radius cuts or knowledge of Geant4 collection order.
+
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms
 from that snapshot. Its pad locator reproduces `STAMPA`'s one-centimetre row
