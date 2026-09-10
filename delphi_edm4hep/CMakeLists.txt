@@ -70,6 +70,7 @@ add_library(delphi_geometry STATIC
   src/Geometry/GdmlBeamPipeWriter.cpp
   src/Geometry/GdmlWorldWriter.cpp
   src/Geometry/GeometryModel.cpp
+  src/Simulation/TpcReadoutGeometry.cpp
 )
 target_include_directories(delphi_geometry
   PUBLIC
@@ -78,6 +79,9 @@ target_include_directories(delphi_geometry
 
 add_executable(delphi_geometry_export bin/delphi_geometry_export.cpp)
 target_link_libraries(delphi_geometry_export PRIVATE delphi_geometry)
+
+add_executable(delphi_tpc_readout_audit bin/delphi_tpc_readout_audit.cpp)
+target_link_libraries(delphi_tpc_readout_audit PRIVATE delphi_geometry)
 
 # DELPHI almalinux-9 Fortran libraries (custom find module).
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -206,6 +210,7 @@ if(DELPHI_BUILD_CODE4HEP_SOURCE)
     SOURCES
       code4hep/DelphiEventSummaryProducer.cc
       code4hep/DelphiSource.cc
+      code4hep/DelphiTpcPadMapperProducer.cc
     DEPS
       FWCore/Framework
       FWCore/ParameterSet
@@ -222,7 +227,8 @@ if(DELPHI_BUILD_CODE4HEP_SOURCE)
   # and edmPluginRefresh inspect the plugin, and resolve from delphiRun
   # when the source is actually constructed.
   target_link_libraries(plugin_DelphiInputPlugins
-    PUBLIC Threads::Threads)
+    PUBLIC Threads::Threads
+    PRIVATE delphi_geometry)
 
   # The DELPHI/CERNLIB archives are non-PIC and therefore belong in an
   # executable, not in the DelphiSource shared plugin.  This compact
@@ -313,7 +319,8 @@ endif()
 include(GNUInstallDirs)
 set(_delphi_install_targets
   delphi_edm4hep delphi_geometry delphi_sdst_pass delphi_fdst_pass
-  delphi_bs_fit delphi_btag_check delphi_geometry_audit)
+  delphi_bs_fit delphi_btag_check delphi_geometry_audit
+  delphi_geometry_export delphi_tpc_readout_audit)
 if(TARGET delphiRun)
   list(APPEND _delphi_install_targets delphiRun)
 endif()

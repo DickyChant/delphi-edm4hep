@@ -120,6 +120,21 @@ plus TPC output is accepted by the Code4hep Geant4 driver at 1.2312434 T and
 produces persistent step-level physical tracker hits in the controlled
 one-muon transport test.
 
+`TpcReadoutGeometry` is the first native digitization service. It reads the 16
+pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms
+from that snapshot. Its pad locator reproduces `STAMPA`'s one-centimetre row
+window, 60-degree sector coordinates, Fortran truncation, and asymmetric
+zero-angle pad boundary. For v94c the audit requires 1,680 pads per sector,
+20,160 pads in total, and a successful centre-pad round trip through every
+aligned sector transform.
+
+`DelphiTpcPadMapperProducer` schedules that service after `G4SimProducer`. It
+consumes step-level `SimTrackerHit` objects, applies the calibrated sector and
+row window, and publishes persistent `TrackerHit3D` pad hits with an explicit
+endcap/sector/row/pad cell ID. This establishes the deterministic simulation to
+readout boundary; `STAMPA` charge sharing, drift diffusion, thresholds, and ADC
+response remain to be ported before claiming legacy digitization equivalence.
+
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
 Fine-grained TPC pad response and the other sensitive tracking and calorimeter

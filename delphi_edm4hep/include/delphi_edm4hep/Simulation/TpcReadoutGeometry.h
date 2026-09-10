@@ -1,0 +1,58 @@
+#pragma once
+
+#include "delphi_edm4hep/Geometry/CargoDatabase.h"
+#include "delphi_edm4hep/Geometry/GeometryModel.h"
+
+#include <cstdint>
+#include <optional>
+#include <vector>
+
+namespace delphi_edm4hep::simulation {
+
+struct TpcPadRow {
+  unsigned int number{};
+  unsigned int padCount{};
+  double radiusCm{};
+  double padHeightCm{};
+  double padWidthCm{};
+};
+
+struct TpcSectorTransform {
+  unsigned int readoutSector{};
+  unsigned int geometrySector{};
+  unsigned int endcap{};
+  double translationXCm{};
+  double translationYCm{};
+  double rotationDegrees{};
+};
+
+struct TpcPadAddress {
+  unsigned int endcap{};
+  unsigned int sector{};
+  unsigned int row{};
+  unsigned int pad{};
+  double radialResidualCm{};
+  double localPhiRadians{};
+};
+
+class TpcReadoutGeometry {
+public:
+  TpcReadoutGeometry(std::vector<TpcPadRow> rows,
+                     std::vector<TpcSectorTransform> sectors);
+
+  static TpcReadoutGeometry fromCargo(const geometry::CargoDatabase &database,
+                                      const geometry::GeometryModel &geometry);
+
+  const std::vector<TpcPadRow> &rows() const { return rows_; }
+  const std::vector<TpcSectorTransform> &sectors() const { return sectors_; }
+
+  std::optional<TpcPadAddress> locatePad(double xCm, double yCm, double zCm,
+                                         double rowToleranceCm = 1.0) const;
+  static std::uint64_t encodeCellId(const TpcPadAddress &address);
+
+private:
+  std::vector<TpcPadRow> rows_;
+  std::vector<TpcSectorTransform> sectors_;
+};
+
+} // namespace delphi_edm4hep::simulation
