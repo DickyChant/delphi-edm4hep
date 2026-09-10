@@ -64,6 +64,17 @@ not Frame metadata. `PodioOutputModule` reverses that representation before
 writing. This keeps the direct `DSTQID`, `BPILOT`, VD beamspot, and BTAG
 configuration results as normal Podio parameters in the final file.
 
+## Native scheduled-module migration
+
+`DelphiEventSummaryProducer` is the first conversion calculation scheduled by
+Code4hep after `DelphiSource`. The source transcribes the raw PA.MAIN charge
+code into `sDST_MAIN_Particles_ChargeCode`; the producer consumes that immutable
+collection and independently publishes `native_EVT_nCharged` and
+`native_EVT_nNeutral`. The integration test requires those values to match the
+legacy event summary. This dual-output pattern is the migration seam for moving
+the remaining derived calculations out of the PHDST callback before deleting
+the corresponding legacy implementation.
+
 ## Validation findings
 
 On the five-event 94C2 simulation fixture, the direct sDST output agrees with

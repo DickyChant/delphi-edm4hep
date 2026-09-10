@@ -6,6 +6,7 @@
 //   <prefix>_VECP_Particles_SelectionFlag       (UserData int32)
 //   <prefix>_MAIN_Particles_ReconstructionCode  (UserData int32)
 //   <prefix>_MAIN_Particles_DetectorMask        (UserData int32)
+//   <prefix>_MAIN_Particles_ChargeCode           (UserData int32)
 //
 // Each Track links to the track elements from its PA (see TrackElements).
 //   <prefix>_MAIN_Particles_TrackLength         (UserData float, cm)
@@ -365,6 +366,7 @@ void TrackingWriter::emit()
   podio::UserDataCollection<std::int32_t>  lvlockCol;
   podio::UserDataCollection<std::int32_t>  codeCol;
   podio::UserDataCollection<std::int32_t>  detCol;
+  podio::UserDataCollection<std::int32_t>  chargeCodeCol;
   podio::UserDataCollection<float>         lengthCol;
   podio::UserDataCollection<float>         d0PvCol;
   podio::UserDataCollection<float>         z0PvCol;
@@ -436,6 +438,8 @@ void TrackingWriter::emit()
     lvlockCol.push_back(vecp_i >= 1 ? views[vecp_i].selection : -1);
     codeCol.push_back((ph::IQ(lpa + 3) >> 18) & 0x7F);
     detCol.push_back(ph::IQ(lpa + 2));
+    chargeCodeCol.push_back(
+        static_cast<std::int32_t>(std::lround(ph::Q(lmain + 8))));
     lengthCol.push_back(lmain > 0 ? ph::Q(lmain + 9) : 0.f);
   };
 
@@ -598,6 +602,7 @@ void TrackingWriter::emit()
   put(std::move(lvlockCol), "VECP", "Particles_SelectionFlag", Provenance::Derived);
   put(std::move(codeCol),   "MAIN", "Particles_ReconstructionCode", Provenance::Transcribed);
   put(std::move(detCol),    "MAIN", "Particles_DetectorMask",       Provenance::Transcribed);
+  put(std::move(chargeCodeCol), "MAIN", "Particles_ChargeCode",     Provenance::Transcribed);
   put(std::move(lengthCol), "MAIN", "Particles_TrackLength",        Provenance::Transcribed);
   put(std::move(d0PvCol),   "QTRAC", "Tracks_d0PV", Provenance::Derived);
   put(std::move(z0PvCol),   "QTRAC", "Tracks_z0PV", Provenance::Derived);

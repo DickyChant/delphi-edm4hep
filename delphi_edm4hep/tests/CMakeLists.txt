@@ -30,6 +30,11 @@ target_include_directories(btag_check_domains_test
   PRIVATE ${PROJECT_SOURCE_DIR}/include)
 add_test(NAME btag_check_domain_contract COMMAND btag_check_domains_test)
 
+add_executable(particle_counts_test particle_counts_test.cpp)
+target_include_directories(particle_counts_test
+  PRIVATE ${PROJECT_SOURCE_DIR}/include)
+add_test(NAME native_particle_counts_contract COMMAND particle_counts_test)
+
 # PHDST-sample-backed fault injection for the C++/Fortran callback boundary.
 # The runner skips when DELPHI_PHDST_SAMPLE is not set, like alignment_audit.
 add_executable(harness_exception_probe harness_exception_probe.cpp)

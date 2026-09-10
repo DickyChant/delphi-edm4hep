@@ -186,7 +186,9 @@ if(DELPHI_BUILD_CODE4HEP_SOURCE)
   find_package(Threads REQUIRED)
   c4h_add_plugin(
     NAME DelphiInputPlugins
-    SOURCES code4hep/DelphiSource.cc
+    SOURCES
+      code4hep/DelphiEventSummaryProducer.cc
+      code4hep/DelphiSource.cc
     DEPS
       FWCore/Framework
       FWCore/ParameterSet
