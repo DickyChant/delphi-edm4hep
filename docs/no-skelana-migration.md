@@ -114,8 +114,10 @@ mapped explicitly to a positive Geant4 transport vacuum of `1e-25 g/cm3`.
 The generic writer also supports the complete 81-node `/TPC*` hierarchy.
 DELPHI `POL6` endplate sectors are reconstructed from the three radial edges
 defined by `DLPOL6` and emitted as closed twelve-vertex tessellated solids;
-the TPC gas root is tagged as a step-preserving Code4hep tracker-sensitive
-volume with DELPHI's `TPCSTP=1 cm` transport limit. The original v94c beam-pipe
+the two `ARM2` sensing media (`ARC0` and `ARC1`) are tagged as step-preserving
+Code4hep tracker-sensitive volumes with DELPHI's `TPCSTP=1` wire-spacing
+transport limit: the calibrated `WSPTPC=0.4 cm` makes the effective maximum
+step 0.4 cm. The original v94c beam-pipe
 plus TPC output is accepted by the Code4hep Geant4 driver at 1.2312434 T and
 produces persistent step-level physical tracker hits in the controlled
 one-muon transport test.
@@ -179,8 +181,9 @@ bin, calibrates and zero-suppresses the result, and publishes surviving EDM4hep
 `TimeSeries` waveforms. Two repeated controlled runs produce bit-identical
 waveforms. Geant4 already supplies energy-loss fluctuations, so this path does
 not also sample the legacy ETDEDX histogram. Exact physics closure still needs
-comparison against DELSIM's wire-level charge leakage and track labels; those
-labels must then be represented by a suitable EDM4hep truth-link collection.
+comparison against DELSIM's track labels; native wire assignment and the
+STDEDX/STLAND adjacent-wire leakage are now present, while those truth labels
+must then be represented by a suitable EDM4hep truth-link collection.
 
 `DelphiTpcHitReconstructionProducer` is the first native reconstruction module
 on that output. For each zero-suppressed waveform it finds the peak sample,

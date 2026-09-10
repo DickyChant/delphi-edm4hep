@@ -5,6 +5,8 @@
 #include "delphi_edm4hep/Simulation/TpcPadResponse.h"
 #include "delphi_edm4hep/Simulation/TpcReadoutGeometry.h"
 #include "delphi_edm4hep/Simulation/TpcTimeResponse.h"
+#include "delphi_edm4hep/Simulation/TpcWireGeometry.h"
+#include "delphi_edm4hep/Simulation/TpcWireResponse.h"
 
 #include "FWCore/Framework/interface/Event.h"
 #include "FWCore/Framework/interface/EventSetup.h"
@@ -39,6 +41,7 @@ namespace {
 struct TpcModels {
   simulation::TpcReadoutGeometry readout;
   simulation::TpcDigitizationConditions conditions;
+  simulation::TpcWireGeometry wires;
 };
 
 TpcModels readModels(const std::string &snapshot) {
@@ -47,7 +50,8 @@ TpcModels readModels(const std::string &snapshot) {
   auto readout = simulation::TpcReadoutGeometry::fromCargo(database, geometry);
   auto conditions =
       simulation::TpcDigitizationConditions::fromCargo(database, readout);
-  return {std::move(readout), std::move(conditions)};
+  auto wires = simulation::TpcWireGeometry::fromCargo(database, readout);
+  return {std::move(readout), std::move(conditions), std::move(wires)};
 }
 
 std::uint64_t eventSeed(std::uint32_t baseSeed, std::uint32_t run,
@@ -88,9 +92,11 @@ public:
         randomSeed_(config.getParameter<unsigned int>("randomSeed")),
         electronEnergyEv_(config.getParameter<double>("electronEnergyEv")),
         avalancheScale_(config.getParameter<double>("avalancheScale")),
+        magneticFieldTesla_(config.getParameter<double>("magneticFieldTesla")),
         models_(readModels(config.getParameter<std::string>("cargoSnapshot"))),
-        padResponse_(models_.readout) {
-    if (randomSeed_ == 0 || electronEnergyEv_ <= 0 || avalancheScale_ <= 0) {
+        padResponse_(models_.readout), wireResponse_(models_.wires) {
+    if (randomSeed_ == 0 || electronEnergyEv_ <= 0 || avalancheScale_ <= 0 ||
+        magneticFieldTesla_ < 0) {
       throw cms::Exception("Configuration")
           << "DelphiTpcDigitizerProducer requires positive seed and response "
              "parameters";
@@ -104,6 +110,7 @@ public:
     description.add<unsigned int>("randomSeed", 24680U);
     description.add<double>("electronEnergyEv", 20.0);
     description.add<double>("avalancheScale", 0.016);
+    description.add<double>("magneticFieldTesla", 1.2312434);
     descriptions.addDefault(description);
   }
 
@@ -122,61 +129,90 @@ private:
       }
       const auto &position = hit.getPosition();
       const auto &momentum = hit.getMomentum();
-      const auto central = models_.readout.locatePad(
-          position[0] / 10.0, position[1] / 10.0, position[2] / 10.0);
-      if (!central) {
+      const auto momentumMagnitude =
+          std::sqrt(momentum[0] * momentum[0] + momentum[1] * momentum[1] +
+                    momentum[2] * momentum[2]);
+      const auto halfPathMm = 0.5 * hit.getPathLength();
+      const auto midpointXCm =
+          (position[0] + (momentumMagnitude > 0
+                              ? halfPathMm * momentum[0] / momentumMagnitude
+                              : 0.0)) /
+          10.0;
+      const auto midpointYCm =
+          (position[1] + (momentumMagnitude > 0
+                              ? halfPathMm * momentum[1] / momentumMagnitude
+                              : 0.0)) /
+          10.0;
+      const auto midpointZCm =
+          (position[2] + (momentumMagnitude > 0
+                              ? halfPathMm * momentum[2] / momentumMagnitude
+                              : 0.0)) /
+          10.0;
+      const auto centralWire = models_.wires.locate(
+          midpointXCm, midpointYCm, midpointZCm, momentum[0], momentum[1]);
+      if (!centralWire) {
         continue;
       }
-      const auto &sector = models_.conditions.sector(central->sector);
+      const auto &sector = models_.conditions.sector(centralWire->sector);
       auto electrons = hit.getEDep() * 1.0e9 / electronEnergyEv_;
       if (sector.gateClosed) {
         electrons *= 0.85;
       }
-      electrons = std::max(
-          0.0, electrons + normal(engine) * std::sqrt(electrons * 0.19));
-      if (electrons == 0) {
+      electrons = std::max(0.0, electrons + normal(engine) *
+                                                std::sqrt(electrons * 0.19));
+      const auto electronCount =
+          static_cast<unsigned int>(std::lround(electrons));
+      if (electronCount == 0) {
         continue;
       }
-      const auto avalancheDraw = truncatedNormal(
-          engine, normal, std::sqrt(std::max(0.0, electrons * 1.5)));
-      const auto signal =
-          avalancheScale_ *
-          std::max(0.0, electrons +
-                            avalancheDraw * std::sqrt(electrons / 1.5));
-      const auto induced = padResponse_.induce(
-          position[0] / 10.0, position[1] / 10.0, position[2] / 10.0,
-          momentum[0], momentum[1], signal);
-      const auto momentumMagnitude =
-          std::sqrt(momentum[0] * momentum[0] + momentum[1] * momentum[1] +
-                    momentum[2] * momentum[2]);
       const auto deltaZCm =
           momentumMagnitude > 0
               ? hit.getPathLength() / 10.0 * momentum[2] / momentumMagnitude
               : 0.0;
-      for (const auto &padSignal : induced) {
-        const auto cellId =
-            simulation::TpcReadoutGeometry::encodeCellId(padSignal.address);
-        const auto rowKey =
-            padSignal.address.sector * 32U + padSignal.address.row;
-        const auto [phase, inserted] = rowPhases.try_emplace(rowKey, 0.0);
-        if (inserted) {
-          phase->second = truncatedNormal(engine, normal, 5.0);
-        }
-        const auto sampled = timeResponse_.sample(
-            position[2] / 10.0, deltaZCm,
-            models_.readout.driftHalfLengthCm(),
-            sector.driftVelocityCmPerMicrosecond, padSignal.signal,
-            phase->second, truncatedNormal(engine, normal, 4.0));
-        auto [waveform, created] = waveforms.try_emplace(cellId);
-        if (created) {
-          waveform->second.address = padSignal.address;
-          waveform->second.phaseNormalDeviate = phase->second;
-          waveform->second.amplitudes.assign(400, 0.0);
-        }
-        for (std::size_t index = 0; index < sampled.amplitudes.size(); ++index) {
-          const auto bin = sampled.firstBin + static_cast<unsigned int>(index);
-          if (bin >= 1 && bin <= waveform->second.amplitudes.size()) {
-            waveform->second.amplitudes[bin - 1] += sampled.amplitudes[index];
+      const auto wireCharges = wireResponse_.distribute(
+          midpointXCm, midpointYCm, midpointZCm, momentum[0], momentum[1],
+          electronCount, magneticFieldTesla_,
+          sector.driftVelocityCmPerMicrosecond,
+          models_.conditions.highVoltageVolt(),
+          models_.readout.driftHalfLengthCm());
+      for (const auto &wireCharge : wireCharges) {
+        const auto wireElectrons = static_cast<double>(wireCharge.electrons);
+        const auto avalancheDraw = truncatedNormal(
+            engine, normal, std::sqrt(std::max(0.0, wireElectrons * 1.5)));
+        const auto signal =
+            avalancheScale_ *
+            std::max(0.0, wireElectrons +
+                              avalancheDraw * std::sqrt(wireElectrons / 1.5));
+        const auto induced = padResponse_.induce(
+            wireCharge.positionCm[0], wireCharge.positionCm[1],
+            wireCharge.positionCm[2], momentum[0], momentum[1], signal);
+        for (const auto &padSignal : induced) {
+          const auto cellId =
+              simulation::TpcReadoutGeometry::encodeCellId(padSignal.address);
+          const auto rowKey =
+              padSignal.address.sector * 32U + padSignal.address.row;
+          const auto [phase, inserted] = rowPhases.try_emplace(rowKey, 0.0);
+          if (inserted) {
+            phase->second = truncatedNormal(engine, normal, 5.0);
+          }
+          const auto sampled = timeResponse_.sample(
+              wireCharge.positionCm[2], deltaZCm,
+              models_.readout.driftHalfLengthCm(),
+              sector.driftVelocityCmPerMicrosecond, padSignal.signal,
+              phase->second, truncatedNormal(engine, normal, 4.0));
+          auto [waveform, created] = waveforms.try_emplace(cellId);
+          if (created) {
+            waveform->second.address = padSignal.address;
+            waveform->second.phaseNormalDeviate = phase->second;
+            waveform->second.amplitudes.assign(400, 0.0);
+          }
+          for (std::size_t index = 0; index < sampled.amplitudes.size();
+               ++index) {
+            const auto bin =
+                sampled.firstBin + static_cast<unsigned int>(index);
+            if (bin >= 1 && bin <= waveform->second.amplitudes.size()) {
+              waveform->second.amplitudes[bin - 1] += sampled.amplitudes[index];
+            }
           }
         }
       }
@@ -184,12 +220,12 @@ private:
 
     edm4hep::TimeSeriesCollection output;
     for (const auto &[cellId, waveform] : waveforms) {
-      const auto firstNonzero = std::find_if(
-          waveform.amplitudes.begin(), waveform.amplitudes.end(),
-          [](double value) { return value > 0; });
-      const auto lastNonzero = std::find_if(
-          waveform.amplitudes.rbegin(), waveform.amplitudes.rend(),
-          [](double value) { return value > 0; });
+      const auto firstNonzero =
+          std::find_if(waveform.amplitudes.begin(), waveform.amplitudes.end(),
+                       [](double value) { return value > 0; });
+      const auto lastNonzero =
+          std::find_if(waveform.amplitudes.rbegin(), waveform.amplitudes.rend(),
+                       [](double value) { return value > 0; });
       if (firstNonzero == waveform.amplitudes.end()) {
         continue;
       }
@@ -210,8 +246,8 @@ private:
       }
       const auto &calibration = models_.conditions.pad(
           waveform.address.sector, waveform.address.row, waveform.address.pad);
-      const auto samples = fadc_.digitize(
-          analog, calibration, commonNoise, pixelNoise);
+      const auto samples =
+          fadc_.digitize(analog, calibration, commonNoise, pixelNoise);
       const auto clusters =
           fadc_.zeroSuppress(static_cast<unsigned int>(begin + 1), samples);
       const auto phaseTimeMicroseconds =
@@ -241,8 +277,10 @@ private:
   const std::uint32_t randomSeed_;
   const double electronEnergyEv_;
   const double avalancheScale_;
+  const double magneticFieldTesla_;
   const TpcModels models_;
   const simulation::TpcPadResponse padResponse_;
+  const simulation::TpcWireResponse wireResponse_;
   const simulation::TpcTimeResponse timeResponse_;
   const simulation::TpcFadc fadc_;
 };

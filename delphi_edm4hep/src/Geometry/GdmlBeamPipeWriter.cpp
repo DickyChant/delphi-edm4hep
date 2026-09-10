@@ -470,6 +470,27 @@ void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
       stepLimitByInstance.emplace(tree.front().instancePath,
                                   root.maximumStepCm);
     }
+    for (const auto &annotation : root.descendants) {
+      std::size_t matches{};
+      for (const auto &node : tree) {
+        if (node.definition->path != annotation.path) {
+          continue;
+        }
+        ++matches;
+        if (!annotation.sensitiveDetector.empty()) {
+          sensitiveByInstance.emplace(node.instancePath,
+                                      annotation.sensitiveDetector);
+        }
+        if (annotation.maximumStepCm > 0) {
+          stepLimitByInstance.emplace(node.instancePath,
+                                      annotation.maximumStepCm);
+        }
+      }
+      if (matches == 0) {
+        throw std::runtime_error("DELPHI GDML annotation target not found: " +
+                                 annotation.path);
+      }
+    }
     nodes.insert(nodes.end(), std::make_move_iterator(tree.begin()),
                  std::make_move_iterator(tree.end()));
   }
@@ -621,8 +642,10 @@ void writeGdmlBeamPipe(std::ostream &output, const GeometryModel &model,
                        std::string_view worldPath,
                        std::string_view beamPipePath,
                        std::string_view snapshotIdentifier) {
-  writeGdmlDetector(output, model, {{std::string(beamPipePath), std::string{}}},
-                    worldPath, snapshotIdentifier);
+  writeGdmlDetector(
+      output, model,
+      {{std::string(beamPipePath), std::string{}, 0.0, {}}}, worldPath,
+      snapshotIdentifier);
 }
 
 } // namespace delphi_edm4hep::geometry

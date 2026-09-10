@@ -73,6 +73,14 @@ add_executable(tpc_fadc_test tpc_fadc_test.cpp)
 target_link_libraries(tpc_fadc_test PRIVATE delphi_geometry)
 add_test(NAME tpc_fadc_contract COMMAND tpc_fadc_test)
 
+add_executable(tpc_wire_geometry_test tpc_wire_geometry_test.cpp)
+target_link_libraries(tpc_wire_geometry_test PRIVATE delphi_geometry)
+add_test(NAME tpc_wire_geometry_contract COMMAND tpc_wire_geometry_test)
+
+add_executable(tpc_wire_response_test tpc_wire_response_test.cpp)
+target_link_libraries(tpc_wire_response_test PRIVATE delphi_geometry)
+add_test(NAME tpc_wire_response_contract COMMAND tpc_wire_response_test)
+
 # PHDST-sample-backed fault injection for the C++/Fortran callback boundary.
 # The runner skips when DELPHI_PHDST_SAMPLE is not set, like alignment_audit.
 add_executable(harness_exception_probe harness_exception_probe.cpp)

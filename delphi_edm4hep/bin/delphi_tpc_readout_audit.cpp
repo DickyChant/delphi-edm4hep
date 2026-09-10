@@ -4,6 +4,8 @@
 #include "delphi_edm4hep/Simulation/TpcPadResponse.h"
 #include "delphi_edm4hep/Simulation/TpcReadoutGeometry.h"
 #include "delphi_edm4hep/Simulation/TpcTimeResponse.h"
+#include "delphi_edm4hep/Simulation/TpcWireGeometry.h"
+#include "delphi_edm4hep/Simulation/TpcWireResponse.h"
 
 #include <algorithm>
 #include <cmath>
@@ -31,20 +33,27 @@ int main(int argc, char **argv) {
                           return total + row.padCount;
                         });
     const delphi_edm4hep::simulation::TpcPadResponse response(readout);
+    const auto wires = delphi_edm4hep::simulation::TpcWireGeometry::fromCargo(
+        database, readout);
     const auto conditions =
         delphi_edm4hep::simulation::TpcDigitizationConditions::fromCargo(
             database, readout);
+    const delphi_edm4hep::simulation::TpcWireResponse wireResponse(wires);
+    const auto wireCharges = wireResponse.distribute(
+        0.0, wires.wireRadiusCm(20), 45.0, 0.0, 1.0, 1000, 1.2312434,
+        conditions.sector(1).driftVelocityCmPerMicrosecond,
+        conditions.highVoltageVolt(), readout.driftHalfLengthCm());
     const auto closedGates =
         std::count_if(conditions.sectors().begin(), conditions.sectors().end(),
                       [](const auto &sector) { return sector.gateClosed; });
     const auto nonzeroPadStatuses =
         std::count_if(conditions.pads().begin(), conditions.pads().end(),
                       [](const auto &pad) { return pad.status != 0; });
-    const auto gainRange = std::minmax_element(
-        conditions.pads().begin(), conditions.pads().end(),
-        [](const auto &left, const auto &right) {
-          return left.gainRatio < right.gainRatio;
-        });
+    const auto gainRange =
+        std::minmax_element(conditions.pads().begin(), conditions.pads().end(),
+                            [](const auto &left, const auto &right) {
+                              return left.gainRatio < right.gainRatio;
+                            });
     const delphi_edm4hep::simulation::TpcTimeResponse timeResponse;
     const auto sampled = timeResponse.sample(
         100.0, 1.0, readout.driftHalfLengthCm(),
@@ -52,9 +61,8 @@ int main(int argc, char **argv) {
     const auto sampledPeak =
         std::max_element(sampled.amplitudes.begin(), sampled.amplitudes.end());
     const auto sampledPeakBin =
-        sampled.firstBin + static_cast<unsigned int>(
-                               std::distance(sampled.amplitudes.begin(),
-                                             sampledPeak));
+        sampled.firstBin + static_cast<unsigned int>(std::distance(
+                               sampled.amplitudes.begin(), sampledPeak));
     unsigned int centrePadMismatches{};
     unsigned int stampaResponseMismatches{};
     for (const auto &sector : readout.sectors()) {
@@ -80,13 +88,13 @@ int main(int argc, char **argv) {
                   << " pad=" << (address ? address->pad : 0) << '\n';
         ++centrePadMismatches;
       }
-      const auto induced = response.induce(
-          sector.translationXCm + std::cos(angle) * localX -
-              std::sin(angle) * localY,
-          sector.translationYCm + std::sin(angle) * localX +
-              std::cos(angle) * localY,
-          sector.endcap == 0 ? -140.0 : 140.0, -std::sin(angle),
-          std::cos(angle), 1.0);
+      const auto induced =
+          response.induce(sector.translationXCm + std::cos(angle) * localX -
+                              std::sin(angle) * localY,
+                          sector.translationYCm + std::sin(angle) * localX +
+                              std::cos(angle) * localY,
+                          sector.endcap == 0 ? -140.0 : 140.0, -std::sin(angle),
+                          std::cos(angle), 1.0);
       const auto peak =
           std::max_element(induced.begin(), induced.end(),
                            [](const auto &left, const auto &right) {
@@ -105,9 +113,23 @@ int main(int argc, char **argv) {
               << '\n'
               << "last_row_radius_cm=" << readout.rows().back().radiusCm << '\n'
               << "drift_half_length_cm=" << readout.driftHalfLengthCm() << '\n'
+              << "sense_wires_per_sector=" << wires.wireCount() << '\n'
+              << "wire_spacing_cm=" << wires.wireSpacingCm() << '\n'
+              << "first_wire_radius_cm=" << wires.firstWireRadiusCm() << '\n'
+              << "wire_reference_cm=" << wires.wireReferenceCm() << '\n'
+              << "last_wire_radius_cm=" << wires.wireRadiusCm(wires.wireCount())
+              << '\n'
+              << "wire_response_populations=";
+    for (std::size_t index = 0; index < wireCharges.size(); ++index) {
+      if (index != 0) {
+        std::cout << ',';
+      }
+      std::cout << wireCharges[index].electrons;
+    }
+    std::cout << '\n'
               << "high_voltage_volt=" << conditions.highVoltageVolt() << '\n'
-              << "minimum_ionizing_dedx="
-              << conditions.minimumIonizingDedx() << '\n'
+              << "minimum_ionizing_dedx=" << conditions.minimumIonizingDedx()
+              << '\n'
               << "mean_pad_amplitude=" << conditions.meanPadAmplitude() << '\n'
               << "drift_velocity_endcap0_cm_per_us="
               << conditions.sector(1).driftVelocityCmPerMicrosecond << '\n'

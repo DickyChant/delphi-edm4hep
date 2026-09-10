@@ -9,11 +9,21 @@
 
 namespace delphi_edm4hep::geometry {
 
+struct GdmlVolumeAnnotation {
+  std::string path;
+  // Empty for a passive volume; otherwise a Code4hep SensDet value.
+  std::string sensitiveDetector;
+  double maximumStepCm{};
+};
+
 struct GdmlDetectorRoot {
   std::string path;
   // Empty for passive roots; otherwise a Code4hep SensDet value.
   std::string sensitiveDetector;
   double maximumStepCm{};
+  // Apply transport properties to specific descendants without rendering
+  // them as duplicate top-level trees.
+  std::vector<GdmlVolumeAnnotation> descendants;
 };
 
 // Write one or more top-level DELPHI detector trees into the authoritative
