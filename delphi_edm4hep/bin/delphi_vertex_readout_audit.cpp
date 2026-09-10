@@ -1,6 +1,7 @@
 #include "delphi_edm4hep/Geometry/CargoDatabase.h"
 #include "delphi_edm4hep/Geometry/GeometryModel.h"
 #include "delphi_edm4hep/Simulation/VertexReadoutGeometry.h"
+#include "delphi_edm4hep/Simulation/VertexStripReadout.h"
 
 #include <algorithm>
 #include <cmath>
@@ -18,12 +19,15 @@ int main(int argc, char **argv) {
     const auto model = geometry::GeometryModel::fromCargo(database, argv[1]);
     const auto readout =
         simulation::VertexReadoutGeometry::fromCargo(database, model);
+    const simulation::VertexStripReadout stripReadout;
     std::array<unsigned int, 3> layerSensors{};
     unsigned int nSideSensors{};
     unsigned int centralSensors{};
     unsigned int innerOdd512{};
     unsigned int roundTripMismatches{};
     std::uint64_t readoutAddresses{};
+    std::uint64_t stripRoundTripMismatches{};
+    std::array<std::array<std::uint64_t, 2>, 3> stripMismatchesByLayer{};
     for (const auto &sensor : readout.sensors()) {
       ++layerSensors[static_cast<std::size_t>(sensor.layer) - 1];
       nSideSensors += sensor.nTransform.has_value();
@@ -52,12 +56,42 @@ int main(int argc, char **argv) {
         static_cast<void>(readout.electronicsAddress(
             sensor, simulation::VertexReadoutSide::P, strip));
         ++readoutAddresses;
+        const simulation::VertexStripAddress expected{
+            sensor.semanticSensor, simulation::VertexReadoutSide::P, strip};
+        const auto decoded = simulation::VertexStripReadout::decodeCellID(
+            simulation::VertexStripReadout::encodeCellID(expected));
+        const auto located = stripReadout.locate(
+            sensor, simulation::VertexReadoutSide::P,
+            stripReadout.measurementCenter(
+                sensor, simulation::VertexReadoutSide::P, strip));
+        if (!located || decoded.semanticSensor != expected.semanticSensor ||
+            decoded.side != expected.side || decoded.strip != expected.strip ||
+            located->strip != strip) {
+          ++stripRoundTripMismatches;
+          ++stripMismatchesByLayer[static_cast<std::size_t>(sensor.layer) - 1]
+                                  [0];
+        }
       }
       for (std::uint32_t strip = 1; strip <= sensor.readout.nReadoutChannels;
            ++strip) {
         static_cast<void>(readout.electronicsAddress(
             sensor, simulation::VertexReadoutSide::N, strip));
         ++readoutAddresses;
+        const simulation::VertexStripAddress expected{
+            sensor.semanticSensor, simulation::VertexReadoutSide::N, strip};
+        const auto decoded = simulation::VertexStripReadout::decodeCellID(
+            simulation::VertexStripReadout::encodeCellID(expected));
+        const auto located = stripReadout.locate(
+            sensor, simulation::VertexReadoutSide::N,
+            stripReadout.measurementCenter(
+                sensor, simulation::VertexReadoutSide::N, strip));
+        if (!located || decoded.semanticSensor != expected.semanticSensor ||
+            decoded.side != expected.side || decoded.strip != expected.strip ||
+            located->strip != strip) {
+          ++stripRoundTripMismatches;
+          ++stripMismatchesByLayer[static_cast<std::size_t>(sensor.layer) - 1]
+                                  [1];
+        }
       }
     }
     const auto &sensor22 = readout.sensor(22);
@@ -71,29 +105,32 @@ int main(int argc, char **argv) {
     const auto sensor22NLast =
         readout.electronicsAddress(sensor22, simulation::VertexReadoutSide::N,
                                    sensor22.readout.nReadoutChannels);
-    std::cout << "sensors=" << readout.sensors().size() << '\n'
-              << "closer_sensors=" << layerSensors[0] << '\n'
-              << "inner_sensors=" << layerSensors[1] << '\n'
-              << "outer_sensors=" << layerSensors[2] << '\n'
-              << "n_side_sensors=" << nSideSensors << '\n'
-              << "central_sensors=" << centralSensors << '\n'
-              << "inner_odd_512_channel_sensors=" << innerOdd512 << '\n'
-              << "readout_addresses=" << readoutAddresses << '\n'
-              << "sensor22_path=" << sensor22.path << '\n'
-              << "sensor22_x_cm=" << sensor22.pTransform.translationCm[0]
-              << '\n'
-              << "sensor22_y_cm=" << sensor22.pTransform.translationCm[1]
-              << '\n'
-              << "sensor22_z_cm=" << sensor22.pTransform.translationCm[2]
-              << '\n'
-              << "sensor22_p_active_length_cm="
-              << sensor22.pActiveLine.lengthCm() << '\n'
-              << "sensor22_p_electronics=" << sensor22PFirst.sirocco << ':'
-              << sensor22PFirst.channel << '-' << sensor22PLast.channel << '\n'
-              << "sensor22_n_electronics=" << sensor22NFirst.sirocco << ':'
-              << sensor22NFirst.channel << '-' << sensor22NLast.channel << '\n'
-              << "transform_round_trip_mismatches=" << roundTripMismatches
-              << '\n';
+    std::cout
+        << "sensors=" << readout.sensors().size() << '\n'
+        << "closer_sensors=" << layerSensors[0] << '\n'
+        << "inner_sensors=" << layerSensors[1] << '\n'
+        << "outer_sensors=" << layerSensors[2] << '\n'
+        << "n_side_sensors=" << nSideSensors << '\n'
+        << "central_sensors=" << centralSensors << '\n'
+        << "inner_odd_512_channel_sensors=" << innerOdd512 << '\n'
+        << "readout_addresses=" << readoutAddresses << '\n'
+        << "strip_round_trip_mismatches=" << stripRoundTripMismatches << '\n'
+        << "strip_mismatch_breakdown=" << stripMismatchesByLayer[0][0] << ','
+        << stripMismatchesByLayer[0][1] << ',' << stripMismatchesByLayer[1][0]
+        << ',' << stripMismatchesByLayer[1][1] << ','
+        << stripMismatchesByLayer[2][0] << ',' << stripMismatchesByLayer[2][1]
+        << '\n'
+        << "sensor22_path=" << sensor22.path << '\n'
+        << "sensor22_x_cm=" << sensor22.pTransform.translationCm[0] << '\n'
+        << "sensor22_y_cm=" << sensor22.pTransform.translationCm[1] << '\n'
+        << "sensor22_z_cm=" << sensor22.pTransform.translationCm[2] << '\n'
+        << "sensor22_p_active_length_cm=" << sensor22.pActiveLine.lengthCm()
+        << '\n'
+        << "sensor22_p_electronics=" << sensor22PFirst.sirocco << ':'
+        << sensor22PFirst.channel << '-' << sensor22PLast.channel << '\n'
+        << "sensor22_n_electronics=" << sensor22NFirst.sirocco << ':'
+        << sensor22NFirst.channel << '-' << sensor22NLast.channel << '\n'
+        << "transform_round_trip_mismatches=" << roundTripMismatches << '\n';
   } catch (const std::exception &error) {
     std::cerr << "delphi_vertex_readout_audit: " << error.what() << '\n';
     return 1;

@@ -180,8 +180,18 @@ and provides checked local/global transforms. The snapshot audit pins the
 known sensor-22 mapping and verifies cell-ID and coordinate round trips for
 every sensor. It also ports `SVELCH`'s v94c SIROCCO/channel mapping and checks
 all 319,488 physical readout addresses. This is the geometry/electronics
-contract needed by the scheduled strip digitizer; it is not yet itself
-digitization.
+contract needed by the scheduled strip digitizer.
+
+`VertexStripReadout` adds the framework-independent channel-location kernel.
+It maps global transport positions to the exact v94c P- or N-side strip,
+including module staggering, the Lorentz displacement, half-module
+orientation, and the closer layer's two-pitch N-side boundary. It supplies an
+unambiguous modern strip cell ID while retaining the separate legacy
+SIROCCO/channel mapping for validation. The snapshot audit exhaustively checks
+that the measurement centre of every one of the 319,488 instrumented strips
+round-trips through both the locator and the cell-ID codec. This remains a
+readout primitive: charge sharing, thresholding, noise clusters, truth links,
+and persistent digit products still belong in the scheduled VD digitizer.
 
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms

@@ -80,6 +80,7 @@ add_library(delphi_geometry STATIC
   src/Simulation/VertexChannelResponse.cpp
   src/Simulation/VertexDigitizationConditions.cpp
   src/Simulation/VertexReadoutGeometry.cpp
+  src/Simulation/VertexStripReadout.cpp
 )
 target_include_directories(delphi_geometry
   PUBLIC
