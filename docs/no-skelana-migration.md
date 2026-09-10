@@ -162,6 +162,14 @@ five-sigma thresholds, three-step acceptance, 1,000-electron ADC calibration,
 These values are regression-tested independently before the scheduled VD
 digitizer consumes them.
 
+`VertexChannelResponse` now supplies the first electronics kernel. It converts
+Geant4 silicon energy deposition through the 3.6 eV electron-hole creation
+energy, applies the selected layer/side Gaussian noise in electron units, and
+reproduces `SVPACK`/`SVFORM`'s 1,000-electron ADC calibration, quarter-ADC
+integer encoding, 13-bit signal word, 8-bit noise word, and five-sigma
+single-channel diagnostic. Random deviates remain explicit inputs so the
+scheduled producer can own deterministic run/event seeding.
+
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms
 from that snapshot. Its pad locator reproduces `STAMPA`'s one-centimetre row

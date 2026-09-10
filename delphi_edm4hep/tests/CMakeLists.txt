@@ -87,6 +87,10 @@ target_link_libraries(vertex_digitization_conditions_test PRIVATE delphi_geometr
 add_test(NAME vertex_digitization_conditions_contract
          COMMAND vertex_digitization_conditions_test)
 
+add_executable(vertex_channel_response_test vertex_channel_response_test.cpp)
+target_link_libraries(vertex_channel_response_test PRIVATE delphi_geometry)
+add_test(NAME vertex_channel_response_contract COMMAND vertex_channel_response_test)
+
 # PHDST-sample-backed fault injection for the C++/Fortran callback boundary.
 # The runner skips when DELPHI_PHDST_SAMPLE is not set, like alignment_audit.
 add_executable(harness_exception_probe harness_exception_probe.cpp)
