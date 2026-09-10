@@ -23,6 +23,7 @@ int main(int argc, char **argv) {
     unsigned int anodeBadChannels{};
     unsigned int cathodeBadChannels{};
     unsigned int triggerRoundTripMismatches{};
+    unsigned int jetDriftGapClamps{};
     for (const auto &sector : readout.jetSectors()) {
       jetBadChannels +=
           std::count_if(sector.wires.begin(), sector.wires.end(),
@@ -52,6 +53,25 @@ int main(int argc, char **argv) {
             !address ||
             address->side != simulation::InnerDetectorTriggerSide::Cathode ||
             address->channel != channel.channel;
+      }
+    }
+    for (const auto &sector : readout.jetSectors()) {
+      for (const auto &wire : sector.wires) {
+        for (const auto side : {simulation::InnerDetectorDriftSide::Left,
+                                simulation::InnerDetectorDriftSide::Right}) {
+          const auto sign =
+              side == simulation::InnerDetectorDriftSide::Left ? -1.0 : 1.0;
+          for (unsigned int sample = 0; sample <= 20; ++sample) {
+            const auto phi = sign * sample * std::acos(-1.0) / (20.0 * 24.0);
+            const auto time =
+                jetResponse.driftTimeNs(sector.sector, wire.wire, side, phi);
+            const auto coordinate = jetResponse.coordinateFromDriftTime(
+                sector.sector, wire.wire, side, time);
+            jetDriftGapClamps +=
+                !coordinate ||
+                std::abs(coordinate->localPhiRadians - phi) > 1e-8;
+          }
+        }
       }
     }
     const auto &firstJet = readout.jetSectors().front();
@@ -95,6 +115,7 @@ int main(int argc, char **argv) {
                                    std::acos(-1.0) / 24.0)
         << '\n'
         << "jet_max_drift_time_ns=" << jetResponse.maximumDriftTimeNs() << '\n'
+        << "jet_drift_gap_clamps=" << jetDriftGapClamps << '\n'
         << "jet_bad_channels=" << jetBadChannels << '\n'
         << "anode_bad_channels=" << anodeBadChannels << '\n'
         << "cathode_bad_channels=" << cathodeBadChannels << '\n';

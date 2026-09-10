@@ -5,10 +5,16 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 
 namespace delphi_edm4hep::simulation {
 
 enum class InnerDetectorDriftSide : std::uint8_t { Left = 0, Right = 1 };
+
+struct InnerDetectorJetCoordinate {
+  double radiusCm{};
+  double localPhiRadians{};
+};
 
 /// Native implementation of the ID jet-chamber SIFTOT phi-to-time response.
 class InnerDetectorJetResponse {
@@ -20,6 +26,10 @@ public:
 
   double driftTimeNs(std::uint32_t sector, std::uint32_t wire,
                      InnerDetectorDriftSide side, double localPhiRadians) const;
+  std::optional<InnerDetectorJetCoordinate>
+  coordinateFromDriftTime(std::uint32_t sector, std::uint32_t wire,
+                          InnerDetectorDriftSide side,
+                          double driftTimeNs) const;
   double maximumDriftTimeNs() const;
 
   double magneticFieldTesla() const { return magneticFieldTesla_; }

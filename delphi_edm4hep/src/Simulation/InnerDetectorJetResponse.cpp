@@ -97,6 +97,31 @@ double polynomial(double c1, double c2, double c3, double value) {
   return c1 + (c2 + c3 * value) * value;
 }
 
+std::optional<double> inversePolynomial(double c1, double c2, double c3,
+                                        double value) {
+  if (c3 == 0.0) {
+    if (c2 == 0.0) {
+      return std::nullopt;
+    }
+    return (value - c1) / c2;
+  }
+  const auto discriminant = c2 * c2 - 4.0 * c3 * (c1 - value);
+  if (discriminant < 0.0) {
+    return std::nullopt;
+  }
+  double sign{};
+  if (c2 > 0.0) {
+    sign = 1.0;
+  } else if (c2 < 0.0) {
+    sign = -1.0;
+  } else if (c1 > 0.0) {
+    sign = 1.0;
+  } else {
+    return std::nullopt;
+  }
+  return (-c2 + sign * std::sqrt(discriminant)) / (2.0 * c3);
+}
+
 } // namespace
 
 InnerDetectorJetResponse
@@ -258,6 +283,67 @@ double InnerDetectorJetResponse::driftTimeNs(std::uint32_t sector,
   }
   return polynomial(calibration[4 + offset], calibration[5 + offset] / slow,
                     calibration[6 + offset] / (slow * slow), correctedPhi);
+}
+
+std::optional<InnerDetectorJetCoordinate>
+InnerDetectorJetResponse::coordinateFromDriftTime(std::uint32_t sector,
+                                                  std::uint32_t wire,
+                                                  InnerDetectorDriftSide side,
+                                                  double driftTimeNs) const {
+  if (sector < 1 || sector > readout_.jetSectors().size() || wire < 1 ||
+      wire > readout_.jetSectors()[sector - 1].wires.size() ||
+      !std::isfinite(driftTimeNs)) {
+    throw std::out_of_range("invalid ID jet drift coordinate");
+  }
+
+  const auto &calibration =
+      readout_.jetSectors()[sector - 1].wires[wire - 1].calibration;
+  const auto &correction = velocityCorrections(sector);
+  const bool right = side == InnerDetectorDriftSide::Right;
+  const std::size_t offset = right ? 0 : 8;
+  const auto beta =
+      right ? boundaryAngleRadians_ : std::numbers::pi - boundaryAngleRadians_;
+  const auto band = right ? boundaryHalfWidthCm_ : -boundaryHalfWidthCm_;
+  const auto fast = right ? correction[2] : correction[1];
+  const auto slow = right ? correction[3] : correction[0];
+  const auto wireRadius = calibration[0];
+
+  double x{};
+  double y{};
+  if (driftTimeNs <= calibration[8 + offset]) {
+    const auto x0 = inversePolynomial(
+        calibration[1 + offset], calibration[2 + offset] / fast,
+        calibration[3 + offset] / (fast * fast), driftTimeNs);
+    if (!x0) {
+      return std::nullopt;
+    }
+    x = *x0;
+    y = wireRadius + *x0 * std::tan(lorentzAngleRadians_);
+  } else {
+    const auto correctedPhi = inversePolynomial(
+        calibration[4 + offset], calibration[5 + offset] / slow,
+        calibration[6 + offset] / (slow * slow), driftTimeNs);
+    if (!correctedPhi || *correctedPhi == 0.0) {
+      return std::nullopt;
+    }
+    const auto radius0 =
+        calibratedRadius(wireRadius - band / std::tan(*correctedPhi),
+                         *correctedPhi, beta) +
+        band / std::sin(*correctedPhi);
+    const auto x0 = radius0 * std::sin(*correctedPhi);
+    const auto y0 = radius0 * std::cos(*correctedPhi);
+    if (std::abs(x0) < boundaryHalfWidthCm_) {
+      x = band;
+      y = wireRadius + x * std::tan(lorentzAngleRadians_);
+    } else {
+      const auto distance = std::hypot(x0 - band, y0 - wireRadius) *
+                            std::tan(lorentzAngleRadians_);
+      x = x0 - distance * std::sin(beta);
+      y = y0 + band * std::tan(lorentzAngleRadians_) +
+          distance * std::cos(beta);
+    }
+  }
+  return InnerDetectorJetCoordinate{std::hypot(x, y), std::atan2(x, y)};
 }
 
 double InnerDetectorJetResponse::maximumDriftTimeNs() const {

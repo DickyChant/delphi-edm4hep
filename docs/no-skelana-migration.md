@@ -222,10 +222,11 @@ disabled jet channels and no disabled trigger channels. The corresponding
 It ports `SICALB`'s temperature/pressure and per-sector high-voltage
 corrections, magnetic-field scaling of the Lorentz angle, bad fence-voltage
 repair (including the historical sector-17 override), and `SICALR`/`SIFTOT`'s
-two-region phi-to-drift-time transform. At 1.2312434 T the v94c snapshot audit
-pins the Lorentz angle at -6.36012 degrees and the maximum jet drift time at
-1940.97 ns. Drift-time inversion, charge induction, noise, and scheduled ID
-hit reconstruction remain the next slice.
+two-region phi-to-drift-time transform. Its `SITTOF` inverse preserves the
+legacy drift-gap clamp and is exercised across every sector and wire. At
+1.2312434 T the v94c snapshot audit pins the Lorentz angle at -6.36012 degrees
+and the maximum jet drift time at 1940.97 ns. Charge induction, noise, and
+scheduled ID hit reconstruction remain the next slice.
 
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms

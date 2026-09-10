@@ -127,4 +127,23 @@ int main() {
           "left slow region did not use the next sector fence");
   require(response.maximumDriftTimeNs() > 100.0,
           "ID maximum drift time is not physical");
+
+  unsigned int gapClamps{};
+  for (const auto side :
+       {delphi_edm4hep::simulation::InnerDetectorDriftSide::Left,
+        delphi_edm4hep::simulation::InnerDetectorDriftSide::Right}) {
+    const auto sign =
+        side == delphi_edm4hep::simulation::InnerDetectorDriftSide::Left ? -1.0
+                                                                         : 1.0;
+    for (unsigned int sample = 0; sample <= 20; ++sample) {
+      const auto phi = sign * sample * std::acos(-1.0) / (20.0 * 24.0);
+      const auto time = response.driftTimeNs(1, 12, side, phi);
+      const auto coordinate =
+          response.coordinateFromDriftTime(1, 12, side, time);
+      require(coordinate.has_value(), "drift-time inversion failed");
+      gapClamps += !close(coordinate->localPhiRadians, phi, 1e-8);
+    }
+  }
+  require(gapClamps == 2,
+          "SITTOF drift-gap clamp count changed: " + std::to_string(gapClamps));
 }
