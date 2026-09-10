@@ -340,6 +340,22 @@ publishes ordinary EDM4hep `TrackerHit3D` objects for the later pattern-
 recognition and track-fit stages; ADC amplitude is deliberately not mislabeled
 as an energy deposit.
 
+`CentralTrackFit` and `DelphiCentralTrackFitProducer` establish the first
+native central-track fit boundary. The framework-independent kernel performs a
+deterministic transverse circle and longitudinal arc-length fit and emits the
+EDM4hep perigee parameters `(D0, phi, omega, Z0, tanLambda)`. The scheduled
+producer aggregates the neighboring TPC pad responses into one point per row,
+requires at least eight distinct rows, applies an interaction-point constraint
+for the primary-track seed, and publishes an ordinary `Track` with its TPC hit
+relations, fit quality, hole count, and finite covariance estimates. The
+combined tracker steering now runs the already-native TPC response before this
+fit, so the track is produced from reconstructed hits rather than Geant4 truth.
+This is deliberately only the first seed: it currently forms at most one
+candidate per TPC endcap/sector. Multi-track pattern recognition, candidates
+crossing sector boundaries, beamspot rather than origin constraints, VD/ID/OD
+association and ambiguity resolution, outlier rejection, material-aware
+refitting, and quantitative DELPHI tracking closure remain.
+
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
 The central tracker is now transported and all four barrel tracking systems
@@ -348,7 +364,7 @@ digitization and hit reconstruction; the VD has its first strip and planar-hit
 path; the ID jet chamber has raw TDC digits and left/right hypotheses; and the
 OD has surveyed physical-tube digits and left/right three-dimensional planar
 hypotheses. Full VD/ID/OD response fidelity, the ID trigger layers, the
-tracking pattern-recognition/fit chain, spatial magnetic-field mapping,
+full multi-track pattern-recognition/refit chain, spatial magnetic-field mapping,
 calorimeter and muon geometry/response, and their reconstruction remain
 explicit migration slices.
 

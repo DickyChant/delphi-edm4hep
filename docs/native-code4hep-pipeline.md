@@ -27,7 +27,7 @@ remain validation oracles until each replacement reaches physics closure.
 | ID | authoritative sensitive geometry, transport hits, v94c jet/anode/cathode readout catalogue, calibrated jet drift/TDC response, scheduled raw digits, left/right hit hypotheses, and truth links | trigger-layer digitization, jet charge/noise response, ambiguity resolution, and legacy closure |
 | TPC | calibrated readout geometry, wire/pad/time/FADC response, scheduled digitization and hit reconstruction | closure tuning and run-dependent conditions |
 | OD | authoritative 3,480-tube surveyed readout and calibration, exact drift-time kernel, scheduled physical-channel digits, left/right planar hits, and truth links | legacy crate/multiplexer/TDC word packing, noise, track-angle refinement, and quantitative closure |
-| Central tracking | subsystem hit products | pattern recognition, ambiguity resolution, fit, material effects, track truth |
+| Central tracking | scheduled TPC row aggregation and deterministic IP-constrained helix seed with persistent hit relations | multi-track pattern recognition, VD/ID/OD association and ambiguity resolution, unconstrained refit, material effects, track truth |
 | Vertexing and beamspot | legacy event decoding and standalone beamspot fit | native primary/secondary vertexing and run-level beamspot feedback |
 | Calorimetry and muons | legacy conversion only | geometry, transport response, digitization, clustering, calibration, truth |
 | PID and particle flow | legacy conversion only | native dE/dx, RICH, TOF, lepton/photon/hadron ID and combined particles |

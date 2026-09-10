@@ -91,6 +91,10 @@ add_executable(outer_detector_response_test outer_detector_response_test.cpp)
 target_link_libraries(outer_detector_response_test PRIVATE delphi_geometry)
 add_test(NAME outer_detector_response_contract COMMAND outer_detector_response_test)
 
+add_executable(central_track_fit_test central_track_fit_test.cpp)
+target_link_libraries(central_track_fit_test PRIVATE delphi_geometry)
+add_test(NAME central_track_fit_contract COMMAND central_track_fit_test)
+
 add_executable(vertex_digitization_conditions_test
                vertex_digitization_conditions_test.cpp)
 target_link_libraries(vertex_digitization_conditions_test PRIVATE delphi_geometry)
