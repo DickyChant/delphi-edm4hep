@@ -1,4 +1,4 @@
-#include "delphi_edm4hep/Code4hep/VertexDigiSimTrackerHitLinkCollection.h"
+#include "delphi_edm4hep/Code4hep/RawTimeSeriesSimTrackerHitLinkCollection.h"
 #include "delphi_edm4hep/Geometry/CargoDatabase.h"
 #include "delphi_edm4hep/Geometry/GeometryModel.h"
 #include "delphi_edm4hep/Simulation/VertexReadoutGeometry.h"
@@ -166,7 +166,7 @@ private:
   }
 
   const edm::EDGetTokenT<edm4hep::RawTimeSeriesCollection> inputToken_;
-  const edm::EDGetTokenT<VertexDigiSimTrackerHitLinkCollection>
+  const edm::EDGetTokenT<RawTimeSeriesSimTrackerHitLinkCollection>
       truthInputToken_;
   const edm::EDPutTokenT<edm4hep::TrackerHitPlaneCollection> outputToken_;
   const edm::EDPutTokenT<edm4hep::TrackerHitSimTrackerHitLinkCollection>

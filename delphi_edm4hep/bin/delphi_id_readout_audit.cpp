@@ -24,6 +24,7 @@ int main(int argc, char **argv) {
     unsigned int cathodeBadChannels{};
     unsigned int triggerRoundTripMismatches{};
     unsigned int jetDriftGapClamps{};
+    unsigned int jetAddressRoundTripMismatches{};
     for (const auto &sector : readout.jetSectors()) {
       jetBadChannels +=
           std::count_if(sector.wires.begin(), sector.wires.end(),
@@ -72,6 +73,28 @@ int main(int argc, char **argv) {
                 std::abs(coordinate->localPhiRadians - phi) > 1e-8;
           }
         }
+        for (const auto side : {simulation::InnerDetectorDriftSide::Left,
+                                simulation::InnerDetectorDriftSide::Right}) {
+          const auto localPhi =
+              (side == simulation::InnerDetectorDriftSide::Left ? -1.0 : 1.0) *
+              std::acos(-1.0) / 48.0;
+          const auto phi = readout.jetSectorMidPhi(sector.sector) + localPhi;
+          const auto address =
+              readout.locateJet(wire.radiusCm * std::cos(phi),
+                                wire.radiusCm * std::sin(phi), 0.0);
+          if (!address) {
+            ++jetAddressRoundTripMismatches;
+            continue;
+          }
+          const auto decoded =
+              simulation::InnerDetectorReadoutGeometry::decodeJetCellID(
+                  simulation::InnerDetectorReadoutGeometry::encodeJetCellID(
+                      *address));
+          jetAddressRoundTripMismatches +=
+              address->sector != sector.sector || address->wire != wire.wire ||
+              address->side != side || decoded.sector != address->sector ||
+              decoded.wire != address->wire || decoded.side != address->side;
+        }
       }
     }
     const auto &firstJet = readout.jetSectors().front();
@@ -116,6 +139,8 @@ int main(int argc, char **argv) {
         << '\n'
         << "jet_max_drift_time_ns=" << jetResponse.maximumDriftTimeNs() << '\n'
         << "jet_drift_gap_clamps=" << jetDriftGapClamps << '\n'
+        << "jet_address_round_trip_mismatches=" << jetAddressRoundTripMismatches
+        << '\n'
         << "jet_bad_channels=" << jetBadChannels << '\n'
         << "anode_bad_channels=" << anodeBadChannels << '\n'
         << "cathode_bad_channels=" << cathodeBadChannels << '\n';

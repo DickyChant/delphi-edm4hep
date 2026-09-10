@@ -1,12 +1,10 @@
 #pragma once
 
-#include "edm4hep/RawTimeSeries.h"
-#include "edm4hep/SimTrackerHit.h"
-#include "podio/LinkCollection.h"
+#include "delphi_edm4hep/Code4hep/RawTimeSeriesSimTrackerHitLinkCollection.h"
 
 namespace delphi_edm4hep {
 
 using VertexDigiSimTrackerHitLinkCollection =
-    podio::LinkCollection<edm4hep::RawTimeSeries, edm4hep::SimTrackerHit>;
+    RawTimeSeriesSimTrackerHitLinkCollection;
 
 } // namespace delphi_edm4hep

@@ -223,10 +223,26 @@ It ports `SICALB`'s temperature/pressure and per-sector high-voltage
 corrections, magnetic-field scaling of the Lorentz angle, bad fence-voltage
 repair (including the historical sector-17 override), and `SICALR`/`SIFTOT`'s
 two-region phi-to-drift-time transform. Its `SITTOF` inverse preserves the
-legacy drift-gap clamp and is exercised across every sector and wire. At
+legacy drift-gap clamp, while `SITTOC`/`SICTOT` provide the calibrated
+four-bin fine-TDC conversion and a defined near-wire quantization clamp. The
+response is exercised across every sector and wire. At
 1.2312434 T the v94c snapshot audit pins the Lorentz angle at -6.36012 degrees
-and the maximum jet drift time at 1940.97 ns. Charge induction, noise, and
-scheduled ID hit reconstruction remain the next slice.
+and the maximum jet drift time at 1940.97 ns.
+
+`DelphiInnerDetectorDigitizerProducer` schedules that response after the
+central-tracker partition. It reconstructs every calibrated wire-cylinder
+crossing from the Geant4 segment, applies deterministic run/event-seeded r-phi
+resolution and the v94c wire status, 80 percent efficiency, and 55 ns
+dead-time, then stores the 14-bit TDC word in an EDM4hep `RawTimeSeries` for
+the physical sector/wire channel. The physical digit deliberately has no
+left/right bit because the jet chamber did not measure it. A transient raw
+digit truth relation feeds `DelphiInnerDetectorHitReconstructionProducer`,
+which inverts the TDC and writes each valid left and right
+`TrackerHitPlane` hypothesis plus persistent standard EDM4hep truth links.
+CI checks all channel encodings, measurement geometry, provenance, and exact
+fixed-seed replay after ROOT readback. Jet charge induction and noise, trigger
+anode/cathode response, ambiguity resolution by tracking, and quantitative
+IDSIM closure remain.
 
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms
@@ -303,8 +319,9 @@ The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
 The central tracker is now transported. The TPC has native calibrated
 digitization and hit reconstruction; the VD has its first scheduled strip and
-planar-hit path; and the ID jet drift calibration is native. Full VD response
-fidelity, scheduled ID and OD response, the tracking pattern-recognition/fit
+planar-hit path; and the ID jet chamber has scheduled raw TDC digits and
+left/right planar-hit hypotheses. Full VD and ID response fidelity, the ID
+trigger layers, scheduled OD response, the tracking pattern-recognition/fit
 chain, spatial magnetic-field mapping, calorimeter and muon geometry/response,
 and their reconstruction remain explicit migration slices.
 

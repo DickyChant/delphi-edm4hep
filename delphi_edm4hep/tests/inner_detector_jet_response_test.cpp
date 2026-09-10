@@ -23,7 +23,11 @@ bool close(double left, double right, double tolerance = 1e-10) {
 
 int main() {
   std::ostringstream cargo;
-  cargo << R"(*CALB /ID**.B
+  cargo << R"(*GEOM /ID**/JET*/0001.B
+910401,120000,890905,4728
+*SHAP 7,CYL1,-7.5,7.5,11.6,23,-59,59
+**
+*CALB /ID**.B
 910401,0,910422,105300
 *GASD 10,0,977.33,0,0,997.3,94.681,4.577,.619,69.941,30.058
 **
@@ -103,6 +107,36 @@ int main() {
       delphi_edm4hep::simulation::InnerDetectorJetResponse::fromCargo(
           completeDatabase, readout, 1.2312434);
 
+  for (std::uint32_t sector = 1; sector <= 24; ++sector) {
+    const auto phi = readout.jetSectorMidPhi(sector);
+    const auto address =
+        readout.locateJet(16.9 * std::cos(phi), 16.9 * std::sin(phi), 0.0);
+    require(address && address->sector == sector && address->wire == 12 &&
+                address->side ==
+                    delphi_edm4hep::simulation::InnerDetectorDriftSide::Left,
+            "ID jet centre locator changed");
+    const auto cellID = delphi_edm4hep::simulation::
+        InnerDetectorReadoutGeometry::encodeJetCellID(*address);
+    const auto decoded = delphi_edm4hep::simulation::
+        InnerDetectorReadoutGeometry::decodeJetCellID(cellID);
+    require(decoded.sector == address->sector &&
+                decoded.wire == address->wire && decoded.side == address->side,
+            "ID jet cell-ID round trip changed");
+  }
+  const auto outwardCrossings =
+      readout.jetWireCrossings(std::array<double, 3>{12.0, 0.0, 0.0},
+                               std::array<double, 3>{22.0, 0.0, 0.0});
+  require(outwardCrossings.size() == 24,
+          "radial segment did not cross every ID jet wire");
+  for (std::size_t crossing = 0; crossing < outwardCrossings.size();
+       ++crossing) {
+    require(outwardCrossings[crossing].address.sector == 1 &&
+                outwardCrossings[crossing].address.wire == crossing + 1 &&
+                outwardCrossings[crossing].pathFraction >= 0.0 &&
+                outwardCrossings[crossing].pathFraction <= 1.0,
+            "ID jet wire crossing order changed");
+  }
+
   require(close(response.boundaryAngleRadians(), 5.0 * std::acos(-1.0) / 180.0),
           "wrong boundary angle");
   require(response.lorentzAngleRadians() < -6.2 * std::acos(-1.0) / 180.0,
@@ -127,6 +161,14 @@ int main() {
           "left slow region did not use the next sector fence");
   require(response.maximumDriftTimeNs() > 100.0,
           "ID maximum drift time is not physical");
+  const auto nearWire = response.coordinateFromDriftTime(
+      1, 1, delphi_edm4hep::simulation::InnerDetectorDriftSide::Left,
+      response.driftTimeNs(
+          1, 1, delphi_edm4hep::simulation::InnerDetectorDriftSide::Left, 0.0) -
+          1.0);
+  require(nearWire && close(nearWire->radiusCm, 12.5) &&
+              close(nearWire->localPhiRadians, 0.0),
+          "near-wire TDC underflow was not clamped to the wire");
 
   unsigned int gapClamps{};
   for (const auto side :
@@ -138,10 +180,14 @@ int main() {
     for (unsigned int sample = 0; sample <= 20; ++sample) {
       const auto phi = sign * sample * std::acos(-1.0) / (20.0 * 24.0);
       const auto time = response.driftTimeNs(1, 12, side, phi);
+      const auto count = response.tdcCount(1, 12, time);
+      const auto quantized = response.driftTimeFromTdcCount(1, 12, count);
+      require(std::abs(quantized - time) < 3.0,
+              "SITTOC/SICTOT quantization changed");
       const auto coordinate =
-          response.coordinateFromDriftTime(1, 12, side, time);
+          response.coordinateFromDriftTime(1, 12, side, quantized);
       require(coordinate.has_value(), "drift-time inversion failed");
-      gapClamps += !close(coordinate->localPhiRadians, phi, 1e-8);
+      gapClamps += !close(coordinate->localPhiRadians, phi, 5e-4);
     }
   }
   require(gapClamps == 2,

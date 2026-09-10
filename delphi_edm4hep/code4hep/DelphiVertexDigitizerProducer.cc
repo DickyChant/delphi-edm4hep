@@ -1,4 +1,4 @@
-#include "delphi_edm4hep/Code4hep/VertexDigiSimTrackerHitLinkCollection.h"
+#include "delphi_edm4hep/Code4hep/RawTimeSeriesSimTrackerHitLinkCollection.h"
 #include "delphi_edm4hep/Geometry/CargoDatabase.h"
 #include "delphi_edm4hep/Geometry/GeometryModel.h"
 #include "delphi_edm4hep/Simulation/VertexChannelResponse.h"
@@ -114,7 +114,7 @@ public:
       : inputToken_(
             consumes(config.getParameter<edm::InputTag>("simTrackerHits"))),
         outputToken_(produces<edm4hep::RawTimeSeriesCollection>("VertexDigis")),
-        truthOutputToken_(produces<VertexDigiSimTrackerHitLinkCollection>(
+        truthOutputToken_(produces<RawTimeSeriesSimTrackerHitLinkCollection>(
             "VertexDigiSimTrackerHitLinks")),
         randomSeed_(config.getParameter<unsigned int>("randomSeed")),
         models_(readModels(config.getParameter<std::string>("cargoSnapshot"))),
@@ -193,7 +193,7 @@ private:
         eventSeed(randomSeed_, event.id().run(), event.id().event()));
     std::normal_distribution<double> normal;
     edm4hep::RawTimeSeriesCollection output;
-    VertexDigiSimTrackerHitLinkCollection truthOutput;
+    RawTimeSeriesSimTrackerHitLinkCollection truthOutput;
     for (const auto &[cellID, channel] : channels) {
       const auto sample =
           response_.digitize(channel.depositedEnergyGeV, channel.layer,
@@ -230,7 +230,7 @@ private:
 
   const edm::EDGetTokenT<edm4hep::SimTrackerHitCollection> inputToken_;
   const edm::EDPutTokenT<edm4hep::RawTimeSeriesCollection> outputToken_;
-  const edm::EDPutTokenT<VertexDigiSimTrackerHitLinkCollection>
+  const edm::EDPutTokenT<RawTimeSeriesSimTrackerHitLinkCollection>
       truthOutputToken_;
   const std::uint32_t randomSeed_;
   const VertexModels models_;

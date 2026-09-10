@@ -9,8 +9,6 @@
 
 namespace delphi_edm4hep::simulation {
 
-enum class InnerDetectorDriftSide : std::uint8_t { Left = 0, Right = 1 };
-
 struct InnerDetectorJetCoordinate {
   double radiusCm{};
   double localPhiRadians{};
@@ -30,6 +28,10 @@ public:
   coordinateFromDriftTime(std::uint32_t sector, std::uint32_t wire,
                           InnerDetectorDriftSide side,
                           double driftTimeNs) const;
+  std::int32_t tdcCount(std::uint32_t sector, std::uint32_t wire,
+                        double driftTimeNs) const;
+  double driftTimeFromTdcCount(std::uint32_t sector, std::uint32_t wire,
+                               std::int32_t count) const;
   double maximumDriftTimeNs() const;
 
   double magneticFieldTesla() const { return magneticFieldTesla_; }

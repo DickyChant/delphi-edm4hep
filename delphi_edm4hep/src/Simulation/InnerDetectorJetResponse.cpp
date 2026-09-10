@@ -308,6 +308,14 @@ InnerDetectorJetResponse::coordinateFromDriftTime(std::uint32_t sector,
   const auto slow = right ? correction[3] : correction[0];
   const auto wireRadius = calibration[0];
 
+  // The four-bin fine TDC can quantize a hit just below the calibrated
+  // near-wire intercept. That is a valid wire hit, not a failed polynomial
+  // inversion: place it at zero drift distance. This is also the natural
+  // saturation behaviour for an earlier raw count.
+  if (driftTimeNs <= calibration[1 + offset]) {
+    return InnerDetectorJetCoordinate{wireRadius, 0.0};
+  }
+
   double x{};
   double y{};
   if (driftTimeNs <= calibration[8 + offset]) {
@@ -344,6 +352,49 @@ InnerDetectorJetResponse::coordinateFromDriftTime(std::uint32_t sector,
     }
   }
   return InnerDetectorJetCoordinate{std::hypot(x, y), std::atan2(x, y)};
+}
+
+std::int32_t InnerDetectorJetResponse::tdcCount(std::uint32_t sector,
+                                                std::uint32_t wire,
+                                                double driftTimeNs) const {
+  if (sector < 1 || sector > readout_.jetSectors().size() || wire < 1 ||
+      wire > readout_.jetSectors()[sector - 1].wires.size() ||
+      !std::isfinite(driftTimeNs)) {
+    throw std::out_of_range("invalid ID jet TDC coordinate");
+  }
+  constexpr double thirdRfFrequencyMHz = 351.0 / 3.0;
+  const auto &calibration =
+      readout_.jetSectors()[sector - 1].wires[wire - 1].calibration;
+  const auto encodedTime = (driftTimeNs + readout_.driftTimeZeroNs()) *
+                               thirdRfFrequencyMHz / 1000.0 +
+                           0.125;
+  const auto high = static_cast<std::int32_t>(encodedTime);
+  const auto lowFraction = encodedTime - high;
+  std::int32_t low{};
+  if (lowFraction >= calibration[20]) {
+    low = 3;
+  } else if (lowFraction >= calibration[19]) {
+    low = 2;
+  } else if (lowFraction >= calibration[18]) {
+    low = 1;
+  }
+  return 4 * high + low;
+}
+
+double InnerDetectorJetResponse::driftTimeFromTdcCount(
+    std::uint32_t sector, std::uint32_t wire, std::int32_t count) const {
+  if (sector < 1 || sector > readout_.jetSectors().size() || wire < 1 ||
+      wire > readout_.jetSectors()[sector - 1].wires.size() || count < 0) {
+    throw std::out_of_range("invalid ID jet TDC address");
+  }
+  constexpr double thirdRfFrequencyMHz = 351.0 / 3.0;
+  const auto &calibration =
+      readout_.jetSectors()[sector - 1].wires[wire - 1].calibration;
+  const auto low = count & 3;
+  const auto high = count - low;
+  const auto time =
+      (high / 4.0 + calibration[17 + low]) * 1000.0 / thirdRfFrequencyMHz;
+  return time - readout_.driftTimeZeroNs();
 }
 
 double InnerDetectorJetResponse::maximumDriftTimeNs() const {

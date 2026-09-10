@@ -5,6 +5,7 @@
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 namespace delphi_edm4hep::simulation {
 
@@ -41,6 +42,25 @@ struct InnerDetectorTriggerLayer {
 };
 
 enum class InnerDetectorTriggerSide : std::uint8_t { Anode = 0, Cathode = 1 };
+enum class InnerDetectorDriftSide : std::uint8_t { Left = 0, Right = 1 };
+
+struct InnerDetectorJetAddress {
+  std::uint32_t sector{};
+  std::uint32_t wire{};
+  InnerDetectorDriftSide side{};
+  double localPhiRadians{};
+};
+
+struct InnerDetectorJetChannel {
+  std::uint32_t sector{};
+  std::uint32_t wire{};
+};
+
+struct InnerDetectorJetCrossing {
+  InnerDetectorJetAddress address;
+  std::array<double, 3> positionCm{};
+  double pathFraction{};
+};
 
 struct InnerDetectorTriggerAddress {
   std::uint32_t layer{};
@@ -75,6 +95,17 @@ public:
                                                            double zCm) const;
   double anodePhi(std::uint32_t layer, std::uint32_t wire) const;
   double cathodeZ(std::uint32_t layer, std::uint32_t strip) const;
+  std::optional<InnerDetectorJetAddress> locateJet(double xCm, double yCm,
+                                                   double zCm) const;
+  std::vector<InnerDetectorJetCrossing>
+  jetWireCrossings(const std::array<double, 3> &startCm,
+                   const std::array<double, 3> &endCm) const;
+  double jetSectorMidPhi(std::uint32_t sector) const;
+  static std::uint64_t
+  encodeJetChannelID(const InnerDetectorJetChannel &channel);
+  static InnerDetectorJetChannel decodeJetChannelID(std::uint64_t cellID);
+  static std::uint64_t encodeJetCellID(const InnerDetectorJetAddress &address);
+  static InnerDetectorJetAddress decodeJetCellID(std::uint64_t cellID);
 
 private:
   std::array<InnerDetectorJetSector, 24> jetSectors_;
@@ -85,6 +116,7 @@ private:
   double deadTimeMicroseconds_{0.055};
   double cathodeToAnodeRatio_{2.3875};
   double cathodeDistributionSigmaCm_{0.286};
+  double jetFirstSectorMidPhiRadians_{};
 };
 
 } // namespace delphi_edm4hep::simulation

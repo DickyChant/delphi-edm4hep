@@ -227,6 +227,8 @@ if(DELPHI_BUILD_CODE4HEP_SOURCE)
     NAME DelphiInputPlugins
     SOURCES
       code4hep/DelphiEventSummaryProducer.cc
+      code4hep/DelphiInnerDetectorDigitizerProducer.cc
+      code4hep/DelphiInnerDetectorHitReconstructionProducer.cc
       code4hep/DelphiSource.cc
       code4hep/DelphiTrackerHitPartitionProducer.cc
       code4hep/DelphiVertexDigitizerProducer.cc
