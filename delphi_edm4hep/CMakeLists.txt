@@ -70,6 +70,7 @@ add_library(delphi_geometry STATIC
   src/Geometry/GdmlBeamPipeWriter.cpp
   src/Geometry/GdmlWorldWriter.cpp
   src/Geometry/GeometryModel.cpp
+  src/Simulation/InnerDetectorReadoutGeometry.cpp
   src/Simulation/TpcDigitizationConditions.cpp
   src/Simulation/TpcFadc.cpp
   src/Simulation/TpcPadResponse.cpp
@@ -92,6 +93,9 @@ target_link_libraries(delphi_geometry_export PRIVATE delphi_geometry)
 
 add_executable(delphi_tpc_readout_audit bin/delphi_tpc_readout_audit.cpp)
 target_link_libraries(delphi_tpc_readout_audit PRIVATE delphi_geometry)
+
+add_executable(delphi_id_readout_audit bin/delphi_id_readout_audit.cpp)
+target_link_libraries(delphi_id_readout_audit PRIVATE delphi_geometry)
 
 add_executable(delphi_vertex_readout_audit bin/delphi_vertex_readout_audit.cpp)
 target_link_libraries(delphi_vertex_readout_audit PRIVATE delphi_geometry)
@@ -339,6 +343,7 @@ set(_delphi_install_targets
   delphi_edm4hep delphi_geometry delphi_sdst_pass delphi_fdst_pass
   delphi_bs_fit delphi_btag_check delphi_geometry_audit
   delphi_geometry_export delphi_tpc_readout_audit delphi_vertex_readout_audit)
+list(APPEND _delphi_install_targets delphi_id_readout_audit)
 if(TARGET delphiRun)
   list(APPEND _delphi_install_targets delphiRun)
 endif()

@@ -207,6 +207,17 @@ full VDSIM physics: the current deposit goes to its nearest readout strip;
 optional cross-talk, and P/N cluster pairing still require native ports and
 legacy closure.
 
+`InnerDetectorReadoutGeometry` begins the same replacement for IDSIM. It
+decodes all 24 jet sectors with their 24 calibrated drift wires and all five
+trigger layers with 192 anode wires and 192 cathode strips per layer. The
+native catalogue retains every 21-word jet calibration, two-word trigger
+calibration, channel status, wire/strip position, active length, the three
+time-zero constants, dead time, cathode/anode charge ratio, and cathode charge
+width used by v94c `SIGEOM`/`SICALB`. The snapshot audit currently finds two
+disabled jet channels and no disabled trigger channels. Drift-time inversion,
+charge induction, noise, and scheduled ID hit reconstruction remain the next
+slice.
+
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms
 from that snapshot. Its pad locator reproduces `STAMPA`'s one-centimetre row
