@@ -92,6 +92,18 @@ int main() {
 *REFR  6,0,0,0,30,0,0
 *SHAP  14,POL6,1,90,60,20,30,-5,5,-5,5,40,20,-5,5
 **
+*GEOM /TPC*/AUX*.B
+890101,0,931220,214701
+*SHAP  1,DUMY
+**
+*GEOM /TPC*/AUX*/SENS.B
+890101,0,931220,214701
+*MATS  2,BPAV,BPAV
+*DBF MTRX (I3/(4G15.7,G15.7))
+ 12
+ 1 2 3 0 -1 0 1 0 0 0 0 1
+*SHAP  4,BRIK,1,2,3
+**
 )");
   const auto database =
       delphi_edm4hep::geometry::CargoDatabase::read(input, "fixture");
@@ -135,4 +147,11 @@ int main() {
       detector.find("auxtype=\"StepLimit\" auxvalue=\"0.4") !=
           std::string::npos,
       "TPC sensing volume did not preserve the DELPHI one-wire-spacing step");
+  require(detector.find("<assembly name=\"delphi_node__TPC__AUX_\">") !=
+              std::string::npos,
+          "DUMY hierarchy node was not rendered as a GDML assembly");
+  require(detector.find("x=\"1\" y=\"2\" z=\"3\" unit=\"cm\"") !=
+                  std::string::npos &&
+              detector.find("z=\"90\" unit=\"deg\"") != std::string::npos,
+          "MTRX placement was not converted to GDML");
 }

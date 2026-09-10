@@ -7,14 +7,39 @@
 #include <exception>
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <string_view>
+#include <vector>
+
+namespace {
+
+std::vector<delphi_edm4hep::geometry::GdmlVolumeAnnotation>
+vertexSensitiveVolumes(const delphi_edm4hep::geometry::GeometryModel &model) {
+  std::vector<delphi_edm4hep::geometry::GdmlVolumeAnnotation> annotations;
+  for (const auto &node : model.nodes()) {
+    if (!node.path.starts_with("/VD**/")) {
+      continue;
+    }
+    const auto *definition = model.shapeDefinition(node);
+    const auto &materials =
+        node.materials.empty() ? definition->materials : node.materials;
+    if (!materials.empty() && materials.front().inner == "SI**") {
+      annotations.push_back({node.path, "step_tracker_sd", 0.001});
+    }
+  }
+  return annotations;
+}
+
+} // namespace
 
 int main(int argc, char **argv) {
   const auto mode = argc == 4 ? std::string_view(argv[1]) : std::string_view{};
-  const auto detectorMode = mode == "--beam-pipe" || mode == "--tpc";
+  const auto detectorMode =
+      mode == "--beam-pipe" || mode == "--tpc" || mode == "--vertex";
   if (argc != 3 && !detectorMode) {
     std::cerr << "usage: " << argv[0]
-              << " [--beam-pipe|--tpc] CERNSNAP*_DELSIM.ASC delphi.gdml\n";
+              << " [--beam-pipe|--tpc|--vertex] CERNSNAP*_DELSIM.ASC "
+                 "delphi.gdml\n";
     return 2;
   }
   const auto inputIndex = detectorMode ? 2 : 1;
@@ -41,6 +66,12 @@ int main(int argc, char **argv) {
             0.0,
             {{"/TPC*/ARC0.B", "step_tracker_sd", 0.4},
              {"/TPC*/ARC1.B", "step_tracker_sd", 0.4}}}},
+          "/DELF.B", argv[inputIndex]);
+    } else if (mode == "--vertex") {
+      delphi_edm4hep::geometry::writeGdmlDetector(
+          output, model,
+          {{"/BEA*.B", {}, 0.0, {}},
+           {"/VD**.B", {}, 0.0, vertexSensitiveVolumes(model)}},
           "/DELF.B", argv[inputIndex]);
     } else {
       delphi_edm4hep::geometry::writeGdmlWorld(output, model, "/DELF.B",

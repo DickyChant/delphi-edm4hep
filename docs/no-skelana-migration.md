@@ -88,9 +88,11 @@ and `REPL`.
 CARGO records, validity intervals, fields, and continuation data without any
 DELPHI or CERNLIB dependency. Its typed model now validates and decodes the
 material definitions, two-material assignments, all `SHA*` shape payloads,
-six-value `REF*` transforms, and variable-length `REPL` paths. On the original
+six-value `REF*` transforms, twelve-value `DBF MTRX` transforms, and
+variable-length `REPL` paths. `MTRX` has the same precedence over `REFR` as in
+DDAPP. On the original
 v94c snapshot this yields 202 materials, 7,703 geometry nodes, 5,424 material
-assignments, 6,220 shapes, 4,246 transforms, and 1,506 replacement directives.
+assignments, 6,220 shapes, 5,095 transforms, and 1,506 replacement directives.
 The accepted shapes are DELPHI's documented `BRIK`, `CYL*`, `DUMY`, `FORB`,
 `PARA`, `PLNM`, `POL*`, `SPHE`, and `WED4` families; the typed reader rejects
 unknown tags and incorrect word counts with source-line diagnostics.
@@ -121,6 +123,14 @@ step 0.4 cm. The original v94c beam-pipe
 plus TPC output is accepted by the Code4hep Geant4 driver at 1.2312434 T and
 produces persistent step-level physical tracker hits in the controlled
 one-muon transport test.
+
+The `--vertex` mode adds the complete 1,137-node `/VD**` tree. Its 508 `DUMY`
+records are emitted as GDML assemblies, so their child topology and `MTRX`
+placements survive without inventing material or geometric extent. The 613
+physical `BRIK` volumes include all 288 silicon sensors selected by their
+authoritative `SI**` material assignment. Those sensors use the VD simulation's
+`STEPS=0.001 cm` transport limit and produce persistent, MC-related
+`SimTrackerHit`s in the one-muon native Geant4 test.
 
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms

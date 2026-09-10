@@ -68,6 +68,10 @@ int main() {
 *GEOM /BEA*/MSK2.B
 890101,0,931220,214701
 *MATS  2,AIR*,AIR*
+*REFR  6,9,9,9,0,0,0
+*DBF MTRX (I3/(4G15.7,G15.7))
+ 12
+ 1 2 3 0 -1 0 1 0 0 0 0 1
 *SHAP  7,CYL1,0,360,4,5,0,10
 **
 *GEOM /BEA*/MSK2/INNR.B
@@ -90,6 +94,14 @@ int main() {
           "short replacement resolution failed");
   require(hierarchyModel.shapeDefinition(*mask1)->shapes.size() == 1,
           "replacement shape definition was not inherited");
+  const auto *mask2 = hierarchyModel.findNode("/BEA*/MSK2.B");
+  require(mask2 != nullptr && mask2->references.size() == 1,
+          "MTRX transform was not parsed");
+  require(mask2->references[0].hasRotationMatrix,
+          "MTRX did not take precedence over REFR");
+  require(mask2->references[0].translationCm[2] == 3 &&
+              mask2->references[0].rotationMatrix[1] == -1,
+          "MTRX payload was decoded incorrectly");
 
   std::istringstream malformed(R"(*GEOM /BROKEN.B
 890101,0,931220,214701

@@ -5,6 +5,7 @@
 #include <charconv>
 #include <cmath>
 #include <cstdlib>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -72,6 +73,46 @@ std::vector<std::string> payload(const CargoField &field,
     modelError(source, field.sourceLine,
                field.name + " declares " + std::to_string(count) +
                    " words but contains " + std::to_string(tokens.size()));
+  }
+  return tokens;
+}
+
+std::vector<std::string> dbfPayload(const CargoField &field,
+                                    std::string_view expectedName,
+                                    const std::string &source) {
+  const auto separator = field.value.find_first_of(" \t(");
+  const auto name = trim(std::string_view(field.value).substr(0, separator));
+  if (name != expectedName) {
+    return {};
+  }
+  std::vector<std::string> tokens;
+  for (const auto &line : field.continuation) {
+    auto normalized = line;
+    std::replace(normalized.begin(), normalized.end(), ',', ' ');
+    std::istringstream words(normalized);
+    for (std::string token; words >> token;) {
+      tokens.push_back(std::move(token));
+    }
+  }
+  if (tokens.empty()) {
+    modelError(source, field.sourceLine,
+               "DBF " + std::string(expectedName) + " has no word count");
+  }
+  std::size_t count = 0;
+  const auto *first = tokens.front().data();
+  const auto *last = first + tokens.front().size();
+  const auto parsed = std::from_chars(first, last, count);
+  if (parsed.ec != std::errc{} || parsed.ptr != last) {
+    modelError(source, field.sourceLine,
+               "DBF " + std::string(expectedName) +
+                   " has an invalid word count");
+  }
+  tokens.erase(tokens.begin());
+  if (tokens.size() != count) {
+    modelError(source, field.sourceLine,
+               "DBF " + std::string(expectedName) + " declares " +
+                   std::to_string(count) + " words but contains " +
+                   std::to_string(tokens.size()));
   }
   return tokens;
 }
@@ -292,6 +333,7 @@ GeometryModel GeometryModel::fromCargo(const CargoDatabase &database,
     node.path = record.path;
     node.name = recordName(record.path);
     node.sourceLine = record.sourceLine;
+    bool hasMatrixTransform = false;
     for (const auto &field : record.fields) {
       if (field.name == "MATS") {
         const auto words = payload(field, sourceName);
@@ -326,7 +368,31 @@ GeometryModel GeometryModel::fromCargo(const CargoDatabase &database,
           shape.parameters.push_back(number(words[index], field, sourceName));
         }
         node.shapes.push_back(std::move(shape));
-      } else if (referenceField(field.name)) {
+      } else if (field.name == "DBF") {
+        const auto words = dbfPayload(field, "MTRX", sourceName);
+        if (words.empty()) {
+          continue;
+        }
+        if (words.size() != 12) {
+          modelError(sourceName, field.sourceLine,
+                     "DBF MTRX must contain twelve transform values");
+        }
+        ReferenceTransform reference;
+        reference.field = "MTRX";
+        reference.hasRotationMatrix = true;
+        reference.sourceLine = field.sourceLine;
+        for (std::size_t index = 0; index < 3; ++index) {
+          reference.translationCm[index] =
+              number(words[index], field, sourceName);
+        }
+        for (std::size_t index = 0; index < 9; ++index) {
+          reference.rotationMatrix[index] =
+              number(words[index + 3], field, sourceName);
+        }
+        node.references.clear();
+        node.references.push_back(std::move(reference));
+        hasMatrixTransform = true;
+      } else if (referenceField(field.name) && !hasMatrixTransform) {
         const auto words = payload(field, sourceName);
         if (words.size() != 6) {
           modelError(sourceName, field.sourceLine,

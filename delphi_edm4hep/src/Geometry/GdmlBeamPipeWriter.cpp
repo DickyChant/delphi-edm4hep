@@ -133,6 +133,26 @@ EulerRotation gdmlRotation(const std::array<double, 3> &angles) {
   return {degrees(x), degrees(y), degrees(z)};
 }
 
+EulerRotation gdmlRotation(const std::array<double, 9> &matrix) {
+  const auto sineY = std::clamp(matrix[2], -1.0, 1.0);
+  const auto y = std::asin(sineY);
+  const auto cosineY = std::cos(y);
+  double x{};
+  double z{};
+  if (std::abs(cosineY) > 1.0e-12) {
+    x = std::atan2(-matrix[5], matrix[8]);
+    z = std::atan2(-matrix[1], matrix[0]);
+  } else {
+    x = std::atan2(sineY * matrix[3], matrix[4]);
+  }
+  return {degrees(x), degrees(y), degrees(z)};
+}
+
+bool isDummy(const RenderNode &node) {
+  return node.definition->shapes.size() == 1 &&
+         node.definition->shapes.front().kind == DelphiShapeKind::Dummy;
+}
+
 std::string nodeId(const RenderNode &node) {
   return "delphi_node_" + gdmlName(node.instancePath);
 }
@@ -275,7 +295,9 @@ void writePlacement(std::ostream &output, const std::string &physicalName,
   output << "      <physvol name=\"" << physicalName << "\">\n"
          << "        <volumeref ref=\"" << volumeName << "\"/>\n";
   if (reference != nullptr) {
-    const auto rotation = gdmlRotation(reference->rotationDegrees);
+    const auto rotation = reference->hasRotationMatrix
+                              ? gdmlRotation(reference->rotationMatrix)
+                              : gdmlRotation(reference->rotationDegrees);
     output << "        <position name=\"" << physicalName << "_position\" x=\""
            << reference->translationCm[0] << "\" y=\""
            << reference->translationCm[1] << "\" z=\""
@@ -314,6 +336,12 @@ void writeShape(std::ostream &output, const RenderNode &node,
   const auto &parameters = shape.parameters;
   const auto name = shapeId(node, index);
   switch (shape.kind) {
+  case DelphiShapeKind::Dummy:
+    if (!parameters.empty()) {
+      throw std::runtime_error("invalid DELPHI dummy shape at " +
+                               node.instancePath);
+    }
+    return;
   case DelphiShapeKind::Cylinder1:
     if (parameters.size() != 6 || parameters[1] <= parameters[0] ||
         parameters[5] <= parameters[4]) {
@@ -496,6 +524,9 @@ void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
   }
   std::set<std::string> materialNames{world->materials.front().inner};
   for (const auto &node : nodes) {
+    if (isDummy(node)) {
+      continue;
+    }
     materialNames.insert(effectiveMaterial(node).inner);
   }
 
@@ -506,6 +537,9 @@ void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
             "service-spi/app/releases/GDML/schema/gdml.xsd\">\n"
          << "  <define>\n";
   for (const auto &node : nodes) {
+    if (isDummy(node)) {
+      continue;
+    }
     for (std::size_t index = 0; index < node.definition->shapes.size();
          ++index) {
       writeShapeDefinitions(output, node, node.definition->shapes[index],
@@ -551,6 +585,9 @@ void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
          << worldParameters[1] - worldParameters[0]
          << "\" aunit=\"deg\" lunit=\"cm\"/>\n";
   for (const auto &node : nodes) {
+    if (isDummy(node)) {
+      continue;
+    }
     for (std::size_t index = 0; index < node.definition->shapes.size();
          ++index) {
       writeShape(output, node, node.definition->shapes[index], index);
@@ -572,20 +609,24 @@ void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
          << "  <structure>\n";
 
   for (auto node = nodes.rbegin(); node != nodes.rend(); ++node) {
-    const auto material = effectiveMaterial(*node).inner;
-    output << "    <volume name=\"" << nodeId(*node) << "\">\n"
-           << "      <materialref ref=\"delphi_material_" << gdmlName(material)
-           << "\"/>\n"
-           << "      <solidref ref=\"" << solidId(*node) << "\"/>\n";
-    if (const auto sensitive = sensitiveByInstance.find(node->instancePath);
-        sensitive != sensitiveByInstance.end()) {
-      output << "      <auxiliary auxtype=\"SensDet\" auxvalue=\""
-             << xmlEscape(sensitive->second) << "\"/>\n";
-    }
-    if (const auto limit = stepLimitByInstance.find(node->instancePath);
-        limit != stepLimitByInstance.end()) {
-      output << "      <auxiliary auxtype=\"StepLimit\" auxvalue=\""
-             << limit->second << "\" auxunit=\"cm\"/>\n";
+    if (isDummy(*node)) {
+      output << "    <assembly name=\"" << nodeId(*node) << "\">\n";
+    } else {
+      const auto material = effectiveMaterial(*node).inner;
+      output << "    <volume name=\"" << nodeId(*node) << "\">\n"
+             << "      <materialref ref=\"delphi_material_"
+             << gdmlName(material) << "\"/>\n"
+             << "      <solidref ref=\"" << solidId(*node) << "\"/>\n";
+      if (const auto sensitive = sensitiveByInstance.find(node->instancePath);
+          sensitive != sensitiveByInstance.end()) {
+        output << "      <auxiliary auxtype=\"SensDet\" auxvalue=\""
+               << xmlEscape(sensitive->second) << "\"/>\n";
+      }
+      if (const auto limit = stepLimitByInstance.find(node->instancePath);
+          limit != stepLimitByInstance.end()) {
+        output << "      <auxiliary auxtype=\"StepLimit\" auxvalue=\""
+               << limit->second << "\" auxunit=\"cm\"/>\n";
+      }
     }
     for (const auto childIndex : node->children) {
       const auto &child = nodes[childIndex];
@@ -601,7 +642,7 @@ void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
         }
       }
     }
-    output << "    </volume>\n";
+    output << (isDummy(*node) ? "    </assembly>\n" : "    </volume>\n");
   }
 
   const auto worldMaterial = world->materials.front().inner;
@@ -642,10 +683,9 @@ void writeGdmlBeamPipe(std::ostream &output, const GeometryModel &model,
                        std::string_view worldPath,
                        std::string_view beamPipePath,
                        std::string_view snapshotIdentifier) {
-  writeGdmlDetector(
-      output, model,
-      {{std::string(beamPipePath), std::string{}, 0.0, {}}}, worldPath,
-      snapshotIdentifier);
+  writeGdmlDetector(output, model,
+                    {{std::string(beamPipePath), std::string{}, 0.0, {}}},
+                    worldPath, snapshotIdentifier);
 }
 
 } // namespace delphi_edm4hep::geometry

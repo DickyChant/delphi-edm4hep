@@ -57,6 +57,8 @@ struct ReferenceTransform {
   std::string field;
   std::array<double, 3> translationCm{};
   std::array<double, 3> rotationDegrees{};
+  std::array<double, 9> rotationMatrix{};
+  bool hasRotationMatrix{};
   std::size_t sourceLine{};
 };
 
