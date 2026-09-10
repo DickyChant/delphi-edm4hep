@@ -3,7 +3,9 @@
 #include "delphi_edm4hep/Geometry/CargoDatabase.h"
 #include "delphi_edm4hep/Simulation/TpcReadoutGeometry.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <unordered_map>
 #include <vector>
 
 namespace delphi_edm4hep::simulation {
@@ -57,6 +59,7 @@ private:
   double meanPadAmplitude_{};
   std::vector<TpcSectorConditions> sectors_;
   std::vector<TpcPadElectronicsCalibration> pads_;
+  std::unordered_map<std::uint64_t, std::size_t> padIndices_;
 };
 
 } // namespace delphi_edm4hep::simulation

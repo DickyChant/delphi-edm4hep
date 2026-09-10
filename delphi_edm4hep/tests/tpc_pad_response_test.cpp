@@ -71,12 +71,9 @@ int main() {
                           0.0)
               .empty(),
           "zero input signal must not induce pads");
-  bool rejectedTangential{};
-  try {
-    response.induce(radiusCm * std::sin(centrePhi),
-                    radiusCm * std::cos(centrePhi), 145.0, 1.0, 0.0, 10.0);
-  } catch (const std::runtime_error &) {
-    rejectedTangential = true;
-  }
-  require(rejectedTangential, "tangential momentum must be rejected");
+  require(response.induce(radiusCm * std::sin(centrePhi),
+                          radiusCm * std::cos(centrePhi), 145.0, 1.0, 0.0,
+                          10.0)
+              .size() == 5,
+          "legacy tangential incidence must remain defined");
 }

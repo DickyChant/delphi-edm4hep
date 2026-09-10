@@ -169,9 +169,18 @@ per-sample pedestal fluctuations, integer truncation, and 8-bit saturation.
 Its zero-suppression step preserves STODIG's 20-count pad threshold, two past
 samples, two future samples, five-below-sample closure, and 20-cluster limit.
 As with the pulse shaper, Gaussian draws are inputs rather than hidden global
-state. The remaining integration work is to aggregate all step contributions
-per pad, publish the surviving waveforms as EDM4hep `TimeSeries`, and attach
-truth links.
+state.
+
+`DelphiTpcDigitizerProducer` connects these services as a scheduled Code4hep
+module. It converts Geant4 energy deposition using STDEDX's 20 eV/electron and
+STLAND's 0.016 avalanche scale, applies Fano and avalanche fluctuations from a
+run/event-derived local seed, aggregates every contribution by pad and time
+bin, calibrates and zero-suppresses the result, and publishes surviving EDM4hep
+`TimeSeries` waveforms. Two repeated controlled runs produce bit-identical
+waveforms. Geant4 already supplies energy-loss fluctuations, so this path does
+not also sample the legacy ETDEDX histogram. Exact physics closure still needs
+comparison against DELSIM's wire-level charge leakage and track labels; those
+labels must then be represented by a suitable EDM4hep truth-link collection.
 
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.

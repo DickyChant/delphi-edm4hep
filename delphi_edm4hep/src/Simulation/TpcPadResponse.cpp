@@ -52,11 +52,7 @@ TpcPadResponse::induce(double xCm, double yCm, double zCm,
       std::cos(angle) * momentumX + std::sin(angle) * momentumY;
   const auto localMomentumY =
       -std::sin(angle) * momentumX + std::cos(angle) * momentumY;
-  if (std::abs(localMomentumY) < 1e-12) {
-    throw std::runtime_error("TPC response is undefined for tangential momentum");
-  }
-
-  auto incidenceTangent = localMomentumX / localMomentumY;
+  auto incidenceTangent = std::tan(std::atan2(localMomentumX, localMomentumY));
   if (zCm < 0) {
     incidenceTangent = -incidenceTangent;
   }

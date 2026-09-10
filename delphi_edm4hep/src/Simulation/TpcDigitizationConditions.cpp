@@ -82,6 +82,12 @@ std::uint32_t packedWord(double value, const std::string &path) {
   return static_cast<std::uint32_t>(value);
 }
 
+std::uint64_t padKey(unsigned int readoutSector, unsigned int row,
+                     unsigned int pad) {
+  return (static_cast<std::uint64_t>(readoutSector) << 16U) |
+         (static_cast<std::uint64_t>(row) << 8U) | pad;
+}
+
 } // namespace
 
 TpcDigitizationConditions TpcDigitizationConditions::fromCargo(
@@ -211,6 +217,12 @@ TpcDigitizationConditions TpcDigitizationConditions::fromCargo(
              highPedestal,
              ratio,
              rangeBreak});
+        if (!result.padIndices_
+                 .emplace(padKey(sector.readoutSector, row.number, pad),
+                          result.pads_.size() - 1)
+                 .second) {
+          throw std::runtime_error("duplicate TPC pad calibration: " + path);
+        }
       }
     }
   }
@@ -232,16 +244,11 @@ TpcDigitizationConditions::sector(unsigned int readoutSector) const {
 const TpcPadElectronicsCalibration &
 TpcDigitizationConditions::pad(unsigned int readoutSector, unsigned int row,
                                unsigned int padNumber) const {
-  const auto found = std::find_if(pads_.begin(), pads_.end(),
-                                  [&](const auto &entry) {
-                                    return entry.readoutSector == readoutSector &&
-                                           entry.row == row &&
-                                           entry.pad == padNumber;
-                                  });
-  if (found == pads_.end()) {
+  const auto found = padIndices_.find(padKey(readoutSector, row, padNumber));
+  if (found == padIndices_.end()) {
     throw std::runtime_error("unknown TPC pad calibration");
   }
-  return *found;
+  return pads_.at(found->second);
 }
 
 } // namespace delphi_edm4hep::simulation

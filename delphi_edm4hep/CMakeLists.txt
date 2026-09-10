@@ -214,6 +214,7 @@ if(DELPHI_BUILD_CODE4HEP_SOURCE)
     SOURCES
       code4hep/DelphiEventSummaryProducer.cc
       code4hep/DelphiSource.cc
+      code4hep/DelphiTpcDigitizerProducer.cc
       code4hep/DelphiTpcPadMapperProducer.cc
     DEPS
       FWCore/Framework
