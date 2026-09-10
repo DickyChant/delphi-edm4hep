@@ -73,6 +73,7 @@ add_library(delphi_geometry STATIC
   src/Simulation/TpcDigitizationConditions.cpp
   src/Simulation/TpcPadResponse.cpp
   src/Simulation/TpcReadoutGeometry.cpp
+  src/Simulation/TpcTimeResponse.cpp
 )
 target_include_directories(delphi_geometry
   PUBLIC

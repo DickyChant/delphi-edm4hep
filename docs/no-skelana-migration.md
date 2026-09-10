@@ -156,6 +156,14 @@ channel, and status. This preserves STCALB's row-to-crate permutation, closed-
 gate correction, and historical 0.494-to-4.94 database repair. The v94c audit
 finds 736 nonzero pad statuses and a gain-ratio range of 4.052--5.286.
 
+`TpcTimeResponse` ports the deterministic part of STDIPW: longitudinal
+diffusion, track-step broadening, electronics shaping, the 73.82 ns clock,
+13-bin sampling window, baseline term, and asymmetric pulse shape. Its two
+truncated-Gaussian inputs are explicit arguments, so a scheduled digitizer can
+own and seed the random stream without hiding global Fortran RNG state. FADC
+noise, saturation, threshold clustering, and EDM4hep `TimeSeries` publication
+remain to be connected.
+
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
 Fine-grained TPC pad response and the other sensitive tracking and calorimeter

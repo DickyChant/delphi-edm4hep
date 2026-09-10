@@ -3,6 +3,7 @@
 #include "delphi_edm4hep/Simulation/TpcDigitizationConditions.h"
 #include "delphi_edm4hep/Simulation/TpcPadResponse.h"
 #include "delphi_edm4hep/Simulation/TpcReadoutGeometry.h"
+#include "delphi_edm4hep/Simulation/TpcTimeResponse.h"
 
 #include <algorithm>
 #include <cmath>
@@ -44,6 +45,16 @@ int main(int argc, char **argv) {
         [](const auto &left, const auto &right) {
           return left.gainRatio < right.gainRatio;
         });
+    const delphi_edm4hep::simulation::TpcTimeResponse timeResponse;
+    const auto sampled = timeResponse.sample(
+        100.0, 1.0, readout.driftHalfLengthCm(),
+        conditions.sector(1).driftVelocityCmPerMicrosecond, 100.0, 0.0, 0.0);
+    const auto sampledPeak =
+        std::max_element(sampled.amplitudes.begin(), sampled.amplitudes.end());
+    const auto sampledPeakBin =
+        sampled.firstBin + static_cast<unsigned int>(
+                               std::distance(sampled.amplitudes.begin(),
+                                             sampledPeak));
     unsigned int centrePadMismatches{};
     unsigned int stampaResponseMismatches{};
     for (const auto &sector : readout.sectors()) {
@@ -107,6 +118,8 @@ int main(int argc, char **argv) {
               << "nonzero_pad_statuses=" << nonzeroPadStatuses << '\n'
               << "minimum_gain_ratio=" << gainRange.first->gainRatio << '\n'
               << "maximum_gain_ratio=" << gainRange.second->gainRatio << '\n'
+              << "time_response_bins=" << sampled.amplitudes.size() << '\n'
+              << "time_response_peak_bin=" << sampledPeakBin << '\n'
               << "centre_pad_mismatches=" << centrePadMismatches << '\n'
               << "stampa_response_mismatches=" << stampaResponseMismatches
               << '\n';
