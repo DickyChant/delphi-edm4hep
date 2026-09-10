@@ -1,3 +1,4 @@
+#include "delphi_edm4hep/Code4hep/TpcDigiSimTrackerHitLinkCollection.h"
 #include "delphi_edm4hep/Geometry/CargoDatabase.h"
 #include "delphi_edm4hep/Geometry/GeometryModel.h"
 #include "delphi_edm4hep/Simulation/TpcDigitizationConditions.h"
@@ -30,6 +31,7 @@
 #include <cstdint>
 #include <iterator>
 #include <map>
+#include <numeric>
 #include <random>
 #include <string>
 #include <utility>
@@ -79,6 +81,7 @@ struct PadWaveform {
   simulation::TpcPadAddress address;
   double phaseNormalDeviate{};
   std::vector<double> amplitudes;
+  std::map<std::size_t, std::vector<double>> amplitudesBySimHit;
 };
 
 } // namespace
@@ -89,6 +92,8 @@ public:
       : inputToken_(
             consumes(config.getParameter<edm::InputTag>("simTrackerHits"))),
         outputToken_(produces<edm4hep::TimeSeriesCollection>("TpcDigis")),
+        truthOutputToken_(produces<TpcDigiSimTrackerHitLinkCollection>(
+            "TpcDigiSimTrackerHitLinks")),
         randomSeed_(config.getParameter<unsigned int>("randomSeed")),
         electronEnergyEv_(config.getParameter<double>("electronEnergyEv")),
         avalancheScale_(config.getParameter<double>("avalancheScale")),
@@ -123,7 +128,9 @@ private:
     std::map<unsigned int, double> rowPhases;
     std::map<std::uint64_t, PadWaveform> waveforms;
 
-    for (const auto hit : event.get(inputToken_)) {
+    const auto &simHits = event.get(inputToken_);
+    for (std::size_t hitIndex = 0; hitIndex < simHits.size(); ++hitIndex) {
+      const auto hit = simHits[hitIndex];
       if (hit.getEDep() <= 0) {
         continue;
       }
@@ -206,12 +213,18 @@ private:
             waveform->second.phaseNormalDeviate = phase->second;
             waveform->second.amplitudes.assign(400, 0.0);
           }
+          auto [sourceAmplitudes, sourceCreated] =
+              waveform->second.amplitudesBySimHit.try_emplace(hitIndex);
+          if (sourceCreated) {
+            sourceAmplitudes->second.assign(400, 0.0);
+          }
           for (std::size_t index = 0; index < sampled.amplitudes.size();
                ++index) {
             const auto bin =
                 sampled.firstBin + static_cast<unsigned int>(index);
             if (bin >= 1 && bin <= waveform->second.amplitudes.size()) {
               waveform->second.amplitudes[bin - 1] += sampled.amplitudes[index];
+              sourceAmplitudes->second[bin - 1] += sampled.amplitudes[index];
             }
           }
         }
@@ -219,6 +232,7 @@ private:
     }
 
     edm4hep::TimeSeriesCollection output;
+    TpcDigiSimTrackerHitLinkCollection truthOutput;
     for (const auto &[cellId, waveform] : waveforms) {
       const auto firstNonzero =
           std::find_if(waveform.amplitudes.begin(), waveform.amplitudes.end(),
@@ -266,14 +280,51 @@ private:
         for (const auto sample : cluster.samples) {
           series.addToAmplitude(static_cast<float>(sample));
         }
+        const auto clusterBegin =
+            static_cast<std::size_t>(cluster.firstBin - 1);
+        const auto clusterEnd = std::min(waveform.amplitudes.size(),
+                                         clusterBegin + cluster.samples.size());
+        std::vector<std::pair<std::size_t, double>> contributions;
+        double totalContribution = 0.0;
+        for (const auto &[hitIndex, sourceAmplitudes] :
+             waveform.amplitudesBySimHit) {
+          const auto contribution = std::max(
+              0.0, std::accumulate(sourceAmplitudes.begin() + clusterBegin,
+                                   sourceAmplitudes.begin() + clusterEnd, 0.0));
+          contributions.emplace_back(hitIndex, contribution);
+          totalContribution += contribution;
+        }
+        if (totalContribution <= 0.0) {
+          totalContribution = 0.0;
+          for (auto &[hitIndex, contribution] : contributions) {
+            const auto &sourceAmplitudes =
+                waveform.amplitudesBySimHit.at(hitIndex);
+            contribution =
+                std::max(0.0, std::accumulate(sourceAmplitudes.begin(),
+                                              sourceAmplitudes.end(), 0.0));
+            totalContribution += contribution;
+          }
+        }
+        for (const auto &[hitIndex, contribution] : contributions) {
+          if (contribution <= 0.0 || totalContribution <= 0.0) {
+            continue;
+          }
+          auto link = truthOutput.create();
+          link.setFrom(series);
+          link.setTo(simHits.at(hitIndex));
+          link.setWeight(static_cast<float>(contribution / totalContribution));
+        }
       }
     }
     c4h::setCollectionID(output, event, *this, outputToken_);
+    c4h::setCollectionID(truthOutput, event, *this, truthOutputToken_);
     event.emplace(outputToken_, std::move(output));
+    event.emplace(truthOutputToken_, std::move(truthOutput));
   }
 
   const edm::EDGetTokenT<edm4hep::SimTrackerHitCollection> inputToken_;
   const edm::EDPutTokenT<edm4hep::TimeSeriesCollection> outputToken_;
+  const edm::EDPutTokenT<TpcDigiSimTrackerHitLinkCollection> truthOutputToken_;
   const std::uint32_t randomSeed_;
   const double electronEnergyEv_;
   const double avalancheScale_;

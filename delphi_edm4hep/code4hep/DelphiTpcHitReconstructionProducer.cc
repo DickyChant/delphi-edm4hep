@@ -1,3 +1,4 @@
+#include "delphi_edm4hep/Code4hep/TpcDigiSimTrackerHitLinkCollection.h"
 #include "delphi_edm4hep/Geometry/CargoDatabase.h"
 #include "delphi_edm4hep/Geometry/GeometryModel.h"
 #include "delphi_edm4hep/Simulation/TpcDigitizationConditions.h"
@@ -16,6 +17,7 @@
 #include "FWCore/Utilities/interface/StreamID.h"
 #include "edm4hep/TimeSeriesCollection.h"
 #include "edm4hep/TrackerHit3DCollection.h"
+#include "edm4hep/TrackerHitSimTrackerHitLinkCollection.h"
 
 #include "Code4hep/PodioUtilities/setCollectionID.h"
 
@@ -24,7 +26,9 @@
 #include <cmath>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace delphi_edm4hep {
 namespace {
@@ -50,12 +54,18 @@ class DelphiTpcHitReconstructionProducer final
 public:
   explicit DelphiTpcHitReconstructionProducer(const edm::ParameterSet &config)
       : inputToken_(consumes(config.getParameter<edm::InputTag>("digis"))),
+        truthInputToken_(consumes(
+            config.getParameter<edm::InputTag>("digiTruthLinks"))),
         outputToken_(produces<edm4hep::TrackerHit3DCollection>("TpcHits")),
+        truthOutputToken_(
+            produces<edm4hep::TrackerHitSimTrackerHitLinkCollection>(
+                "TpcHitSimTrackerHitLinks")),
         models_(readModels(config.getParameter<std::string>("cargoSnapshot"))) {}
 
   static void fillDescriptions(edm::ConfigurationDescriptions &descriptions) {
     edm::ParameterSetDescription description;
     description.add<edm::InputTag>("digis");
+    description.add<edm::InputTag>("digiTruthLinks");
     description.add<std::string>("cargoSnapshot");
     descriptions.addDefault(description);
   }
@@ -63,7 +73,23 @@ public:
 private:
   void produce(edm::StreamID, edm::Event &event,
                const edm::EventSetup &) const final {
+    struct TruthContribution {
+      edm4hep::SimTrackerHit hit;
+      float weight{};
+    };
+    std::unordered_map<int, std::vector<TruthContribution>> truthByDigi;
+    for (const auto link : event.get(truthInputToken_)) {
+      const auto digi = link.getFrom();
+      const auto simHit = link.getTo();
+      if (!digi.isAvailable() || !simHit.isAvailable()) {
+        throw std::runtime_error("TPC digi truth link is unresolved");
+      }
+      truthByDigi[digi.getObjectID().index].push_back(
+          {simHit, link.getWeight()});
+    }
+
     edm4hep::TrackerHit3DCollection output;
+    edm4hep::TrackerHitSimTrackerHitLinkCollection truthOutput;
     for (const auto digi : event.get(inputToken_)) {
       if (digi.amplitude_size() == 0 || digi.getInterval() <= 0) {
         continue;
@@ -136,13 +162,29 @@ private:
           static_cast<float>(covarianceXX), static_cast<float>(covarianceXY),
           static_cast<float>(covarianceYY), 0.0F, 0.0F,
           static_cast<float>(zSigmaMm * zSigmaMm)});
+      const auto truth = truthByDigi.find(digi.getObjectID().index);
+      if (truth == truthByDigi.end() || truth->second.empty()) {
+        throw std::runtime_error("TPC digi has no simulated-hit provenance");
+      }
+      for (const auto &contribution : truth->second) {
+        auto link = truthOutput.create();
+        link.setFrom(hit);
+        link.setTo(contribution.hit);
+        link.setWeight(contribution.weight);
+      }
     }
     c4h::setCollectionID(output, event, *this, outputToken_);
+    c4h::setCollectionID(truthOutput, event, *this, truthOutputToken_);
     event.emplace(outputToken_, std::move(output));
+    event.emplace(truthOutputToken_, std::move(truthOutput));
   }
 
   const edm::EDGetTokenT<edm4hep::TimeSeriesCollection> inputToken_;
+  const edm::EDGetTokenT<TpcDigiSimTrackerHitLinkCollection>
+      truthInputToken_;
   const edm::EDPutTokenT<edm4hep::TrackerHit3DCollection> outputToken_;
+  const edm::EDPutTokenT<edm4hep::TrackerHitSimTrackerHitLinkCollection>
+      truthOutputToken_;
   const TpcReconstructionModels models_;
 };
 
