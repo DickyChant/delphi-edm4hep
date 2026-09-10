@@ -67,6 +67,7 @@ message(STATUS
 # linking the legacy database runtime into Code4hep.
 add_library(delphi_geometry STATIC
   src/Geometry/CargoDatabase.cpp
+  src/Geometry/GdmlBeamPipeWriter.cpp
   src/Geometry/GdmlWorldWriter.cpp
   src/Geometry/GeometryModel.cpp
 )

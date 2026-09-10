@@ -101,14 +101,21 @@ into DD4hep/GDML one detector subsystem at a time and compare the result
 against the DELSIM database hierarchy; it must not substitute an illustrative
 detector for the database geometry.
 
-`delphi_geometry_export` provides the first deliberately narrow renderer. It
-writes `/DELF.B` as a GDML cylindrical world using the snapshot's primary
-`SHAP` bounds (680 cm radius and 1,170 cm total length) and its `AIR*` material
-parameters. The snapshot path is retained as GDML auxiliary provenance. The
-writer rejects a missing or structurally different world instead of silently
-falling back. It does not yet render any child detector node; the beam pipe is
-the next bounded subsystem, followed by sensitive tracking and calorimeter
-volumes.
+`delphi_geometry_export` renders `/DELF.B` as a GDML cylindrical world using
+the snapshot's primary `SHAP` bounds (680 cm radius and 1,170 cm total length)
+and its `AIR*` material parameters. With `--beam-pipe`, it also renders the
+complete `/BEA*` hierarchy: 106 source nodes, all `CYL1`, `CYL3`, and `BRIK`
+components, nested shapes, material assignments, `REFR` placements, and the
+`MSK1 -> MSK2` replacement with inherited insert children. DELPHI's `DXMATR`
+Euler convention is converted through its rotation matrix instead of treating
+the three stored angles as GDML angles. The `VACU` zero-density sentinel is
+mapped explicitly to a positive Geant4 transport vacuum of `1e-25 g/cm3`.
+
+The snapshot path is retained as GDML auxiliary provenance. Both modes reject
+a missing or structurally different hierarchy instead of silently falling
+back. The original v94c beam-pipe output is accepted by the Code4hep Geant4
+driver at 1.2312434 T. Sensitive tracking and calorimeter volumes remain the
+next detector-construction slices.
 
 The generic Code4hep Geant4 driver now requires `magneticFieldTesla` in its
 detector configuration instead of hiding a 0.1 T value in C++. It persists
