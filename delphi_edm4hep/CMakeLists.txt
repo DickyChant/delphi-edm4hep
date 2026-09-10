@@ -67,6 +67,7 @@ message(STATUS
 # linking the legacy database runtime into Code4hep.
 add_library(delphi_geometry STATIC
   src/Reconstruction/CentralTrackFit.cpp
+  src/Reconstruction/HelixTrajectory.cpp
   src/Geometry/CargoDatabase.cpp
   src/Geometry/GdmlBeamPipeWriter.cpp
   src/Geometry/GdmlWorldWriter.cpp
@@ -235,6 +236,7 @@ if(DELPHI_BUILD_CODE4HEP_SOURCE)
     SOURCES
       code4hep/DelphiEventSummaryProducer.cc
       code4hep/DelphiCentralTrackFitProducer.cc
+      code4hep/DelphiCentralTrackExtensionProducer.cc
       code4hep/DelphiInnerDetectorDigitizerProducer.cc
       code4hep/DelphiInnerDetectorHitReconstructionProducer.cc
       code4hep/DelphiOuterDetectorDigitizerProducer.cc

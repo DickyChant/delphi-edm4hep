@@ -350,11 +350,21 @@ for the primary-track seed, and publishes an ordinary `Track` with its TPC hit
 relations, fit quality, hole count, and finite covariance estimates. The
 combined tracker steering now runs the already-native TPC response before this
 fit, so the track is produced from reconstructed hits rather than Geant4 truth.
-This is deliberately only the first seed: it currently forms at most one
-candidate per TPC endcap/sector. Multi-track pattern recognition, candidates
-crossing sector boundaries, beamspot rather than origin constraints, VD/ID/OD
-association and ambiguity resolution, outlier rejection, material-aware
-refitting, and quantitative DELPHI tracking closure remain.
+`HelixTrajectory` and `DelphiCentralTrackExtensionProducer` add the next native
+tracking boundary. They propagate each seed through reconstructed detector
+coordinates, assign every compatible VD measurement to its closest candidate,
+and select one helix and one drift side globally for each ID/OD physical
+channel. The resulting ordinary EDM4hep `Track` preserves the seed state and
+TPC relations while adding its selected VD, ID, and OD relations. The fixed
+10 GeV muon CI event currently retains 6 VD, 18 ID, 47 TPC, and 4 OD hits and
+repeats exactly.
+
+This remains a seed extension rather than a final track fit: it currently
+forms at most one candidate per TPC endcap/sector and does not refit after
+adding the outer measurements. Multi-track pattern recognition, candidates
+crossing sector boundaries, beamspot rather than origin constraints, outlier
+rejection, material-aware global refitting, and quantitative DELPHI tracking
+closure remain.
 
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
