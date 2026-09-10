@@ -145,6 +145,14 @@ Landau-fluctuation model has not yet been ported. Drift diffusion, time-bin
 shaping, calibration-dependent pedestal noise, thresholds, and FADC response
 also remain before claiming legacy digitization equivalence.
 
+`TpcDigitizationConditions` now decodes the corresponding CARGO calibration
+records without the legacy database runtime. It reads the global high voltage,
+minimum-ionizing dE/dx and mean-pad-amplitude normalizations, both endcap drift
+velocities, and the packed two-bit gate state for every physical sector. The
+v94c audit fixes these values at 25,306 V, 254.5, 652.8, 6.998 cm/us, and
+7.002 cm/us. Per-channel packed `CALP`, status, and correction arrays are the
+next conditions slice required by the FADC stage.
+
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
 Fine-grained TPC pad response and the other sensitive tracking and calorimeter

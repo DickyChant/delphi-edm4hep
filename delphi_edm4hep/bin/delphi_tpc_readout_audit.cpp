@@ -1,5 +1,6 @@
 #include "delphi_edm4hep/Geometry/CargoDatabase.h"
 #include "delphi_edm4hep/Geometry/GeometryModel.h"
+#include "delphi_edm4hep/Simulation/TpcDigitizationConditions.h"
 #include "delphi_edm4hep/Simulation/TpcPadResponse.h"
 #include "delphi_edm4hep/Simulation/TpcReadoutGeometry.h"
 
@@ -29,6 +30,12 @@ int main(int argc, char **argv) {
                           return total + row.padCount;
                         });
     const delphi_edm4hep::simulation::TpcPadResponse response(readout);
+    const auto conditions =
+        delphi_edm4hep::simulation::TpcDigitizationConditions::fromCargo(
+            database, readout);
+    const auto closedGates =
+        std::count_if(conditions.sectors().begin(), conditions.sectors().end(),
+                      [](const auto &sector) { return sector.gateClosed; });
     unsigned int centrePadMismatches{};
     unsigned int stampaResponseMismatches{};
     for (const auto &sector : readout.sectors()) {
@@ -79,6 +86,15 @@ int main(int argc, char **argv) {
               << '\n'
               << "last_row_radius_cm=" << readout.rows().back().radiusCm << '\n'
               << "drift_half_length_cm=" << readout.driftHalfLengthCm() << '\n'
+              << "high_voltage_volt=" << conditions.highVoltageVolt() << '\n'
+              << "minimum_ionizing_dedx="
+              << conditions.minimumIonizingDedx() << '\n'
+              << "mean_pad_amplitude=" << conditions.meanPadAmplitude() << '\n'
+              << "drift_velocity_endcap0_cm_per_us="
+              << conditions.sector(1).driftVelocityCmPerMicrosecond << '\n'
+              << "drift_velocity_endcap1_cm_per_us="
+              << conditions.sector(12).driftVelocityCmPerMicrosecond << '\n'
+              << "closed_gates=" << closedGates << '\n'
               << "centre_pad_mismatches=" << centrePadMismatches << '\n'
               << "stampa_response_mismatches=" << stampaResponseMismatches
               << '\n';
