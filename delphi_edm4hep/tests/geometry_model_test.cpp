@@ -24,7 +24,6 @@ int main() {
 890101,0,931220,214701
 *MATS  2,AIR*,AIR*
 *REFR  6,0,5.52,0,0,90,0
-*REPL  3,HAF3,0001,DP01
 *SHA1  4,BRIK,.14,.16,56.6
 *SHAP  7,CYL1,0,360,0,680,-585,585
 **
@@ -36,7 +35,9 @@ int main() {
       delphi_edm4hep::geometry::GeometryModel::fromCargo(database, "fixture");
   require(model.materials().size() == 1, "wrong material count");
   require(model.materials()[0].name == "AIR*", "wrong material name");
-  require(model.materials()[0].parameters[1] == .00129,
+  require(model.materials()[0].radiationLengthProvided,
+          "wrong radiation-length flag");
+  require(model.materials()[0].densityGramPerCm3 == .00129,
           "Fortran D exponent was not parsed");
   require(model.nodes().size() == 1, "wrong node count");
   const auto &world = model.nodes()[0];
@@ -50,8 +51,45 @@ int main() {
   require(world.references.size() == 1, "wrong reference count");
   require(world.references[0].translationCm[1] == 5.52, "wrong translation");
   require(world.references[0].rotationDegrees[1] == 90, "wrong rotation");
-  require(world.replacements.size() == 1 && world.replacements[0].size() == 3,
-          "wrong replacement path");
+  std::istringstream hierarchy(R"(*MATC /AIR*.B
+880101,0,940621,190801
+*MATF  6,1,.129E-02,7.2,14.4,30050,0
+**
+*GEOM /BEA*.B
+890101,0,931220,214701
+*MATS  2,AIR*,AIR*
+*SHAP  7,CYL1,0,360,0,8,-10,10
+**
+*GEOM /BEA*/MSK1.B
+890101,0,931220,214701
+*MATS  2,AIR*,AIR*
+*REPL  1,MSK2
+**
+*GEOM /BEA*/MSK2.B
+890101,0,931220,214701
+*MATS  2,AIR*,AIR*
+*SHAP  7,CYL1,0,360,4,5,0,10
+**
+*GEOM /BEA*/MSK2/INNR.B
+890101,0,931220,214701
+*MATS  2,AIR*,AIR*
+*SHAP  7,CYL1,0,360,4,4.5,0,10
+**
+)");
+  const auto hierarchyDatabase =
+      delphi_edm4hep::geometry::CargoDatabase::read(hierarchy, "hierarchy");
+  const auto hierarchyModel =
+      delphi_edm4hep::geometry::GeometryModel::fromCargo(hierarchyDatabase,
+                                                         "hierarchy");
+  const auto *beam = hierarchyModel.findNode("/BEA*.B");
+  const auto *mask1 = hierarchyModel.findNode("/BEA*/MSK1.B");
+  require(beam != nullptr && mask1 != nullptr, "hierarchy lookup failed");
+  require(hierarchyModel.childrenOf(beam->path).size() == 2,
+          "direct child lookup failed");
+  require(hierarchyModel.replacementTarget(*mask1)->name == "MSK2",
+          "short replacement resolution failed");
+  require(hierarchyModel.shapeDefinition(*mask1)->shapes.size() == 1,
+          "replacement shape definition was not inherited");
 
   std::istringstream malformed(R"(*GEOM /BROKEN.B
 890101,0,931220,214701

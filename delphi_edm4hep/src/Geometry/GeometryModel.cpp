@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 
 namespace delphi_edm4hep::geometry {
@@ -188,6 +189,36 @@ bool referenceField(std::string_view name) {
          (name == "REFR" || (name[3] >= '1' && name[3] <= '9'));
 }
 
+std::string withoutBankSuffix(std::string_view path) {
+  auto result = std::string(path);
+  if (result.ends_with(".B")) {
+    result.resize(result.size() - 2);
+  }
+  return result;
+}
+
+std::string replacementPath(const GeometryNode &node,
+                            const std::vector<std::string> &replacement) {
+  if (replacement.empty()) {
+    return {};
+  }
+  if (replacement.size() == 1) {
+    const auto current = withoutBankSuffix(node.path);
+    const auto slash = current.find_last_of('/');
+    if (slash == std::string::npos) {
+      return {};
+    }
+    return current.substr(0, slash + 1) + replacement.front() + ".B";
+  }
+  std::string path;
+  for (const auto &component : replacement) {
+    path.push_back('/');
+    path += component;
+  }
+  path += ".B";
+  return path;
+}
+
 } // namespace
 
 std::string_view shapeKindName(DelphiShapeKind kind) {
@@ -239,9 +270,17 @@ GeometryModel GeometryModel::fromCargo(const CargoDatabase &database,
       MaterialDefinition material;
       material.name = recordName(record.path);
       material.sourceLine = field->sourceLine;
-      for (std::size_t index = 0; index < words.size(); ++index) {
-        material.parameters[index] = number(words[index], *field, sourceName);
+      const auto radiationFlag = number(words[0], *field, sourceName);
+      if (radiationFlag != 0.0 && radiationFlag != 1.0) {
+        modelError(sourceName, field->sourceLine,
+                   "MATF radiation-length flag must be zero or one");
       }
+      material.radiationLengthProvided = radiationFlag == 1.0;
+      material.densityGramPerCm3 = number(words[1], *field, sourceName);
+      material.atomicNumber = number(words[2], *field, sourceName);
+      material.atomicWeightGramPerMole = number(words[3], *field, sourceName);
+      material.radiationLengthCm = number(words[4], *field, sourceName);
+      material.interactionLengthCm = number(words[5], *field, sourceName);
       model.materials_.push_back(std::move(material));
       continue;
     }
@@ -309,7 +348,111 @@ GeometryModel GeometryModel::fromCargo(const CargoDatabase &database,
     }
     model.nodes_.push_back(std::move(node));
   }
+
+  std::unordered_set<std::string> materialNames;
+  for (const auto &material : model.materials_) {
+    if (!materialNames.insert(material.name).second) {
+      modelError(sourceName, material.sourceLine,
+                 "duplicate MATC material: " + material.name);
+    }
+  }
+  std::unordered_set<std::string> nodePaths;
+  for (const auto &node : model.nodes_) {
+    if (!nodePaths.insert(node.path).second) {
+      modelError(sourceName, node.sourceLine,
+                 "duplicate GEOM path: " + node.path);
+    }
+    for (const auto &assignment : node.materials) {
+      if (!materialNames.contains(assignment.inner) ||
+          !materialNames.contains(assignment.outer)) {
+        modelError(sourceName, assignment.sourceLine,
+                   "MATS references an undefined material");
+      }
+    }
+  }
+  for (const auto &node : model.nodes_) {
+    static_cast<void>(model.shapeDefinition(node));
+  }
   return model;
+}
+
+const MaterialDefinition *
+GeometryModel::findMaterial(std::string_view name) const {
+  const auto found = std::find_if(
+      materials_.begin(), materials_.end(),
+      [name](const auto &material) { return material.name == name; });
+  return found == materials_.end() ? nullptr : &*found;
+}
+
+const GeometryNode *GeometryModel::findNode(std::string_view path) const {
+  const auto found =
+      std::find_if(nodes_.begin(), nodes_.end(),
+                   [path](const auto &node) { return node.path == path; });
+  return found == nodes_.end() ? nullptr : &*found;
+}
+
+std::vector<const GeometryNode *>
+GeometryModel::childrenOf(std::string_view path) const {
+  const auto prefix = withoutBankSuffix(path) + '/';
+  std::vector<const GeometryNode *> children;
+  for (const auto &candidate : nodes_) {
+    if (!candidate.path.starts_with(prefix)) {
+      continue;
+    }
+    const auto remainder =
+        std::string_view(candidate.path).substr(prefix.size());
+    if (remainder.find('/') == std::string_view::npos) {
+      children.push_back(&candidate);
+    }
+  }
+  return children;
+}
+
+const GeometryNode *
+GeometryModel::replacementTarget(const GeometryNode &node) const {
+  if (node.replacements.empty()) {
+    return nullptr;
+  }
+  if (node.replacements.size() != 1) {
+    throw std::runtime_error("GEOM node has multiple REPL fields: " +
+                             node.path);
+  }
+  const auto path = replacementPath(node, node.replacements.front());
+  auto *target = findNode(path);
+  if (target == nullptr && node.replacements.front().size() == 1 &&
+      node.path.size() > 1) {
+    // DSREPL's compatibility search falls back from a sibling lookup to the
+    // first identically named node in a detector tree whose root starts with
+    // the same character. Preserve snapshot order to match its traversal.
+    const auto rootInitial = node.path[1];
+    const auto &name = node.replacements.front().front();
+    const auto fallback =
+        std::find_if(nodes_.begin(), nodes_.end(), [&](const auto &candidate) {
+          return candidate.path.size() > 1 &&
+                 candidate.path[1] == rootInitial && candidate.name == name;
+        });
+    if (fallback != nodes_.end()) {
+      target = &*fallback;
+    }
+  }
+  if (target == nullptr) {
+    throw std::runtime_error("GEOM replacement target not found for " +
+                             node.path + ": " + path);
+  }
+  return target;
+}
+
+const GeometryNode *
+GeometryModel::shapeDefinition(const GeometryNode &node) const {
+  const GeometryNode *current = &node;
+  std::unordered_set<std::string> visited;
+  while (const auto *replacement = replacementTarget(*current)) {
+    if (!visited.insert(current->path).second) {
+      throw std::runtime_error("GEOM replacement cycle at " + current->path);
+    }
+    current = replacement;
+  }
+  return current;
 }
 
 } // namespace delphi_edm4hep::geometry

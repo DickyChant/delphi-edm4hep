@@ -98,9 +98,9 @@ void writeGdmlWorld(std::ostream &output, const GeometryModel &model,
       maximumZ <= minimumZ || std::abs(minimumZ + maximumZ) > 1.0e-9) {
     throw std::runtime_error("DELPHI GDML world CYL1 bounds are invalid");
   }
-  const auto density = material->parameters[1];
-  const auto atomicNumber = material->parameters[2];
-  const auto atomicMass = material->parameters[3];
+  const auto density = material->densityGramPerCm3;
+  const auto atomicNumber = material->atomicNumber;
+  const auto atomicMass = material->atomicWeightGramPerMole;
   if (density <= 0 || atomicNumber <= 0 || atomicMass <= 0) {
     throw std::runtime_error("DELPHI GDML world material values are invalid");
   }

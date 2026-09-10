@@ -30,7 +30,12 @@ std::string_view shapeKindName(DelphiShapeKind kind);
 
 struct MaterialDefinition {
   std::string name;
-  std::array<double, 6> parameters{};
+  bool radiationLengthProvided{};
+  double densityGramPerCm3{};
+  double atomicNumber{};
+  double atomicWeightGramPerMole{};
+  double radiationLengthCm{};
+  double interactionLengthCm{};
   std::size_t sourceLine{};
 };
 
@@ -74,6 +79,11 @@ public:
     return materials_;
   }
   const std::vector<GeometryNode> &nodes() const { return nodes_; }
+  const MaterialDefinition *findMaterial(std::string_view name) const;
+  const GeometryNode *findNode(std::string_view path) const;
+  std::vector<const GeometryNode *> childrenOf(std::string_view path) const;
+  const GeometryNode *replacementTarget(const GeometryNode &node) const;
+  const GeometryNode *shapeDefinition(const GeometryNode &node) const;
 
 private:
   std::vector<MaterialDefinition> materials_;
