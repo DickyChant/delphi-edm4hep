@@ -111,11 +111,18 @@ Euler convention is converted through its rotation matrix instead of treating
 the three stored angles as GDML angles. The `VACU` zero-density sentinel is
 mapped explicitly to a positive Geant4 transport vacuum of `1e-25 g/cm3`.
 
-The snapshot path is retained as GDML auxiliary provenance. Both modes reject
-a missing or structurally different hierarchy instead of silently falling
-back. The original v94c beam-pipe output is accepted by the Code4hep Geant4
-driver at 1.2312434 T. Sensitive tracking and calorimeter volumes remain the
-next detector-construction slices.
+The generic writer also supports the complete 81-node `/TPC*` hierarchy.
+DELPHI `POL6` endplate sectors are reconstructed from the three radial edges
+defined by `DLPOL6` and emitted as closed twelve-vertex tessellated solids;
+the TPC gas root is tagged as a Code4hep tracker-sensitive volume. The original
+v94c beam-pipe plus TPC output is accepted by the Code4hep Geant4 driver at
+1.2312434 T and produces a persistent physical tracker hit in the controlled
+one-muon transport test.
+
+The snapshot path is retained as GDML auxiliary provenance. All modes reject a
+missing or structurally different hierarchy instead of silently falling back.
+Fine-grained TPC pad response and the other sensitive tracking and calorimeter
+volumes remain subsequent detector-construction and digitization slices.
 
 The generic Code4hep Geant4 driver now requires `magneticFieldTesla` in its
 detector configuration instead of hiding a 0.1 T value in C++. It persists

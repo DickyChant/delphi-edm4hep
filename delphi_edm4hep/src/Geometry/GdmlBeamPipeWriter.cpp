@@ -1,14 +1,17 @@
 #include "delphi_edm4hep/Geometry/GdmlBeamPipeWriter.h"
+#include "delphi_edm4hep/Geometry/GdmlDetectorWriter.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <functional>
 #include <iomanip>
+#include <iterator>
 #include <ostream>
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -28,6 +31,18 @@ struct EulerRotation {
   double x{};
   double y{};
   double z{};
+};
+
+struct Point3 {
+  double x{};
+  double y{};
+  double z{};
+};
+
+struct Triangle {
+  std::size_t first{};
+  std::size_t second{};
+  std::size_t third{};
 };
 
 std::string xmlEscape(std::string_view value) {
@@ -134,6 +149,107 @@ std::string solidId(const RenderNode &node) {
          std::to_string(node.definition->shapes.size() - 1);
 }
 
+std::string vertexId(const RenderNode &node, std::size_t shapeIndex,
+                     std::size_t vertexIndex) {
+  return shapeId(node, shapeIndex) + "_vertex_" + std::to_string(vertexIndex);
+}
+
+std::vector<Point3> poly6Vertices(const RenderNode &node,
+                                  const ShapeDefinition &shape) {
+  const auto &p = shape.parameters;
+  if (p.size() != 13 || std::abs(p[0] - 1.0) > 1.0e-9 || p[2] <= 0 ||
+      p[2] >= 180 || p[3] < 0 || p[4] <= p[3] || p[9] <= p[4] || p[10] <= 0 ||
+      p[6] <= p[5] || p[8] <= p[7] || p[12] <= p[11]) {
+    throw std::runtime_error("invalid or unsupported DELPHI POL6 at " +
+                             node.instancePath);
+  }
+  const auto angle = radians(p[1]);
+  const auto cosine = std::cos(angle);
+  const auto sine = std::sin(angle);
+  const auto tangent = std::tan(radians(p[2]) / 2.0);
+  const std::array<double, 3> radius{p[3], p[4], p[9]};
+  const std::array<double, 3> halfWidth{p[3] * tangent, p[4] * tangent,
+                                        p[10] / 2.0};
+  const std::array<double, 3> lowerZ{p[5], p[7], p[11]};
+  const std::array<double, 3> upperZ{p[6], p[8], p[12]};
+  // DLPOL6 defines three radial edges. The first two follow the sector's
+  // azimuthal delimiter planes; the outermost edge has an independent width.
+  // Each radial edge therefore contributes its -/+ tangential, lower/upper-Z
+  // corners to the twelve-vertex solid.
+  std::vector<Point3> vertices;
+  vertices.reserve(12);
+  for (std::size_t level = 0; level < radius.size(); ++level) {
+    for (const auto side : {-1.0, 1.0}) {
+      const auto localY = side * halfWidth[level];
+      const auto x = radius[level] * cosine - localY * sine;
+      const auto y = radius[level] * sine + localY * cosine;
+      vertices.push_back({x, y, lowerZ[level]});
+      vertices.push_back({x, y, upperZ[level]});
+    }
+  }
+  return vertices;
+}
+
+Point3 subtract(const Point3 &left, const Point3 &right) {
+  return {left.x - right.x, left.y - right.y, left.z - right.z};
+}
+
+Point3 cross(const Point3 &left, const Point3 &right) {
+  return {left.y * right.z - left.z * right.y,
+          left.z * right.x - left.x * right.z,
+          left.x * right.y - left.y * right.x};
+}
+
+double dot(const Point3 &left, const Point3 &right) {
+  return left.x * right.x + left.y * right.y + left.z * right.z;
+}
+
+std::vector<Triangle> poly6Triangles(const std::vector<Point3> &vertices) {
+  const auto vertex = [](std::size_t level, std::size_t side, std::size_t top) {
+    return level * 4 + side * 2 + top;
+  };
+  std::vector<std::array<std::size_t, 4>> faces{
+      {vertex(0, 0, 0), vertex(0, 1, 0), vertex(0, 1, 1), vertex(0, 0, 1)},
+      {vertex(2, 0, 0), vertex(2, 1, 0), vertex(2, 1, 1), vertex(2, 0, 1)},
+  };
+  for (std::size_t level = 0; level < 2; ++level) {
+    faces.push_back({vertex(level, 0, 0), vertex(level + 1, 0, 0),
+                     vertex(level + 1, 1, 0), vertex(level, 1, 0)});
+    faces.push_back({vertex(level, 0, 1), vertex(level + 1, 0, 1),
+                     vertex(level + 1, 1, 1), vertex(level, 1, 1)});
+    faces.push_back({vertex(level, 0, 0), vertex(level + 1, 0, 0),
+                     vertex(level + 1, 0, 1), vertex(level, 0, 1)});
+    faces.push_back({vertex(level, 1, 0), vertex(level + 1, 1, 0),
+                     vertex(level + 1, 1, 1), vertex(level, 1, 1)});
+  }
+
+  Point3 centre;
+  for (const auto &point : vertices) {
+    centre.x += point.x / static_cast<double>(vertices.size());
+    centre.y += point.y / static_cast<double>(vertices.size());
+    centre.z += point.z / static_cast<double>(vertices.size());
+  }
+  std::vector<Triangle> triangles;
+  triangles.reserve(faces.size() * 2);
+  for (const auto &face : faces) {
+    for (const auto indices : {std::array{face[0], face[1], face[2]},
+                               std::array{face[0], face[2], face[3]}}) {
+      auto triangle = Triangle{indices[0], indices[1], indices[2]};
+      const auto &a = vertices[triangle.first];
+      const auto &b = vertices[triangle.second];
+      const auto &c = vertices[triangle.third];
+      const Point3 faceCentre{(a.x + b.x + c.x) / 3.0, (a.y + b.y + c.y) / 3.0,
+                              (a.z + b.z + c.z) / 3.0};
+      const auto normal = cross(subtract(b, a), subtract(c, a));
+      if (dot(normal, subtract(faceCentre, centre)) < 0) {
+        std::swap(triangle.second, triangle.third);
+      }
+      triangles.push_back(triangle);
+    }
+  }
+  return triangles;
+}
+
 const MaterialAssignment &effectiveMaterial(const RenderNode &node) {
   if (!node.record->materials.empty()) {
     return node.record->materials.front();
@@ -175,6 +291,21 @@ void validateRadii(double minimum, double maximum, const RenderNode &node) {
   if (minimum < 0 || maximum <= minimum) {
     throw std::runtime_error("invalid DELPHI beam-pipe radii at " +
                              node.instancePath);
+  }
+}
+
+void writeShapeDefinitions(std::ostream &output, const RenderNode &node,
+                           const ShapeDefinition &shape,
+                           std::size_t shapeIndex) {
+  if (shape.kind != DelphiShapeKind::Polygon6) {
+    return;
+  }
+  const auto vertices = poly6Vertices(node, shape);
+  for (std::size_t index = 0; index < vertices.size(); ++index) {
+    const auto &point = vertices[index];
+    output << "    <position name=\"" << vertexId(node, shapeIndex, index)
+           << "\" x=\"" << point.x << "\" y=\"" << point.y << "\" z=\""
+           << point.z << "\" unit=\"cm\"/>\n";
   }
 }
 
@@ -226,6 +357,20 @@ void writeShape(std::ostream &output, const RenderNode &node,
            << "\" y=\"" << parameters[1] << "\" z=\"" << parameters[2]
            << "\" lunit=\"cm\"/>\n";
     return;
+  case DelphiShapeKind::Polygon6: {
+    const auto vertices = poly6Vertices(node, shape);
+    const auto triangles = poly6Triangles(vertices);
+    output << "    <tessellated name=\"" << name << "\">\n";
+    for (const auto &triangle : triangles) {
+      output << "      <triangular vertex1=\""
+             << vertexId(node, index, triangle.first) << "\" vertex2=\""
+             << vertexId(node, index, triangle.second) << "\" vertex3=\""
+             << vertexId(node, index, triangle.third)
+             << "\" type=\"ABSOLUTE\"/>\n";
+    }
+    output << "    </tessellated>\n";
+    return;
+  }
   default:
     throw std::runtime_error("unsupported DELPHI beam-pipe shape " +
                              std::string(shapeKindName(shape.kind)) + " at " +
@@ -271,19 +416,17 @@ std::vector<RenderNode> buildRenderTree(const GeometryModel &model,
 
 } // namespace
 
-void writeGdmlBeamPipe(std::ostream &output, const GeometryModel &model,
+void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
+                       const std::vector<GdmlDetectorRoot> &roots,
                        std::string_view worldPath,
-                       std::string_view beamPipePath,
                        std::string_view snapshotIdentifier) {
   const auto *world = model.findNode(worldPath);
-  const auto *beamPipe = model.findNode(beamPipePath);
   if (world == nullptr) {
     throw std::runtime_error("DELPHI GDML world node not found: " +
                              std::string(worldPath));
   }
-  if (beamPipe == nullptr) {
-    throw std::runtime_error("DELPHI GDML beam-pipe node not found: " +
-                             std::string(beamPipePath));
+  if (roots.empty()) {
+    throw std::runtime_error("DELPHI GDML detector has no root nodes");
   }
   const auto worldShape = std::find_if(
       world->shapes.begin(), world->shapes.end(),
@@ -301,7 +444,30 @@ void writeGdmlBeamPipe(std::ostream &output, const GeometryModel &model,
     throw std::runtime_error("DELPHI GDML world bounds are invalid");
   }
 
-  auto nodes = buildRenderTree(model, *beamPipe);
+  std::vector<RenderNode> nodes;
+  std::vector<std::size_t> rootIndices;
+  std::unordered_map<std::string, std::string> sensitiveByInstance;
+  for (const auto &root : roots) {
+    const auto *record = model.findNode(root.path);
+    if (record == nullptr) {
+      throw std::runtime_error("DELPHI GDML detector root not found: " +
+                               root.path);
+    }
+    auto tree = buildRenderTree(model, *record);
+    const auto offset = nodes.size();
+    for (auto &node : tree) {
+      for (auto &child : node.children) {
+        child += offset;
+      }
+    }
+    rootIndices.push_back(offset);
+    if (!root.sensitiveDetector.empty()) {
+      sensitiveByInstance.emplace(tree.front().instancePath,
+                                  root.sensitiveDetector);
+    }
+    nodes.insert(nodes.end(), std::make_move_iterator(tree.begin()),
+                 std::make_move_iterator(tree.end()));
+  }
   std::set<std::string> materialNames{world->materials.front().inner};
   for (const auto &node : nodes) {
     materialNames.insert(effectiveMaterial(node).inner);
@@ -312,7 +478,15 @@ void writeGdmlBeamPipe(std::ostream &output, const GeometryModel &model,
          << "<gdml xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" "
             "xsi:noNamespaceSchemaLocation=\"http://service-spi.web.cern.ch/"
             "service-spi/app/releases/GDML/schema/gdml.xsd\">\n"
-         << "  <define/>\n"
+         << "  <define>\n";
+  for (const auto &node : nodes) {
+    for (std::size_t index = 0; index < node.definition->shapes.size();
+         ++index) {
+      writeShapeDefinitions(output, node, node.definition->shapes[index],
+                            index);
+    }
+  }
+  output << "  </define>\n"
          << "  <materials>\n";
   for (const auto &name : materialNames) {
     const auto *material = model.findMaterial(name);
@@ -377,6 +551,11 @@ void writeGdmlBeamPipe(std::ostream &output, const GeometryModel &model,
            << "      <materialref ref=\"delphi_material_" << gdmlName(material)
            << "\"/>\n"
            << "      <solidref ref=\"" << solidId(*node) << "\"/>\n";
+    if (const auto sensitive = sensitiveByInstance.find(node->instancePath);
+        sensitive != sensitiveByInstance.end()) {
+      output << "      <auxiliary auxtype=\"SensDet\" auxvalue=\""
+             << xmlEscape(sensitive->second) << "\"/>\n";
+    }
     for (const auto childIndex : node->children) {
       const auto &child = nodes[childIndex];
       const auto &references = effectiveReferences(child);
@@ -399,15 +578,18 @@ void writeGdmlBeamPipe(std::ostream &output, const GeometryModel &model,
          << "      <materialref ref=\"delphi_material_"
          << gdmlName(worldMaterial) << "\"/>\n"
          << "      <solidref ref=\"delphi_world_solid\"/>\n";
-  const auto &rootReferences = effectiveReferences(nodes.front());
-  if (rootReferences.empty()) {
-    writePlacement(output, nodeId(nodes.front()) + "_placement",
-                   nodeId(nodes.front()), nullptr);
-  } else {
-    for (std::size_t index = 0; index < rootReferences.size(); ++index) {
-      writePlacement(
-          output, nodeId(nodes.front()) + "_placement_" + std::to_string(index),
-          nodeId(nodes.front()), &rootReferences[index]);
+  for (const auto rootIndex : rootIndices) {
+    const auto &root = nodes[rootIndex];
+    const auto &rootReferences = effectiveReferences(root);
+    if (rootReferences.empty()) {
+      writePlacement(output, nodeId(root) + "_placement", nodeId(root),
+                     nullptr);
+    } else {
+      for (std::size_t index = 0; index < rootReferences.size(); ++index) {
+        writePlacement(output,
+                       nodeId(root) + "_placement_" + std::to_string(index),
+                       nodeId(root), &rootReferences[index]);
+      }
     }
   }
   if (!snapshotIdentifier.empty()) {
@@ -416,13 +598,21 @@ void writeGdmlBeamPipe(std::ostream &output, const GeometryModel &model,
   }
   output << "    </volume>\n"
          << "  </structure>\n"
-         << "  <setup name=\"DELPHI_BEAM_PIPE\" version=\"1.0\">\n"
+         << "  <setup name=\"DELPHI_NATIVE\" version=\"1.0\">\n"
          << "    <world ref=\"delphi_world\"/>\n"
          << "  </setup>\n"
          << "</gdml>\n";
   if (!output) {
-    throw std::runtime_error("failed while writing DELPHI beam-pipe GDML");
+    throw std::runtime_error("failed while writing DELPHI detector GDML");
   }
+}
+
+void writeGdmlBeamPipe(std::ostream &output, const GeometryModel &model,
+                       std::string_view worldPath,
+                       std::string_view beamPipePath,
+                       std::string_view snapshotIdentifier) {
+  writeGdmlDetector(output, model, {{std::string(beamPipePath), std::string{}}},
+                    worldPath, snapshotIdentifier);
 }
 
 } // namespace delphi_edm4hep::geometry

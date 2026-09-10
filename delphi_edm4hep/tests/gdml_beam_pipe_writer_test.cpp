@@ -1,5 +1,6 @@
 #include "delphi_edm4hep/Geometry/CargoDatabase.h"
 #include "delphi_edm4hep/Geometry/GdmlBeamPipeWriter.h"
+#include "delphi_edm4hep/Geometry/GdmlDetectorWriter.h"
 #include "delphi_edm4hep/Geometry/GeometryModel.h"
 
 #include <sstream>
@@ -12,6 +13,15 @@ void require(bool condition, const std::string &message) {
   if (!condition) {
     throw std::runtime_error(message);
   }
+}
+
+std::size_t occurrences(const std::string &text, std::string_view pattern) {
+  std::size_t count{};
+  for (auto offset = text.find(pattern); offset != std::string::npos;
+       offset = text.find(pattern, offset + pattern.size())) {
+    ++count;
+  }
+  return count;
 }
 
 } // namespace
@@ -71,6 +81,17 @@ int main() {
 *MATS  2,TUN*,TUN*
 *SHAP  4,BRIK,.14,.16,5
 **
+*GEOM /TPC*.B
+890101,0,931220,214701
+*MATS  2,BPAV,BPAV
+*SHAP  7,CYL1,0,360,10,50,-100,100
+**
+*GEOM /TPC*/SECT.B
+890101,0,931220,214701
+*MATS  2,BPAV,BPAV
+*REFR  6,0,0,0,30,0,0
+*SHAP  14,POL6,1,90,60,20,30,-5,5,-5,5,40,20,-5,5
+**
 )");
   const auto database =
       delphi_edm4hep::geometry::CargoDatabase::read(input, "fixture");
@@ -94,4 +115,18 @@ int main() {
           "DXMATR rotation was not converted to GDML Euler angles");
   require(gdml.find("v94c&lt;&amp;&quot;") != std::string::npos,
           "snapshot identifier was not XML escaped");
+
+  std::ostringstream detectorOutput;
+  delphi_edm4hep::geometry::writeGdmlDetector(
+      detectorOutput, model, {{"/BEA*.B", {}}, {"/TPC*.B", "si_tracker_sd"}},
+      "/DELF.B", "fixture");
+  const auto detector = detectorOutput.str();
+  require(detector.find("<tessellated name=\"delphi_node__TPC__SECT") !=
+              std::string::npos,
+          "POL6 was not rendered as a tessellated solid");
+  require(occurrences(detector, "<triangular vertex1=") == 20,
+          "POL6 does not have the expected closed 20-facet triangulation");
+  require(detector.find("auxtype=\"SensDet\" auxvalue=\"si_tracker_sd\"") !=
+              std::string::npos,
+          "TPC root was not marked tracker-sensitive");
 }
