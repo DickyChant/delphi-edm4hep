@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <iomanip>
 #include <iterator>
@@ -632,6 +633,8 @@ void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
   std::vector<std::size_t> rootIndices;
   std::unordered_map<std::string, std::string> sensitiveByInstance;
   std::unordered_map<std::string, double> stepLimitByInstance;
+  std::unordered_map<std::string, std::uint64_t> cellIDByInstance;
+  std::unordered_map<std::uint8_t, std::uint32_t> nextSensorBySubsystem;
   for (const auto &root : roots) {
     const auto *record = model.findNode(root.path);
     if (record == nullptr) {
@@ -668,6 +671,14 @@ void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
         if (annotation.maximumStepCm > 0) {
           stepLimitByInstance.emplace(node.instancePath,
                                       annotation.maximumStepCm);
+        }
+        if (annotation.cellIDSubsystem != 0) {
+          auto &sensor = nextSensorBySubsystem[annotation.cellIDSubsystem];
+          ++sensor;
+          const auto cellIDBase =
+              (static_cast<std::uint64_t>(annotation.cellIDSubsystem) << 56U) |
+              (static_cast<std::uint64_t>(sensor) << 32U);
+          cellIDByInstance.emplace(node.instancePath, cellIDBase);
         }
       }
       if (matches == 0) {
@@ -782,6 +793,11 @@ void writeGdmlDetector(std::ostream &output, const GeometryModel &model,
           limit != stepLimitByInstance.end()) {
         output << "      <auxiliary auxtype=\"StepLimit\" auxvalue=\""
                << limit->second << "\" auxunit=\"cm\"/>\n";
+      }
+      if (const auto cellID = cellIDByInstance.find(node->instancePath);
+          cellID != cellIDByInstance.end()) {
+        output << "      <auxiliary auxtype=\"CellIDBase\" auxvalue=\""
+               << cellID->second << "\"/>\n";
       }
     }
     for (const auto childIndex : node->children) {

@@ -142,7 +142,7 @@ int main() {
   delphi_edm4hep::geometry::writeGdmlDetector(
       detectorOutput, model,
       {{"/BEA*.B", {}, 0.0, {}},
-       {"/TPC*.B", {}, 0.0, {{"/TPC*/SECT.B", "step_tracker_sd", 0.4}}}},
+       {"/TPC*.B", {}, 0.0, {{"/TPC*/SECT.B", "step_tracker_sd", 0.4, 3}}}},
       "/DELF.B", "fixture");
   const auto detector = detectorOutput.str();
   require(detector.find("<tessellated name=\"delphi_node__TPC__SECT") !=
@@ -163,6 +163,10 @@ int main() {
       detector.find("auxtype=\"StepLimit\" auxvalue=\"0.4") !=
           std::string::npos,
       "TPC sensing volume did not preserve the DELPHI one-wire-spacing step");
+  require(
+      detector.find("auxtype=\"CellIDBase\" auxvalue=\"216172786408751104\"") !=
+          std::string::npos,
+      "TPC sensing volume did not receive its semantic cell ID base");
   require(detector.find("<assembly name=\"delphi_node__TPC__AUX_\">") !=
               std::string::npos,
           "DUMY hierarchy node was not rendered as a GDML assembly");

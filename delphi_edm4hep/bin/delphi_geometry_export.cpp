@@ -5,6 +5,7 @@
 #include "delphi_edm4hep/Geometry/GeometryModel.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <exception>
 #include <fstream>
 #include <iostream>
@@ -25,7 +26,7 @@ vertexSensitiveVolumes(const delphi_edm4hep::geometry::GeometryModel &model) {
     const auto &materials =
         node.materials.empty() ? definition->materials : node.materials;
     if (!materials.empty() && materials.front().inner == "SI**") {
-      annotations.push_back({node.path, "step_tracker_sd", 0.001});
+      annotations.push_back({node.path, "step_tracker_sd", 0.001, 1});
     }
   }
   return annotations;
@@ -34,12 +35,13 @@ vertexSensitiveVolumes(const delphi_edm4hep::geometry::GeometryModel &model) {
 std::vector<delphi_edm4hep::geometry::GdmlVolumeAnnotation>
 namedSensitiveVolumes(const delphi_edm4hep::geometry::GeometryModel &model,
                       std::string_view prefix,
-                      const std::vector<std::string_view> &names) {
+                      const std::vector<std::string_view> &names,
+                      std::uint8_t subsystem) {
   std::vector<delphi_edm4hep::geometry::GdmlVolumeAnnotation> annotations;
   for (const auto &node : model.nodes()) {
     if (node.path.starts_with(prefix) &&
         std::find(names.begin(), names.end(), node.name) != names.end()) {
-      annotations.push_back({node.path, "step_tracker_sd", 0.0});
+      annotations.push_back({node.path, "step_tracker_sd", 0.0, subsystem});
     }
   }
   return annotations;
@@ -49,8 +51,8 @@ delphi_edm4hep::geometry::GdmlDetectorRoot tpcRoot() {
   return {"/TPC*.B",
           {},
           0.0,
-          {{"/TPC*/ARC0.B", "step_tracker_sd", 0.4},
-           {"/TPC*/ARC1.B", "step_tracker_sd", 0.4}}};
+          {{"/TPC*/ARC0.B", "step_tracker_sd", 0.4, 3},
+           {"/TPC*/ARC1.B", "step_tracker_sd", 0.4, 3}}};
 }
 
 delphi_edm4hep::geometry::GdmlDetectorRoot
@@ -60,7 +62,8 @@ vertexRoot(const delphi_edm4hep::geometry::GeometryModel &model) {
 
 delphi_edm4hep::geometry::GdmlDetectorRoot
 innerDetectorRoot(const delphi_edm4hep::geometry::GeometryModel &model) {
-  return {"/ID**.B", {}, 0.0, namedSensitiveVolumes(model, "/ID**/", {"GASV"})};
+  return {
+      "/ID**.B", {}, 0.0, namedSensitiveVolumes(model, "/ID**/", {"GASV"}, 2)};
 }
 
 delphi_edm4hep::geometry::GdmlDetectorRoot
@@ -69,7 +72,7 @@ outerDetectorRoot(const delphi_edm4hep::geometry::GeometryModel &model) {
           {},
           0.0,
           namedSensitiveVolumes(model, "/OD**/",
-                                {"LAY1", "LAY2", "LAY3", "LAY4", "LAY5"})};
+                                {"LAY1", "LAY2", "LAY3", "LAY4", "LAY5"}, 4)};
 }
 
 } // namespace

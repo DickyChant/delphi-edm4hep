@@ -2,6 +2,7 @@
 
 #include "delphi_edm4hep/Geometry/GeometryModel.h"
 
+#include <cstdint>
 #include <iosfwd>
 #include <string>
 #include <string_view>
@@ -14,6 +15,9 @@ struct GdmlVolumeAnnotation {
   // Empty for a passive volume; otherwise a Code4hep SensDet value.
   std::string sensitiveDetector;
   double maximumStepCm{};
+  // Optional subsystem byte. The writer assigns a stable sensor ordinal and
+  // reserves the low 32 bits for Geant4's physical copy number.
+  std::uint8_t cellIDSubsystem{};
 };
 
 struct GdmlDetectorRoot {

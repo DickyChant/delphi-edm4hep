@@ -140,7 +140,11 @@ their hollow inner faces and database-defined segmentation. The authoritative
 beam pipe, VD, ID, TPC, and OD into one GDML detector: the v94c export contains
 2,004 logical volumes, 2,559 placements, and 439 sensitive volumes. A fixed
 transverse muon produces persistent, MC-related hits in every central-tracker
-region in one Code4hep Geant4 run.
+region in one Code4hep Geant4 run. Every sensitive volume also receives a
+semantic 64-bit cell-ID base: the high byte identifies VD, ID, TPC, or OD, the
+next 24 bits identify the rendered sensor, and Code4hep supplies the physical
+copy number in the low 32 bits. This replaces the former accidental dependence
+on Geant4 hit-collection ordering.
 
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms
