@@ -4,6 +4,8 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <iomanip>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -64,6 +66,22 @@ std::vector<double> values(const geometry::CargoRecord &source,
   return result;
 }
 
+std::string padRowPath(unsigned int endcap, unsigned int geometrySector,
+                       unsigned int row) {
+  std::ostringstream path;
+  path << "/TPC*/ENP" << endcap << "/SC" << std::setw(2)
+       << std::setfill('0') << geometrySector << ".SENS$PR" << std::setw(2)
+       << row << ".B";
+  return path.str();
+}
+
+std::uint32_t packedWord(double value, const std::string &path) {
+  if (value < 0 || value > 4294967295.0 || value != std::floor(value)) {
+    throw std::runtime_error("invalid packed TPC calibration word: " + path);
+  }
+  return static_cast<std::uint32_t>(value);
+}
+
 } // namespace
 
 TpcDigitizationConditions TpcDigitizationConditions::fromCargo(
@@ -114,6 +132,88 @@ TpcDigitizationConditions TpcDigitizationConditions::fromCargo(
         {sector.readoutSector, sector.geometrySector, sector.endcap,
          driftVelocity[sector.endcap], decoded == 1});
   }
+
+  constexpr std::array<int, 16> rowOffsets{
+      1519, 1455, 1151, 255, 687, 1583, 1231, 591,
+      143,  767,  479,  1327, 879, -1,   1007, 335};
+  const auto averagePadSignalPerCount =
+      0.00215 * 740.3 / result.meanPadAmplitude_;
+  for (const auto &sector : readout.sectors()) {
+    const auto &sectorConditions = result.sector(sector.readoutSector);
+    std::array<bool, 1680> seenChannels{};
+    for (const auto &row : readout.rows()) {
+      const auto path = padRowPath(sector.endcap, sector.geometrySector,
+                                   row.number);
+      const auto &calibration = record(database, path);
+      const auto lead = values(calibration, "LEAD");
+      const auto packed = values(calibration, "CALP");
+      const auto statuses = values(calibration, "STAT");
+      if (lead.size() != 12 || packed.size() != 2 * row.padCount ||
+          statuses.empty() ||
+          std::llround(statuses.front()) !=
+              static_cast<long long>(statuses.size() - 1)) {
+        throw std::runtime_error("invalid TPC pad calibration: " + path);
+      }
+      auto scale = lead[7];
+      if (scale <= 900) {
+        scale = 100.0;
+      }
+      std::map<unsigned int, unsigned int> channelStatuses;
+      for (std::size_t index = 1; index < statuses.size(); ++index) {
+        const auto encoded = static_cast<unsigned int>(
+            std::llround(statuses[index]));
+        channelStatuses[encoded / 100U] = encoded % 100U;
+      }
+
+      for (unsigned int pad = 1; pad <= row.padCount; ++pad) {
+        const auto electronicsChannel =
+            static_cast<unsigned int>(rowOffsets[row.number - 1] +
+                                      static_cast<int>(pad));
+        if (electronicsChannel >= seenChannels.size() ||
+            seenChannels[electronicsChannel]) {
+          throw std::runtime_error("invalid TPC row-to-channel map: " + path);
+        }
+        seenChannels[electronicsChannel] = true;
+        const auto firstWord = packedWord(packed[2 * (pad - 1)], path);
+        const auto secondWord = packedWord(packed[2 * (pad - 1) + 1], path);
+        const auto pedestal = static_cast<double>(firstWord & 0xffffU) / scale;
+        auto lowSlope = static_cast<double>((firstWord >> 16U) & 0xffffU) /
+                        scale / 6.0 * averagePadSignalPerCount;
+        if (sectorConditions.gateClosed) {
+          lowSlope *= 0.85;
+        }
+        auto ratio = static_cast<double>((secondWord >> 16U) & 0xffffU) /
+                     scale;
+        if (ratio >= 0.493 && ratio <= 0.495) {
+          ratio = 4.94;
+        }
+        if (lowSlope <= 0 || ratio <= 0 || std::abs(ratio - 1.0) < 1e-12) {
+          throw std::runtime_error("invalid TPC FADC calibration: " + path);
+        }
+        const auto highSlope = lowSlope * ratio;
+        const auto highPedestal = 192.0 * (1.0 - 1.0 / ratio) +
+                                  pedestal / ratio;
+        const auto rangeBreak = lowSlope * highSlope *
+                                (highPedestal - pedestal) /
+                                (highSlope - lowSlope);
+        const auto statusEntry = channelStatuses.find(electronicsChannel);
+        result.pads_.push_back(
+            {sector.readoutSector,
+             sector.geometrySector,
+             sector.endcap,
+             row.number,
+             pad,
+             electronicsChannel,
+             statusEntry == channelStatuses.end() ? 0U : statusEntry->second,
+             pedestal,
+             lowSlope,
+             highSlope,
+             highPedestal,
+             ratio,
+             rangeBreak});
+      }
+    }
+  }
   return result;
 }
 
@@ -125,6 +225,21 @@ TpcDigitizationConditions::sector(unsigned int readoutSector) const {
       });
   if (found == sectors_.end()) {
     throw std::runtime_error("unknown TPC readout sector");
+  }
+  return *found;
+}
+
+const TpcPadElectronicsCalibration &
+TpcDigitizationConditions::pad(unsigned int readoutSector, unsigned int row,
+                               unsigned int padNumber) const {
+  const auto found = std::find_if(pads_.begin(), pads_.end(),
+                                  [&](const auto &entry) {
+                                    return entry.readoutSector == readoutSector &&
+                                           entry.row == row &&
+                                           entry.pad == padNumber;
+                                  });
+  if (found == pads_.end()) {
+    throw std::runtime_error("unknown TPC pad calibration");
   }
   return *found;
 }

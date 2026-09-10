@@ -150,8 +150,11 @@ records without the legacy database runtime. It reads the global high voltage,
 minimum-ionizing dE/dx and mean-pad-amplitude normalizations, both endcap drift
 velocities, and the packed two-bit gate state for every physical sector. The
 v94c audit fixes these values at 25,306 V, 254.5, 652.8, 6.998 cm/us, and
-7.002 cm/us. Per-channel packed `CALP`, status, and correction arrays are the
-next conditions slice required by the FADC stage.
+7.002 cm/us. It also decodes all 20,160 packed per-pad `CALP` records into
+pedestal, low/high range slopes, gain ratio, crossover signal, electronics
+channel, and status. This preserves STCALB's row-to-crate permutation, closed-
+gate correction, and historical 0.494-to-4.94 database repair. The v94c audit
+finds 736 nonzero pad statuses and a gain-ratio range of 4.052--5.286.
 
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.

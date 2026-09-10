@@ -36,6 +36,14 @@ int main(int argc, char **argv) {
     const auto closedGates =
         std::count_if(conditions.sectors().begin(), conditions.sectors().end(),
                       [](const auto &sector) { return sector.gateClosed; });
+    const auto nonzeroPadStatuses =
+        std::count_if(conditions.pads().begin(), conditions.pads().end(),
+                      [](const auto &pad) { return pad.status != 0; });
+    const auto gainRange = std::minmax_element(
+        conditions.pads().begin(), conditions.pads().end(),
+        [](const auto &left, const auto &right) {
+          return left.gainRatio < right.gainRatio;
+        });
     unsigned int centrePadMismatches{};
     unsigned int stampaResponseMismatches{};
     for (const auto &sector : readout.sectors()) {
@@ -95,6 +103,10 @@ int main(int argc, char **argv) {
               << "drift_velocity_endcap1_cm_per_us="
               << conditions.sector(12).driftVelocityCmPerMicrosecond << '\n'
               << "closed_gates=" << closedGates << '\n'
+              << "pad_calibrations=" << conditions.pads().size() << '\n'
+              << "nonzero_pad_statuses=" << nonzeroPadStatuses << '\n'
+              << "minimum_gain_ratio=" << gainRange.first->gainRatio << '\n'
+              << "maximum_gain_ratio=" << gainRange.second->gainRatio << '\n'
               << "centre_pad_mismatches=" << centrePadMismatches << '\n'
               << "stampa_response_mismatches=" << stampaResponseMismatches
               << '\n';
