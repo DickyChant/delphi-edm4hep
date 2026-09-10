@@ -178,8 +178,10 @@ half-module and physical plaquette, attaches the DBF `MTRX` transformations and
 `USER` active-area endpoints for the P plane and the 192 instrumented N planes,
 and provides checked local/global transforms. The snapshot audit pins the
 known sensor-22 mapping and verifies cell-ID and coordinate round trips for
-every sensor. This is the geometry contract needed by the scheduled strip
-digitizer; it is not yet itself digitization.
+every sensor. It also ports `SVELCH`'s v94c SIROCCO/channel mapping and checks
+all 319,488 physical readout addresses. This is the geometry/electronics
+contract needed by the scheduled strip digitizer; it is not yet itself
+digitization.
 
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms

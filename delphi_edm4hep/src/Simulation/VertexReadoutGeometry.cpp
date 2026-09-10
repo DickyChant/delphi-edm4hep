@@ -282,6 +282,97 @@ VertexReadoutGeometry::sensorForTransportCellID(std::uint64_t cellID) const {
   return sensor(semanticSensor(cellID));
 }
 
+VertexElectronicsAddress
+VertexReadoutGeometry::electronicsAddress(const VertexSensor &sensorValue,
+                                          VertexReadoutSide side,
+                                          std::uint32_t readoutStrip) const {
+  const auto &canonical = sensor(sensorValue.semanticSensor);
+  if (&canonical != &sensorValue) {
+    throw std::invalid_argument(
+        "vertex sensor does not belong to this geometry");
+  }
+  const auto maximumStrip = side == VertexReadoutSide::P
+                                ? canonical.readout.pReadoutChannels
+                                : canonical.readout.nReadoutChannels;
+  if (readoutStrip == 0 || readoutStrip > maximumStrip) {
+    throw std::out_of_range("vertex readout strip is outside the sensor");
+  }
+
+  const auto nzi = canonical.physicalPlaquette <= 2 ? 1U : 2U;
+  const auto central =
+      canonical.longitudinalRegion == VertexLongitudinalRegion::Central;
+  const auto module = canonical.module;
+  // This is Fortran INT(NMI/2.-0.25) from SVELCH, which truncates toward zero.
+  const auto pair = static_cast<std::uint32_t>(
+      static_cast<int>(static_cast<double>(module) / 2.0 - 0.25));
+  VertexElectronicsAddress address;
+
+  if (side == VertexReadoutSide::P) {
+    switch (canonical.layer) {
+    case VertexBarrelLayer::Outer:
+      address.sirocco = (nzi == 1 ? 47U : 48U) + 2U * module;
+      if (nzi == 1) {
+        address.channel = central ? 1281U - readoutStrip : readoutStrip;
+      } else {
+        address.channel = central ? 640U + readoutStrip : 641U - readoutStrip;
+      }
+      break;
+    case VertexBarrelLayer::Inner:
+      address.sirocco = (nzi == 1 ? 25U : 26U) + 2U * pair;
+      if (nzi == 1) {
+        address.channel = module % 2 == 0 ? 640U + readoutStrip : readoutStrip;
+      } else {
+        address.channel =
+            module % 2 == 0 ? 1281U - readoutStrip : 513U - readoutStrip;
+      }
+      break;
+    case VertexBarrelLayer::Closer:
+      address.sirocco = (nzi == 1 ? 1U : 2U) + 2U * pair;
+      if (nzi == 1) {
+        if (central) {
+          address.channel =
+              module % 2 == 0 ? 1152U + readoutStrip : 384U + readoutStrip;
+        } else {
+          address.channel =
+              module % 2 == 0 ? 1153U - readoutStrip : 385U - readoutStrip;
+        }
+      } else if (central) {
+        address.channel =
+            module % 2 == 0 ? 769U - readoutStrip : 1537U - readoutStrip;
+      } else {
+        address.channel = module % 2 == 0 ? readoutStrip : 768U + readoutStrip;
+      }
+      break;
+    }
+  } else {
+    switch (canonical.layer) {
+    case VertexBarrelLayer::Inner:
+      throw std::invalid_argument("v94c inner VD has no N-side readout");
+    case VertexBarrelLayer::Outer:
+      address.sirocco = (nzi == 1 ? 47U : 48U) + 2U * module;
+      address.channel =
+          central ? (1280U - readoutStrip) % 640U + 1U : 1281U - readoutStrip;
+      break;
+    case VertexBarrelLayer::Closer: {
+      address.sirocco = (nzi == 1 ? 1U : 2U) + 2U * pair;
+      const auto firstHalf = nzi - module % 2U == 1U;
+      if (central) {
+        address.channel =
+            (firstHalf ? 768U : 0U) + (1152U - readoutStrip) % 384U + 1U;
+      } else {
+        address.channel = (firstHalf ? 1537U : 769U) - readoutStrip;
+      }
+      break;
+    }
+    }
+  }
+  if (address.sirocco < 1 || address.sirocco > 96 || address.channel < 1 ||
+      address.channel > 1536) {
+    throw std::runtime_error("v94c SVELCH produced an invalid address");
+  }
+  return address;
+}
+
 std::uint64_t
 VertexReadoutGeometry::cellIDBase(std::uint32_t semanticSensorValue) {
   if (semanticSensorValue == 0 || semanticSensorValue > 0x00ffffffU) {

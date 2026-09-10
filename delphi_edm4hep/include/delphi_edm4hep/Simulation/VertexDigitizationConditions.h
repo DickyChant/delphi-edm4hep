@@ -17,6 +17,8 @@ enum class VertexLongitudinalRegion : std::uint8_t {
   Peripheral = 1,
 };
 
+enum class VertexReadoutSide : std::uint8_t { P = 0, N = 1 };
+
 // Readout topology for one physical silicon plaquette. VDSIM 4.6 models the
 // P side with an intermediate floating strip, hence the physical pitch is
 // half the readout pitch. The closer-layer central N side has two pitch zones;

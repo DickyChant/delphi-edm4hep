@@ -6,8 +6,6 @@
 
 namespace delphi_edm4hep::simulation {
 
-enum class VertexReadoutSide : std::uint8_t { P = 0, N = 1 };
-
 struct VertexChannelSample {
   double signalElectrons{};
   double noiseElectrons{};

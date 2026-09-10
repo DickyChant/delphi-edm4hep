@@ -23,6 +23,7 @@ int main(int argc, char **argv) {
     unsigned int centralSensors{};
     unsigned int innerOdd512{};
     unsigned int roundTripMismatches{};
+    std::uint64_t readoutAddresses{};
     for (const auto &sensor : readout.sensors()) {
       ++layerSensors[static_cast<std::size_t>(sensor.layer) - 1];
       nSideSensors += sensor.nTransform.has_value();
@@ -46,8 +47,30 @@ int main(int argc, char **argv) {
               &sensor) {
         ++roundTripMismatches;
       }
+      for (std::uint32_t strip = 1; strip <= sensor.readout.pReadoutChannels;
+           ++strip) {
+        static_cast<void>(readout.electronicsAddress(
+            sensor, simulation::VertexReadoutSide::P, strip));
+        ++readoutAddresses;
+      }
+      for (std::uint32_t strip = 1; strip <= sensor.readout.nReadoutChannels;
+           ++strip) {
+        static_cast<void>(readout.electronicsAddress(
+            sensor, simulation::VertexReadoutSide::N, strip));
+        ++readoutAddresses;
+      }
     }
     const auto &sensor22 = readout.sensor(22);
+    const auto sensor22PFirst = readout.electronicsAddress(
+        sensor22, simulation::VertexReadoutSide::P, 1);
+    const auto sensor22PLast =
+        readout.electronicsAddress(sensor22, simulation::VertexReadoutSide::P,
+                                   sensor22.readout.pReadoutChannels);
+    const auto sensor22NFirst = readout.electronicsAddress(
+        sensor22, simulation::VertexReadoutSide::N, 1);
+    const auto sensor22NLast =
+        readout.electronicsAddress(sensor22, simulation::VertexReadoutSide::N,
+                                   sensor22.readout.nReadoutChannels);
     std::cout << "sensors=" << readout.sensors().size() << '\n'
               << "closer_sensors=" << layerSensors[0] << '\n'
               << "inner_sensors=" << layerSensors[1] << '\n'
@@ -55,6 +78,7 @@ int main(int argc, char **argv) {
               << "n_side_sensors=" << nSideSensors << '\n'
               << "central_sensors=" << centralSensors << '\n'
               << "inner_odd_512_channel_sensors=" << innerOdd512 << '\n'
+              << "readout_addresses=" << readoutAddresses << '\n'
               << "sensor22_path=" << sensor22.path << '\n'
               << "sensor22_x_cm=" << sensor22.pTransform.translationCm[0]
               << '\n'
@@ -64,6 +88,10 @@ int main(int argc, char **argv) {
               << '\n'
               << "sensor22_p_active_length_cm="
               << sensor22.pActiveLine.lengthCm() << '\n'
+              << "sensor22_p_electronics=" << sensor22PFirst.sirocco << ':'
+              << sensor22PFirst.channel << '-' << sensor22PLast.channel << '\n'
+              << "sensor22_n_electronics=" << sensor22NFirst.sirocco << ':'
+              << sensor22NFirst.channel << '-' << sensor22NLast.channel << '\n'
               << "transform_round_trip_mismatches=" << roundTripMismatches
               << '\n';
   } catch (const std::exception &error) {

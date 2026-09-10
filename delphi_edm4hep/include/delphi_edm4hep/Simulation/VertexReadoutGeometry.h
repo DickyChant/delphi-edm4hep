@@ -47,6 +47,11 @@ struct VertexSensor {
   std::optional<VertexActiveLine> nActiveLine;
 };
 
+struct VertexElectronicsAddress {
+  std::uint32_t sirocco{};
+  std::uint32_t channel{};
+};
+
 class VertexReadoutGeometry {
 public:
   static constexpr std::uint8_t subsystem = 1;
@@ -60,6 +65,9 @@ public:
   const std::vector<VertexSensor> &sensors() const { return sensors_; }
   const VertexSensor &sensor(std::uint32_t semanticSensor) const;
   const VertexSensor &sensorForTransportCellID(std::uint64_t cellID) const;
+  VertexElectronicsAddress electronicsAddress(const VertexSensor &sensor,
+                                              VertexReadoutSide side,
+                                              std::uint32_t readoutStrip) const;
 
   static std::uint64_t cellIDBase(std::uint32_t semanticSensor);
   static std::uint32_t semanticSensor(std::uint64_t transportCellID);
