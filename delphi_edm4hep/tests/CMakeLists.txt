@@ -39,6 +39,10 @@ add_executable(cargo_database_test cargo_database_test.cpp)
 target_link_libraries(cargo_database_test PRIVATE delphi_geometry)
 add_test(NAME cargo_database_contract COMMAND cargo_database_test)
 
+add_executable(geometry_model_test geometry_model_test.cpp)
+target_link_libraries(geometry_model_test PRIVATE delphi_geometry)
+add_test(NAME geometry_model_contract COMMAND geometry_model_test)
+
 # PHDST-sample-backed fault injection for the C++/Fortran callback boundary.
 # The runner skips when DELPHI_PHDST_SAMPLE is not set, like alignment_audit.
 add_executable(harness_exception_probe harness_exception_probe.cpp)

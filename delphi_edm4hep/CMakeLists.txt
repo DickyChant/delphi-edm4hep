@@ -65,7 +65,10 @@ message(STATUS
 # Native, dependency-free reader for the authoritative DELPHI CARGO/DDAPP
 # detector snapshot. Geometry conversion is built on this library rather than
 # linking the legacy database runtime into Code4hep.
-add_library(delphi_geometry STATIC src/Geometry/CargoDatabase.cpp)
+add_library(delphi_geometry STATIC
+  src/Geometry/CargoDatabase.cpp
+  src/Geometry/GeometryModel.cpp
+)
 target_include_directories(delphi_geometry
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

@@ -86,9 +86,18 @@ and `REPL`.
 
 `delphi_geometry` is the first native replacement for that path. It parses the
 CARGO records, validity intervals, fields, and continuation data without any
-DELPHI or CERNLIB dependency. `delphi_geometry_audit` exercises the parser on
-an original snapshot. Subsequent geometry work should translate this parsed
-model into DD4hep/GDML one detector subsystem at a time and compare the result
+DELPHI or CERNLIB dependency. Its typed model now validates and decodes the
+material definitions, two-material assignments, all `SHA*` shape payloads,
+six-value `REF*` transforms, and variable-length `REPL` paths. On the original
+v94c snapshot this yields 202 materials, 7,703 geometry nodes, 5,424 material
+assignments, 6,220 shapes, 4,246 transforms, and 1,506 replacement directives.
+The accepted shapes are DELPHI's documented `BRIK`, `CYL*`, `DUMY`, `FORB`,
+`PARA`, `PLNM`, `POL*`, `SPHE`, and `WED4` families; the typed reader rejects
+unknown tags and incorrect word counts with source-line diagnostics.
+
+`delphi_geometry_audit` exercises both lossless parsing and typed decoding on
+an original snapshot. Subsequent geometry work should translate this model
+into DD4hep/GDML one detector subsystem at a time and compare the result
 against the DELSIM database hierarchy; it must not substitute an illustrative
 detector for the database geometry.
 
