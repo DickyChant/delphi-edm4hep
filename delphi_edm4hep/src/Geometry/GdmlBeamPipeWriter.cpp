@@ -270,6 +270,157 @@ std::vector<Triangle> poly6Triangles(const std::vector<Point3> &vertices) {
   return triangles;
 }
 
+std::vector<Triangle>
+orientedTriangles(const std::vector<Point3> &vertices,
+                  const std::vector<std::array<std::size_t, 4>> &faces) {
+  Point3 centre;
+  for (const auto &point : vertices) {
+    centre.x += point.x / static_cast<double>(vertices.size());
+    centre.y += point.y / static_cast<double>(vertices.size());
+    centre.z += point.z / static_cast<double>(vertices.size());
+  }
+  std::vector<Triangle> triangles;
+  triangles.reserve(faces.size() * 2);
+  for (const auto &face : faces) {
+    for (const auto indices : {std::array{face[0], face[1], face[2]},
+                               std::array{face[0], face[2], face[3]}}) {
+      auto triangle = Triangle{indices[0], indices[1], indices[2]};
+      const auto &a = vertices[triangle.first];
+      const auto &b = vertices[triangle.second];
+      const auto &c = vertices[triangle.third];
+      const Point3 faceCentre{(a.x + b.x + c.x) / 3.0, (a.y + b.y + c.y) / 3.0,
+                              (a.z + b.z + c.z) / 3.0};
+      const auto normal = cross(subtract(b, a), subtract(c, a));
+      if (dot(normal, subtract(faceCentre, centre)) < 0) {
+        std::swap(triangle.second, triangle.third);
+      }
+      triangles.push_back(triangle);
+    }
+  }
+  return triangles;
+}
+
+std::vector<Triangle>
+trianglesFromFaces(const std::vector<std::array<std::size_t, 4>> &faces) {
+  std::vector<Triangle> triangles;
+  triangles.reserve(faces.size() * 2);
+  for (const auto &face : faces) {
+    triangles.push_back({face[0], face[1], face[2]});
+    triangles.push_back({face[0], face[2], face[3]});
+  }
+  return triangles;
+}
+
+std::vector<Point3> fourSidedBoxVertices(const RenderNode &node,
+                                         const ShapeDefinition &shape) {
+  const auto &p = shape.parameters;
+  if (p.size() != 9 || p[4] <= 0 || p[3] <= p[2] || p[6] <= p[5] ||
+      p[8] <= p[7]) {
+    throw std::runtime_error("invalid DELPHI FORB at " + node.instancePath);
+  }
+  const auto alpha = radians(p[0]);
+  const auto beta = radians(p[1]);
+  const auto cosine = std::cos(alpha);
+  const auto sine = std::sin(alpha);
+  const auto dx = p[4] * std::cos(beta - alpha) / 2.0;
+  const auto dy = p[4] * std::sin(beta - alpha) / 2.0;
+  return {
+      {p[3] * cosine - dx, p[3] * sine + dy, p[6]},
+      {p[3] * cosine + dx, p[3] * sine - dy, p[6]},
+      {p[3] * cosine - dx, p[3] * sine + dy, p[5]},
+      {p[3] * cosine + dx, p[3] * sine - dy, p[5]},
+      {p[2] * cosine - dx, p[2] * sine + dy, p[8]},
+      {p[2] * cosine + dx, p[2] * sine - dy, p[8]},
+      {p[2] * cosine - dx, p[2] * sine + dy, p[7]},
+      {p[2] * cosine + dx, p[2] * sine - dy, p[7]},
+  };
+}
+
+std::vector<std::array<std::size_t, 4>> fourSidedBoxFaces() {
+  return {{0, 1, 5, 4}, {2, 3, 7, 6}, {0, 1, 3, 2},
+          {4, 5, 7, 6}, {0, 2, 6, 4}, {1, 3, 7, 5}};
+}
+
+struct Polygon4Mesh {
+  std::vector<Point3> vertices;
+  std::vector<std::array<std::size_t, 4>> faces;
+};
+
+Polygon4Mesh polygon4Mesh(const RenderNode &node,
+                          const ShapeDefinition &shape) {
+  const auto &p = shape.parameters;
+  const auto units =
+      p.empty() ? 0 : static_cast<std::size_t>(std::llround(p[0]));
+  if (p.size() != 9 || units == 0 || std::abs(p[0] - units) > 1.0e-9 ||
+      p[2] <= 0 || p[2] >= 180 || units * p[2] > 360.5 || p[3] < 0 ||
+      p[4] <= p[3] || p[6] <= p[5] || p[8] <= p[7]) {
+    throw std::runtime_error("invalid DELPHI POL4 at " + node.instancePath);
+  }
+  const auto closed = std::abs(units * p[2] - 360.0) < 0.5;
+  const auto boundaries = closed ? units : units + 1;
+  const auto cosineHalf = std::cos(radians(p[2]) / 2.0);
+  Polygon4Mesh mesh;
+  mesh.vertices.reserve(boundaries * 4);
+  for (std::size_t index = 0; index < boundaries; ++index) {
+    const auto angle =
+        radians(p[1] + (static_cast<double>(index) - 0.5) * p[2]);
+    const auto cosine = std::cos(angle);
+    const auto sine = std::sin(angle);
+    const auto innerRadius = p[3] / cosineHalf;
+    const auto outerRadius = p[4] / cosineHalf;
+    mesh.vertices.push_back({innerRadius * cosine, innerRadius * sine, p[5]});
+    mesh.vertices.push_back({innerRadius * cosine, innerRadius * sine, p[6]});
+    mesh.vertices.push_back({outerRadius * cosine, outerRadius * sine, p[7]});
+    mesh.vertices.push_back({outerRadius * cosine, outerRadius * sine, p[8]});
+  }
+  const auto vertex = [](std::size_t boundary, std::size_t offset) {
+    return boundary * 4 + offset;
+  };
+  for (std::size_t index = 0; index < units; ++index) {
+    const auto next = closed ? (index + 1) % units : index + 1;
+    mesh.faces.push_back(
+        {vertex(index, 0), vertex(index, 1), vertex(next, 1), vertex(next, 0)});
+    mesh.faces.push_back(
+        {vertex(index, 2), vertex(next, 2), vertex(next, 3), vertex(index, 3)});
+    mesh.faces.push_back(
+        {vertex(index, 0), vertex(next, 0), vertex(next, 2), vertex(index, 2)});
+    mesh.faces.push_back(
+        {vertex(index, 1), vertex(next, 1), vertex(next, 3), vertex(index, 3)});
+  }
+  if (!closed) {
+    mesh.faces.push_back(
+        {vertex(0, 0), vertex(0, 2), vertex(0, 3), vertex(0, 1)});
+    mesh.faces.push_back({vertex(units, 0), vertex(units, 1), vertex(units, 3),
+                          vertex(units, 2)});
+  }
+  return mesh;
+}
+
+void writeVertices(std::ostream &output, const RenderNode &node,
+                   std::size_t shapeIndex,
+                   const std::vector<Point3> &vertices) {
+  for (std::size_t index = 0; index < vertices.size(); ++index) {
+    const auto &point = vertices[index];
+    output << "    <position name=\"" << vertexId(node, shapeIndex, index)
+           << "\" x=\"" << point.x << "\" y=\"" << point.y << "\" z=\""
+           << point.z << "\" unit=\"cm\"/>\n";
+  }
+}
+
+void writeTessellated(std::ostream &output, const RenderNode &node,
+                      std::size_t shapeIndex,
+                      const std::vector<Triangle> &triangles) {
+  output << "    <tessellated name=\"" << shapeId(node, shapeIndex) << "\">\n";
+  for (const auto &triangle : triangles) {
+    output << "      <triangular vertex1=\""
+           << vertexId(node, shapeIndex, triangle.first) << "\" vertex2=\""
+           << vertexId(node, shapeIndex, triangle.second) << "\" vertex3=\""
+           << vertexId(node, shapeIndex, triangle.third)
+           << "\" type=\"ABSOLUTE\"/>\n";
+  }
+  output << "    </tessellated>\n";
+}
+
 const MaterialAssignment &effectiveMaterial(const RenderNode &node) {
   if (!node.record->materials.empty()) {
     return node.record->materials.front();
@@ -319,15 +470,18 @@ void validateRadii(double minimum, double maximum, const RenderNode &node) {
 void writeShapeDefinitions(std::ostream &output, const RenderNode &node,
                            const ShapeDefinition &shape,
                            std::size_t shapeIndex) {
-  if (shape.kind != DelphiShapeKind::Polygon6) {
+  switch (shape.kind) {
+  case DelphiShapeKind::FourSidedBox:
+    writeVertices(output, node, shapeIndex, fourSidedBoxVertices(node, shape));
     return;
-  }
-  const auto vertices = poly6Vertices(node, shape);
-  for (std::size_t index = 0; index < vertices.size(); ++index) {
-    const auto &point = vertices[index];
-    output << "    <position name=\"" << vertexId(node, shapeIndex, index)
-           << "\" x=\"" << point.x << "\" y=\"" << point.y << "\" z=\""
-           << point.z << "\" unit=\"cm\"/>\n";
+  case DelphiShapeKind::Polygon4:
+    writeVertices(output, node, shapeIndex, polygon4Mesh(node, shape).vertices);
+    return;
+  case DelphiShapeKind::Polygon6:
+    writeVertices(output, node, shapeIndex, poly6Vertices(node, shape));
+    return;
+  default:
+    return;
   }
 }
 
@@ -342,6 +496,17 @@ void writeShape(std::ostream &output, const RenderNode &node,
                                node.instancePath);
     }
     return;
+  case DelphiShapeKind::FourSidedBox: {
+    const auto vertices = fourSidedBoxVertices(node, shape);
+    writeTessellated(output, node, index,
+                     orientedTriangles(vertices, fourSidedBoxFaces()));
+    return;
+  }
+  case DelphiShapeKind::Polygon4: {
+    const auto mesh = polygon4Mesh(node, shape);
+    writeTessellated(output, node, index, trianglesFromFaces(mesh.faces));
+    return;
+  }
   case DelphiShapeKind::Cylinder1:
     if (parameters.size() != 6 || parameters[1] <= parameters[0] ||
         parameters[5] <= parameters[4]) {
@@ -387,16 +552,7 @@ void writeShape(std::ostream &output, const RenderNode &node,
     return;
   case DelphiShapeKind::Polygon6: {
     const auto vertices = poly6Vertices(node, shape);
-    const auto triangles = poly6Triangles(vertices);
-    output << "    <tessellated name=\"" << name << "\">\n";
-    for (const auto &triangle : triangles) {
-      output << "      <triangular vertex1=\""
-             << vertexId(node, index, triangle.first) << "\" vertex2=\""
-             << vertexId(node, index, triangle.second) << "\" vertex3=\""
-             << vertexId(node, index, triangle.third)
-             << "\" type=\"ABSOLUTE\"/>\n";
-    }
-    output << "    </tessellated>\n";
+    writeTessellated(output, node, index, poly6Triangles(vertices));
     return;
   }
   default:

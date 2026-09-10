@@ -132,6 +132,16 @@ authoritative `SI**` material assignment. Those sensors use the VD simulation's
 `STEPS=0.001 cm` transport limit and produce persistent, MC-related
 `SimTrackerHit`s in the one-muon native Geant4 test.
 
+The `--id` and `--od` modes add the remaining central tracking volumes. The
+inner detector's `FORB` cells are reconstructed as closed eight-vertex
+tessellated solids, and the outer detector's multi-unit `POL4` rings retain
+their hollow inner faces and database-defined segmentation. The authoritative
+`GASV` and `LAY1`--`LAY5` volumes are tracker-sensitive. `--tracking` composes
+beam pipe, VD, ID, TPC, and OD into one GDML detector: the v94c export contains
+2,004 logical volumes, 2,559 placements, and 439 sensitive volumes. A fixed
+transverse muon produces persistent, MC-related hits in every central-tracker
+region in one Code4hep Geant4 run.
+
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms
 from that snapshot. Its pad locator reproduces `STAMPA`'s one-centimetre row
@@ -152,10 +162,9 @@ neighbors on either side. The response width uses the v94c `STSPRF` constants,
 the measured row pitch, drift distance, local track incidence, and DELPHI's
 Lorentz-angle term. The drift half-length is read from the selected sector
 geometry rather than duplicated as steering configuration. The returned signal
-retains caller-defined units because the preceding primary-ionization and
-Landau-fluctuation model has not yet been ported. Drift diffusion, time-bin
-shaping, calibration-dependent pedestal noise, thresholds, and FADC response
-also remain before claiming legacy digitization equivalence.
+retains caller-defined units; the scheduled digitizer owns the later conversion
+from Geant4 energy deposition through ionization, avalanche fluctuation, drift,
+shaping, calibrated FADC response, and threshold selection.
 
 `TpcDigitizationConditions` now decodes the corresponding CARGO calibration
 records without the legacy database runtime. It reads the global high voltage,
@@ -172,9 +181,7 @@ finds 736 nonzero pad statuses and a gain-ratio range of 4.052--5.286.
 diffusion, track-step broadening, electronics shaping, the 73.82 ns clock,
 13-bin sampling window, baseline term, and asymmetric pulse shape. Its two
 truncated-Gaussian inputs are explicit arguments, so a scheduled digitizer can
-own and seed the random stream without hiding global Fortran RNG state. FADC
-noise, saturation, threshold clustering, and EDM4hep `TimeSeries` publication
-remain to be connected.
+own and seed the random stream without hiding global Fortran RNG state.
 
 `TpcFadc` ports STFADC's two-range calibrated conversion, common and
 per-sample pedestal fluctuations, integer truncation, and 8-bit saturation.
@@ -190,10 +197,12 @@ run/event-derived local seed, aggregates every contribution by pad and time
 bin, calibrates and zero-suppresses the result, and publishes surviving EDM4hep
 `TimeSeries` waveforms. Two repeated controlled runs produce bit-identical
 waveforms. Geant4 already supplies energy-loss fluctuations, so this path does
-not also sample the legacy ETDEDX histogram. Exact physics closure still needs
-comparison against DELSIM's track labels; native wire assignment and the
-STDEDX/STLAND adjacent-wire leakage are now present, while those truth labels
-must then be represented by a suitable EDM4hep truth-link collection.
+not also sample the legacy ETDEDX histogram. Native wire assignment and the
+STDEDX/STLAND adjacent-wire leakage are present. The digitizer retains
+charge-weighted `SimTrackerHit` contributions in memory; the reconstruction
+module publishes them as standard `TrackerHitSimTrackerHitLink` objects whose
+weights are normalized per hit. Exact physics closure still needs comparison
+against DELSIM's track labels.
 
 `DelphiTpcHitReconstructionProducer` is the first native reconstruction module
 on that output. For each zero-suppressed waveform it finds the peak sample,
@@ -206,8 +215,11 @@ as an energy deposit.
 
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
-Fine-grained TPC pad response and the other sensitive tracking and calorimeter
-volumes remain subsequent detector-construction and digitization slices.
+The central tracker is now transported, but only the TPC has native calibrated
+digitization and hit reconstruction. VD, ID, and OD response, the tracking
+pattern-recognition/fit chain, spatial magnetic-field mapping, calorimeter and
+muon geometry/response, and their reconstruction remain explicit migration
+slices.
 
 The generic Code4hep Geant4 driver now requires `magneticFieldTesla` in its
 detector configuration instead of hiding a 0.1 T value in C++. It persists

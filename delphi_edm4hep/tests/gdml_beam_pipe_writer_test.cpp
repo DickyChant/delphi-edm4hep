@@ -104,6 +104,16 @@ int main() {
  1 2 3 0 -1 0 1 0 0 0 0 1
 *SHAP  4,BRIK,1,2,3
 **
+*GEOM /TPC*/FORB.B
+890101,0,931220,214701
+*MATS  2,BPAV,BPAV
+*SHAP  10,FORB,90,90,20,21,2,-3,3,-2,2
+**
+*GEOM /TPC*/POL4.B
+890101,0,931220,214701
+*MATS  2,BPAV,BPAV
+*SHAP  10,POL4,4,0,90,30,31,-4,4,-5,5
+**
 )");
   const auto database =
       delphi_edm4hep::geometry::CargoDatabase::read(input, "fixture");
@@ -138,8 +148,14 @@ int main() {
   require(detector.find("<tessellated name=\"delphi_node__TPC__SECT") !=
               std::string::npos,
           "POL6 was not rendered as a tessellated solid");
-  require(occurrences(detector, "<triangular vertex1=") == 20,
-          "POL6 does not have the expected closed 20-facet triangulation");
+  require(occurrences(detector, "<triangular vertex1=") == 64,
+          "tessellated shapes do not have the expected closed facets");
+  require(detector.find("<tessellated name=\"delphi_node__TPC__FORB") !=
+              std::string::npos,
+          "FORB was not rendered as a tessellated solid");
+  require(detector.find("<tessellated name=\"delphi_node__TPC__POL4") !=
+              std::string::npos,
+          "multi-unit POL4 was not rendered as a tessellated solid");
   require(detector.find("auxtype=\"SensDet\" auxvalue=\"step_tracker_sd\"") !=
               std::string::npos,
           "TPC sensing volume was not marked tracker-sensitive");
