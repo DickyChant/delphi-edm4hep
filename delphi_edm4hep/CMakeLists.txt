@@ -72,6 +72,9 @@ add_library(delphi_geometry STATIC
   src/Geometry/GeometryModel.cpp
   src/Simulation/InnerDetectorJetResponse.cpp
   src/Simulation/InnerDetectorReadoutGeometry.cpp
+  src/Simulation/OuterDetectorDriftResponse.cpp
+  src/Simulation/OuterDetectorPhysicalChannelPayload.cpp
+  src/Simulation/OuterDetectorReadoutGeometry.cpp
   src/Simulation/TpcDigitizationConditions.cpp
   src/Simulation/TpcFadc.cpp
   src/Simulation/TpcPadResponse.cpp
@@ -97,6 +100,9 @@ target_link_libraries(delphi_tpc_readout_audit PRIVATE delphi_geometry)
 
 add_executable(delphi_id_readout_audit bin/delphi_id_readout_audit.cpp)
 target_link_libraries(delphi_id_readout_audit PRIVATE delphi_geometry)
+
+add_executable(delphi_od_readout_audit bin/delphi_od_readout_audit.cpp)
+target_link_libraries(delphi_od_readout_audit PRIVATE delphi_geometry)
 
 add_executable(delphi_vertex_readout_audit bin/delphi_vertex_readout_audit.cpp)
 target_link_libraries(delphi_vertex_readout_audit PRIVATE delphi_geometry)
@@ -229,6 +235,8 @@ if(DELPHI_BUILD_CODE4HEP_SOURCE)
       code4hep/DelphiEventSummaryProducer.cc
       code4hep/DelphiInnerDetectorDigitizerProducer.cc
       code4hep/DelphiInnerDetectorHitReconstructionProducer.cc
+      code4hep/DelphiOuterDetectorDigitizerProducer.cc
+      code4hep/DelphiOuterDetectorHitReconstructionProducer.cc
       code4hep/DelphiSource.cc
       code4hep/DelphiTrackerHitPartitionProducer.cc
       code4hep/DelphiVertexDigitizerProducer.cc

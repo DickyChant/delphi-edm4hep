@@ -26,7 +26,7 @@ remain validation oracles until each replacement reaches physics closure.
 | VD | release-matched v94c conditions, 288-sensor readout, scheduled strip digitization, `RawTimeSeries` digits, planar hits, truth links | faithful `SVPUL` charge sharing and delta rays, noise-cluster generation, cross-talk option, cluster pairing and legacy closure |
 | ID | authoritative sensitive geometry, transport hits, v94c jet/anode/cathode readout catalogue, calibrated jet drift/TDC response, scheduled raw digits, left/right hit hypotheses, and truth links | trigger-layer digitization, jet charge/noise response, ambiguity resolution, and legacy closure |
 | TPC | calibrated readout geometry, wire/pad/time/FADC response, scheduled digitization and hit reconstruction | closure tuning and run-dependent conditions |
-| OD | authoritative sensitive geometry and transport hits | drift response, hit building, truth links |
+| OD | authoritative 3,480-tube surveyed readout and calibration, exact drift-time kernel, scheduled physical-channel digits, left/right planar hits, and truth links | legacy crate/multiplexer/TDC word packing, noise, track-angle refinement, and quantitative closure |
 | Central tracking | subsystem hit products | pattern recognition, ambiguity resolution, fit, material effects, track truth |
 | Vertexing and beamspot | legacy event decoding and standalone beamspot fit | native primary/secondary vertexing and run-level beamspot feedback |
 | Calorimetry and muons | legacy conversion only | geometry, transport response, digitization, clustering, calibration, truth |

@@ -87,6 +87,10 @@ target_link_libraries(inner_detector_jet_response_test PRIVATE delphi_geometry)
 add_test(NAME inner_detector_jet_response_contract
          COMMAND inner_detector_jet_response_test)
 
+add_executable(outer_detector_response_test outer_detector_response_test.cpp)
+target_link_libraries(outer_detector_response_test PRIVATE delphi_geometry)
+add_test(NAME outer_detector_response_contract COMMAND outer_detector_response_test)
+
 add_executable(vertex_digitization_conditions_test
                vertex_digitization_conditions_test.cpp)
 target_link_libraries(vertex_digitization_conditions_test PRIVATE delphi_geometry)

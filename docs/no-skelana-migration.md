@@ -244,6 +244,31 @@ fixed-seed replay after ROOT readback. Jet charge induction and noise, trigger
 anode/cathode response, ambiguity resolution by tracking, and quantitative
 IDSIM closure remain.
 
+`OuterDetectorReadoutGeometry` removes the first ODSIM geometry and calibration
+COMMON-block boundary. It reads the 436-word measured `FIDS` survey, reproduces
+`SOGEOM`'s five staggered layers and 24 plank transformations, and catalogues
+all 3,480 real tubes. Per-tube pedestal, z-propagation delay, pulse width, and
+efficiency come directly from the 24 `CALW` records; the quadratic 300
+micrometre wire sag and the physical column gaps are retained. The snapshot
+audit checks every wire-centre locator and physical cell-ID round trip.
+
+`OuterDetectorDriftResponse` is a direct C++ port of `SODSTM`: the four
+fifth-order laser-data curves, 0/30/45/60/90-degree interpolation, 0.4 mm
+avalanche-region clamp, and numerical inverse are independently tested.
+`DelphiOuterDetectorDigitizerProducer` locates each partitioned Geant4 step in
+the surveyed tube catalogue, applies deterministic 100 micrometre transverse
+and 5.49 cm longitudinal smearing plus calibrated efficiency, keeps the
+earliest response per tube, and includes pedestal, z propagation, and time of
+flight in the raw leading time. A versioned physical-channel payload retains
+the calibrated drift time, z measurement, incidence angle, and pulse width;
+it is intentionally not presented as the historical multiplexed crate/TDC
+word. `DelphiOuterDetectorHitReconstructionProducer` inverts it into both
+left/right `TrackerHitPlane` hypotheses and persistent standard truth links.
+CI checks a real scheduled Geant4 event and exact fixed-seed replay. Porting
+`SORCVR`/`SOMPLX`/`SOTDC`, accidental noise, track-segment common-perpendicular
+refinement, and quantitative ODSIM closure remain before the OD response can
+be called fully legacy-equivalent.
+
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms
 from that snapshot. Its pad locator reproduces `STAMPA`'s one-centimetre row
@@ -317,13 +342,15 @@ as an energy deposit.
 
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
-The central tracker is now transported. The TPC has native calibrated
-digitization and hit reconstruction; the VD has its first scheduled strip and
-planar-hit path; and the ID jet chamber has scheduled raw TDC digits and
-left/right planar-hit hypotheses. Full VD and ID response fidelity, the ID
-trigger layers, scheduled OD response, the tracking pattern-recognition/fit
-chain, spatial magnetic-field mapping, calorimeter and muon geometry/response,
-and their reconstruction remain explicit migration slices.
+The central tracker is now transported and all four barrel tracking systems
+have scheduled response/reconstruction seams. The TPC has native calibrated
+digitization and hit reconstruction; the VD has its first strip and planar-hit
+path; the ID jet chamber has raw TDC digits and left/right hypotheses; and the
+OD has surveyed physical-tube digits and left/right three-dimensional planar
+hypotheses. Full VD/ID/OD response fidelity, the ID trigger layers, the
+tracking pattern-recognition/fit chain, spatial magnetic-field mapping,
+calorimeter and muon geometry/response, and their reconstruction remain
+explicit migration slices.
 
 The generic Code4hep Geant4 driver now requires `magneticFieldTesla` in its
 detector configuration instead of hiding a 0.1 T value in C++. It persists
