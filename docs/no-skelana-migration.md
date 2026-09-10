@@ -75,6 +75,30 @@ legacy event summary. This dual-output pattern is the migration seam for moving
 the remaining derived calculations out of the PHDST callback before deleting
 the corresponding legacy implementation.
 
+## Native simulation geometry migration
+
+The authoritative DELSIM detector description is not GDML. For v94c,
+`SXDDAP` selects detector/date/level records and invokes `DEFGEO` on the
+readable CARGO snapshot `CERNSNAP2001_94DELSIM.ASC`. That snapshot contains
+7,703 `GEOM` records and 202 `MATC` records; shape, placement, material, and
+replacement directives are stored as fields such as `SHAP`, `REFR`, `MATS`,
+and `REPL`.
+
+`delphi_geometry` is the first native replacement for that path. It parses the
+CARGO records, validity intervals, fields, and continuation data without any
+DELPHI or CERNLIB dependency. `delphi_geometry_audit` exercises the parser on
+an original snapshot. Subsequent geometry work should translate this parsed
+model into DD4hep/GDML one detector subsystem at a time and compare the result
+against the DELSIM database hierarchy; it must not substitute an illustrative
+detector for the database geometry.
+
+The generic Code4hep Geant4 driver now requires `magneticFieldTesla` in its
+detector configuration instead of hiding a 0.1 T value in C++. It persists
+that value as the `sim_detector_magneticFieldTesla` Frame parameter. For the
+v94c DELSIM default, `CURRX=5001` A maps through `UFCSCL` to 1.2312434 T at the
+centre. This uniform value is only the first conditions seam: faithful
+simulation still requires a native port of the spatial UFIELD map.
+
 ## Validation findings
 
 On the five-event 94C2 simulation fixture, the direct sDST output agrees with

@@ -35,6 +35,10 @@ target_include_directories(particle_counts_test
   PRIVATE ${PROJECT_SOURCE_DIR}/include)
 add_test(NAME native_particle_counts_contract COMMAND particle_counts_test)
 
+add_executable(cargo_database_test cargo_database_test.cpp)
+target_link_libraries(cargo_database_test PRIVATE delphi_geometry)
+add_test(NAME cargo_database_contract COMMAND cargo_database_test)
+
 # PHDST-sample-backed fault injection for the C++/Fortran callback boundary.
 # The runner skips when DELPHI_PHDST_SAMPLE is not set, like alignment_audit.
 add_executable(harness_exception_probe harness_exception_probe.cpp)

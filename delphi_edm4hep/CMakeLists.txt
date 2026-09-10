@@ -62,6 +62,15 @@ find_package(ROOT        REQUIRED COMPONENTS Core RIO Matrix)
 message(STATUS
   "key4hep: EDM4hep ${EDM4HEP_VERSION}, podio ${podio_VERSION}, ROOT ${ROOT_VERSION}")
 
+# Native, dependency-free reader for the authoritative DELPHI CARGO/DDAPP
+# detector snapshot. Geometry conversion is built on this library rather than
+# linking the legacy database runtime into Code4hep.
+add_library(delphi_geometry STATIC src/Geometry/CargoDatabase.cpp)
+target_include_directories(delphi_geometry
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+
 # DELPHI almalinux-9 Fortran libraries (custom find module).
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 find_package(DelphiAL9 REQUIRED)
@@ -281,6 +290,9 @@ target_link_libraries(delphi_btag_check
   PRIVATE EDM4HEP::edm4hep podio::podio podio::podioRootIO ROOT::Core ROOT::RIO
 )
 
+add_executable(delphi_geometry_audit bin/delphi_geometry_audit.cpp)
+target_link_libraries(delphi_geometry_audit PRIVATE delphi_geometry)
+
 # ---------------------------------------------------------------------------
 # Tests (subtask 5+; for now just smoke).
 enable_testing()
@@ -292,8 +304,8 @@ endif()
 # Install rules.
 include(GNUInstallDirs)
 set(_delphi_install_targets
-  delphi_edm4hep delphi_sdst_pass delphi_fdst_pass delphi_bs_fit
-  delphi_btag_check)
+  delphi_edm4hep delphi_geometry delphi_sdst_pass delphi_fdst_pass
+  delphi_bs_fit delphi_btag_check delphi_geometry_audit)
 if(TARGET delphiRun)
   list(APPEND _delphi_install_targets delphiRun)
 endif()
