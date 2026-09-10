@@ -46,4 +46,15 @@ int main() {
   require(TpcReadoutGeometry::encodeCellId(*positive) ==
               (33U | (1U << 8U) | (1U << 13U)),
           "TPC cell-ID encoding changed");
+  const auto decoded = TpcReadoutGeometry::decodeCellId(
+      TpcReadoutGeometry::encodeCellId(*positive));
+  require(decoded.endcap == positive->endcap &&
+              decoded.sector == positive->sector && decoded.row == positive->row &&
+              decoded.pad == positive->pad,
+          "TPC cell-ID round trip changed");
+  const auto centre = geometry.padCenter({0, 1, 1, 32, 0, 0}, -10.0);
+  const auto roundTrip = geometry.locatePad(centre[0], centre[1], centre[2]);
+  require(roundTrip && roundTrip->pad == 32 && roundTrip->row == 1 &&
+              roundTrip->sector == 1,
+          "TPC pad-centre round trip changed");
 }

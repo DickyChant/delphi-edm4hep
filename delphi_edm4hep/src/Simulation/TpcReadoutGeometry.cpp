@@ -197,6 +197,34 @@ TpcReadoutGeometry::locatePad(double xCm, double yCm, double zCm,
                        residual,    bestPhi};
 }
 
+std::array<double, 3>
+TpcReadoutGeometry::padCenter(const TpcPadAddress &address, double zCm) const {
+  const auto row = std::find_if(rows_.begin(), rows_.end(), [&](const auto &entry) {
+    return entry.number == address.row;
+  });
+  const auto sector =
+      std::find_if(sectors_.begin(), sectors_.end(), [&](const auto &entry) {
+        return entry.readoutSector == address.sector &&
+               entry.endcap == address.endcap;
+      });
+  if (row == rows_.end() || sector == sectors_.end() || address.pad < 1 ||
+      address.pad > row->padCount || (zCm < 0 ? 0U : 1U) != address.endcap) {
+    throw std::runtime_error("invalid TPC pad address or z coordinate");
+  }
+  const auto deltaPhi = (std::numbers::pi / 3.0) / row->padCount;
+  const auto half = static_cast<int>(row->padCount / 2);
+  const auto phi = (static_cast<int>(address.pad) - half) * deltaPhi -
+                   0.5 * deltaPhi;
+  const auto localX = row->radiusCm * std::sin(phi);
+  const auto localY = row->radiusCm * std::cos(phi);
+  const auto angle = sector->rotationDegrees * std::numbers::pi / 180.0;
+  return {sector->translationXCm + std::cos(angle) * localX -
+              std::sin(angle) * localY,
+          sector->translationYCm + std::sin(angle) * localX +
+              std::cos(angle) * localY,
+          zCm};
+}
+
 std::uint64_t TpcReadoutGeometry::encodeCellId(const TpcPadAddress &address) {
   if (address.pad > 255 || address.row > 31 || address.sector > 15 ||
       address.endcap > 1) {
@@ -205,6 +233,21 @@ std::uint64_t TpcReadoutGeometry::encodeCellId(const TpcPadAddress &address) {
   return address.pad | (static_cast<std::uint64_t>(address.row) << 8U) |
          (static_cast<std::uint64_t>(address.sector) << 13U) |
          (static_cast<std::uint64_t>(address.endcap) << 17U);
+}
+
+TpcPadAddress TpcReadoutGeometry::decodeCellId(std::uint64_t cellId) {
+  if ((cellId >> 18U) != 0) {
+    throw std::runtime_error("TPC cell ID has unknown high bits");
+  }
+  TpcPadAddress address;
+  address.pad = static_cast<unsigned int>(cellId & 0xffU);
+  address.row = static_cast<unsigned int>((cellId >> 8U) & 0x1fU);
+  address.sector = static_cast<unsigned int>((cellId >> 13U) & 0xfU);
+  address.endcap = static_cast<unsigned int>((cellId >> 17U) & 0x1U);
+  if (address.pad == 0 || address.row == 0 || address.sector == 0) {
+    throw std::runtime_error("TPC cell ID has a zero address field");
+  }
+  return address;
 }
 
 } // namespace delphi_edm4hep::simulation

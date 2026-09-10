@@ -3,6 +3,7 @@
 #include "delphi_edm4hep/Geometry/CargoDatabase.h"
 #include "delphi_edm4hep/Geometry/GeometryModel.h"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -50,7 +51,10 @@ public:
 
   std::optional<TpcPadAddress> locatePad(double xCm, double yCm, double zCm,
                                          double rowToleranceCm = 1.0) const;
+  std::array<double, 3> padCenter(const TpcPadAddress &address,
+                                  double zCm) const;
   static std::uint64_t encodeCellId(const TpcPadAddress &address);
+  static TpcPadAddress decodeCellId(std::uint64_t cellId);
 
 private:
   std::vector<TpcPadRow> rows_;

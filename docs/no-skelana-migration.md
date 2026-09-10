@@ -182,6 +182,15 @@ not also sample the legacy ETDEDX histogram. Exact physics closure still needs
 comparison against DELSIM's wire-level charge leakage and track labels; those
 labels must then be represented by a suitable EDM4hep truth-link collection.
 
+`DelphiTpcHitReconstructionProducer` is the first native reconstruction module
+on that output. For each zero-suppressed waveform it finds the peak sample,
+converts drift time to z with the appropriate measured endcap velocity, places
+the hit at the calibrated pad centre, propagates pad and time-bin dimensions to
+a position covariance, and carries the channel status into hit quality. It
+publishes ordinary EDM4hep `TrackerHit3D` objects for the later pattern-
+recognition and track-fit stages; ADC amplitude is deliberately not mislabeled
+as an energy deposit.
+
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
 Fine-grained TPC pad response and the other sensitive tracking and calorimeter
