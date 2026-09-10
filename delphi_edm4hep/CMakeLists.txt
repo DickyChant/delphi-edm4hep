@@ -77,6 +77,7 @@ add_library(delphi_geometry STATIC
   src/Simulation/TpcTimeResponse.cpp
   src/Simulation/TpcWireGeometry.cpp
   src/Simulation/TpcWireResponse.cpp
+  src/Simulation/VertexDigitizationConditions.cpp
 )
 target_include_directories(delphi_geometry
   PUBLIC

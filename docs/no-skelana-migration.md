@@ -153,6 +153,15 @@ contract. It splits the common Code4hep transport collection into ordinary
 its `MCParticle` relation. Later response modules can therefore consume their
 own subsystem without radius cuts or knowledge of Geant4 collection order.
 
+`VertexDigitizationConditions` removes the first VDSIM COMMON-block boundary.
+It ports the complete barrel defaults hard-coded in `SVBCAL` and `SVBINI`:
+the 24/20/24 module topology, every plaquette's P/N strip count and readout
+pitch, inactive inner plaquettes, active lengths, all six noise levels,
+five-sigma thresholds, three-step acceptance, 1,000-electron ADC calibration,
+8 micrometre Lorentz shift, and the default noise-cluster/cross-talk switches.
+These values are regression-tested independently before the scheduled VD
+digitizer consumes them.
+
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms
 from that snapshot. Its pad locator reproduces `STAMPA`'s one-centimetre row
