@@ -190,8 +190,22 @@ unambiguous modern strip cell ID while retaining the separate legacy
 SIROCCO/channel mapping for validation. The snapshot audit exhaustively checks
 that the measurement centre of every one of the 319,488 instrumented strips
 round-trips through both the locator and the cell-ID codec. This remains a
-readout primitive: charge sharing, thresholding, noise clusters, truth links,
-and persistent digit products still belong in the scheduled VD digitizer.
+readout primitive rather than a response model.
+
+`DelphiVertexDigitizerProducer` is the first scheduled VD response slice. It
+consumes the partitioned `VertexSimHits`, groups step deposits by particle,
+sensor, and readout side, enforces VDSIM's three-active-step criterion, maps
+each deposit to its v94c strip, adds one deterministic run/event-seeded noise
+draw per aggregated channel, applies the five-sigma threshold, and writes
+EDM4hep `RawTimeSeries` digits. A transient digit-to-simulated-hit relation
+feeds `DelphiVertexHitReconstructionProducer`, which writes persistent
+one-dimensional `TrackerHitPlane` measurements at the calibrated strip
+positions plus standard EDM4hep truth links. A controlled Code4hep/Geant4
+muon run checks the complete scheduled and persistent path. This is not yet
+full VDSIM physics: the current deposit goes to its nearest readout strip;
+`SVPUL` charge transport and sharing, delta rays, generated noise clusters,
+optional cross-talk, and P/N cluster pairing still require native ports and
+legacy closure.
 
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms

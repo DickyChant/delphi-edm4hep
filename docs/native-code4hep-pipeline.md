@@ -23,7 +23,7 @@ remain validation oracles until each replacement reaches physics closure.
 | Primary generation | Code4hep generator products | campaign-specific generator steering and full validation |
 | Detector geometry | CARGO parser and exact GDML for beam pipe, VD, ID, TPC, OD | remaining tracking structures, calorimeters, RICH, TOF, muon system, forward detectors |
 | Particle transport | Code4hep Geant4 with persistent truth-linked hits and semantic cell IDs | detector-specific sensitive actions where step hits are insufficient |
-| VD | release-matched v94c conditions, electronics kernel, 288-sensor readout catalogue | charge sharing, strip aggregation, raw product, clustering, truth links |
+| VD | release-matched v94c conditions, 288-sensor readout, scheduled strip digitization, `RawTimeSeries` digits, planar hits, truth links | faithful `SVPUL` charge sharing and delta rays, noise-cluster generation, cross-talk option, cluster pairing and legacy closure |
 | ID | authoritative sensitive geometry and transport hits | wire/cell response, hit building, truth links |
 | TPC | calibrated readout geometry, wire/pad/time/FADC response, scheduled digitization and hit reconstruction | closure tuning and run-dependent conditions |
 | OD | authoritative sensitive geometry and transport hits | drift response, hit building, truth links |
