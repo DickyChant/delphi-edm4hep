@@ -70,6 +70,7 @@ add_library(delphi_geometry STATIC
   src/Geometry/GdmlBeamPipeWriter.cpp
   src/Geometry/GdmlWorldWriter.cpp
   src/Geometry/GeometryModel.cpp
+  src/Simulation/InnerDetectorJetResponse.cpp
   src/Simulation/InnerDetectorReadoutGeometry.cpp
   src/Simulation/TpcDigitizationConditions.cpp
   src/Simulation/TpcFadc.cpp

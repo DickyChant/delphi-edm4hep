@@ -81,6 +81,12 @@ add_executable(tpc_wire_response_test tpc_wire_response_test.cpp)
 target_link_libraries(tpc_wire_response_test PRIVATE delphi_geometry)
 add_test(NAME tpc_wire_response_contract COMMAND tpc_wire_response_test)
 
+add_executable(inner_detector_jet_response_test
+               inner_detector_jet_response_test.cpp)
+target_link_libraries(inner_detector_jet_response_test PRIVATE delphi_geometry)
+add_test(NAME inner_detector_jet_response_contract
+         COMMAND inner_detector_jet_response_test)
+
 add_executable(vertex_digitization_conditions_test
                vertex_digitization_conditions_test.cpp)
 target_link_libraries(vertex_digitization_conditions_test PRIVATE delphi_geometry)

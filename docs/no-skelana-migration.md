@@ -216,8 +216,16 @@ time-zero constants, dead time, cathode/anode charge ratio, and cathode charge
 width used by v94c `SIGEOM`/`SICALB`. The snapshot audit currently finds two
 disabled jet channels and no disabled trigger channels. The corresponding
 `SIDA`/`SIDC` anode-wire and cathode-strip locators round-trip every one of the
-1,920 trigger addresses. Drift-time inversion, charge induction, noise, and
-scheduled ID hit reconstruction remain the next slice.
+1,920 trigger addresses.
+
+`InnerDetectorJetResponse` removes IDSIM's first calibrated response boundary.
+It ports `SICALB`'s temperature/pressure and per-sector high-voltage
+corrections, magnetic-field scaling of the Lorentz angle, bad fence-voltage
+repair (including the historical sector-17 override), and `SICALR`/`SIFTOT`'s
+two-region phi-to-drift-time transform. At 1.2312434 T the v94c snapshot audit
+pins the Lorentz angle at -6.36012 degrees and the maximum jet drift time at
+1940.97 ns. Drift-time inversion, charge induction, noise, and scheduled ID
+hit reconstruction remain the next slice.
 
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms
@@ -292,11 +300,12 @@ as an energy deposit.
 
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
-The central tracker is now transported, but only the TPC has native calibrated
-digitization and hit reconstruction. VD, ID, and OD response, the tracking
-pattern-recognition/fit chain, spatial magnetic-field mapping, calorimeter and
-muon geometry/response, and their reconstruction remain explicit migration
-slices.
+The central tracker is now transported. The TPC has native calibrated
+digitization and hit reconstruction; the VD has its first scheduled strip and
+planar-hit path; and the ID jet drift calibration is native. Full VD response
+fidelity, scheduled ID and OD response, the tracking pattern-recognition/fit
+chain, spatial magnetic-field mapping, calorimeter and muon geometry/response,
+and their reconstruction remain explicit migration slices.
 
 The generic Code4hep Geant4 driver now requires `magneticFieldTesla` in its
 detector configuration instead of hiding a 0.1 T value in C++. It persists

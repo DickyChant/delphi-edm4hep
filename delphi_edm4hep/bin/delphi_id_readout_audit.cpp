@@ -1,4 +1,5 @@
 #include "delphi_edm4hep/Geometry/CargoDatabase.h"
+#include "delphi_edm4hep/Simulation/InnerDetectorJetResponse.h"
 #include "delphi_edm4hep/Simulation/InnerDetectorReadoutGeometry.h"
 
 #include <algorithm>
@@ -16,6 +17,8 @@ int main(int argc, char **argv) {
     const auto database = geometry::CargoDatabase::readFile(argv[1]);
     const auto readout =
         simulation::InnerDetectorReadoutGeometry::fromCargo(database);
+    const auto jetResponse = simulation::InnerDetectorJetResponse::fromCargo(
+        database, readout, 1.2312434);
     unsigned int jetBadChannels{};
     unsigned int anodeBadChannels{};
     unsigned int cathodeBadChannels{};
@@ -77,6 +80,21 @@ int main(int argc, char **argv) {
         << "dead_time_us=" << readout.deadTimeMicroseconds() << '\n'
         << "cathode_anode_ratio=" << readout.cathodeToAnodeRatio() << '\n'
         << "cathode_sigma_cm=" << readout.cathodeDistributionSigmaCm() << '\n'
+        << "jet_lorentz_angle_deg="
+        << jetResponse.lorentzAngleRadians() * 180.0 / std::acos(-1.0) << '\n'
+        << "jet_boundary_angle_deg="
+        << jetResponse.boundaryAngleRadians() * 180.0 / std::acos(-1.0) << '\n'
+        << "jet_s1_w1_left_edge_ns="
+        << jetResponse.driftTimeNs(1, 1,
+                                   simulation::InnerDetectorDriftSide::Left,
+                                   -std::acos(-1.0) / 24.0)
+        << '\n'
+        << "jet_s1_w1_right_edge_ns="
+        << jetResponse.driftTimeNs(1, 1,
+                                   simulation::InnerDetectorDriftSide::Right,
+                                   std::acos(-1.0) / 24.0)
+        << '\n'
+        << "jet_max_drift_time_ns=" << jetResponse.maximumDriftTimeNs() << '\n'
         << "jet_bad_channels=" << jetBadChannels << '\n'
         << "anode_bad_channels=" << anodeBadChannels << '\n'
         << "cathode_bad_channels=" << cathodeBadChannels << '\n';
