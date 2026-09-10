@@ -70,12 +70,21 @@ find_package(DelphiAL9 REQUIRED)
 # delphi_edm4hep library: C++ converter code, depending on edm4hep + podio +
 # ROOT + selected DELPHI services. The Fortran archives are linked only by the
 # binaries, using a --start-group linker group for circular dependencies.
-add_library(delphi_edm4hep
+# A Code4hep source is a shared plugin.  The legacy DELPHI and CERNLIB
+# archives are not position independent, so they cannot be linked into that
+# plugin.  In the embedded build this converter library is shared and leaves
+# its Fortran references for the delphi_cmsRun executable to provide.
+set(_delphi_library_type STATIC)
+if(COMMAND c4h_add_plugin)
+  set(_delphi_library_type SHARED)
+endif()
+add_library(delphi_edm4hep ${_delphi_library_type}
   src/AabtagTrackState.cpp
   src/BankPrefix.cpp
   src/DstCensus.cpp
   src/BankReader.cpp
   src/CollectionWriter.cpp
+  src/ConversionPipeline.cpp
   src/PerigeeMatch.cpp
   src/Helix.cpp
   src/TeBank.cpp
@@ -160,6 +169,67 @@ target_link_libraries(delphi_fdst_pass
   PRIVATE delphi_edm4hep delphi_fortran_no_skelana_link
 )
 
+# Native Code4hep/Stitched input source. It is built automatically when this
+# project is embedded in Code4hep, and omitted from the standalone Key4hep
+# build where the framework targets are unavailable.
+set(_delphi_code4hep_default OFF)
+if(COMMAND c4h_add_plugin AND TARGET IOUtilities)
+  set(_delphi_code4hep_default ON)
+endif()
+option(DELPHI_BUILD_CODE4HEP_SOURCE
+  "Build the native Code4hep DelphiSource plugin" ${_delphi_code4hep_default})
+if(DELPHI_BUILD_CODE4HEP_SOURCE)
+  if(NOT COMMAND c4h_add_plugin OR NOT TARGET IOUtilities)
+    message(FATAL_ERROR
+      "DELPHI_BUILD_CODE4HEP_SOURCE requires an in-tree Code4hep build with IOUtilities")
+  endif()
+  find_package(Threads REQUIRED)
+  c4h_add_plugin(
+    NAME DelphiInputPlugins
+    SOURCES code4hep/DelphiSource.cc
+    DEPS
+      FWCore/Framework
+      FWCore/ParameterSet
+      Code4hep/IOUtilities
+    EXT_DEPS
+      podio::podio
+      EDM4HEP::edm4hep
+  )
+  target_include_directories(plugin_DelphiInputPlugins PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  # Do not make the plugin DT_NEEDED on libdelphi_edm4hep: that library has
+  # legacy COMMON-block data references which can only be resolved by the
+  # non-PIE launcher.  Function references stay lazy while edmWriteConfigs
+  # and edmPluginRefresh inspect the plugin, and resolve from delphi_cmsRun
+  # when the source is actually constructed.
+  target_link_libraries(plugin_DelphiInputPlugins
+    PUBLIC Threads::Threads)
+
+  # The DELPHI/CERNLIB archives are non-PIC and therefore belong in an
+  # executable, not in the DelphiSource shared plugin.  This compact
+  # Code4hep runner exports their symbols to dynamically loaded plugins.
+  add_executable(delphi_cmsRun code4hep/DelphiCmsRun.cpp)
+  target_link_options(delphi_cmsRun PRIVATE
+    -no-pie
+    -Wl,--export-dynamic
+    -Wl,--undefined=phdst_)
+  target_link_libraries(delphi_cmsRun PRIVATE
+    delphi_edm4hep
+    delphi_fortran_no_skelana_link
+    Stitched::FWCore_Framework
+    Stitched::FWCore_ParameterSetReader
+    Stitched::FWCore_ParameterSet
+    Stitched::FWCore_MessageLogger
+    Stitched::FWCore_MessageService
+    Stitched::FWCore_PluginManager
+    Stitched::FWCore_ServiceRegistry
+    Stitched::FWCore_Utilities
+    Stitched::FWCore_Concurrency
+    TBB::tbb
+    ROOT::Core
+    gfortran dl m z crypt)
+endif()
+
 # Migration-only A/B oracle. It compiles the identical fDST writer graph but
 # prepares each event through PSINI/PSBEG. Deliberately OFF by default and not
 # installed, so production remains provably free of libskelanaxx.
@@ -219,8 +289,13 @@ endif()
 # ---------------------------------------------------------------------------
 # Install rules.
 include(GNUInstallDirs)
-install(TARGETS delphi_edm4hep delphi_sdst_pass delphi_fdst_pass delphi_bs_fit
-                delphi_btag_check
+set(_delphi_install_targets
+  delphi_edm4hep delphi_sdst_pass delphi_fdst_pass delphi_bs_fit
+  delphi_btag_check)
+if(TARGET delphi_cmsRun)
+  list(APPEND _delphi_install_targets delphi_cmsRun)
+endif()
+install(TARGETS ${_delphi_install_targets}
   EXPORT  delphi_edm4hepTargets
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

@@ -4,6 +4,10 @@ The production `delphi_sdst_pass` and `delphi_fdst_pass` executables no longer
 call `PSINI`, `PSBEG`, or any other SKELANA entry point. Both link through the
 DELPHI archive group that deliberately omits `libskelanaxx`.
 
+The native Code4hep `DelphiSource` uses these same production pipelines. Its
+`delphi_cmsRun` launcher also links only the archive group without
+`libskelanaxx`; SKELANA is not hidden in the plugin boundary.
+
 SKELANA remains available only as an optional, non-installed validation oracle
 when configuring with `-DDELPHI_BUILD_SKELANA_REFERENCE=ON`. Its adapter is a
 separate static target and is not part of `libdelphi_edm4hep`.
@@ -53,6 +57,12 @@ rejected by the 64-bit compatibility check.
 This removes event-to-event dependence on PSC common-block contents. Raw PA
 addresses are the stable relation key; transient VECP indices are retained
 only where an output compatibility field needs their ordering.
+
+Inside Code4hep, Podio Frame parameters are temporarily materialized as typed
+event products because Stitched's product registry transports collections,
+not Frame metadata. `PodioOutputModule` reverses that representation before
+writing. This keeps the direct `DSTQID`, `BPILOT`, VD beamspot, and BTAG
+configuration results as normal Podio parameters in the final file.
 
 ## Validation findings
 

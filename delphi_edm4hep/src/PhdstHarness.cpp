@@ -31,6 +31,7 @@
 #include <map>
 #include <memory>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -69,6 +70,7 @@ long                               g_n_written = 0;
 long                               g_n_no_dst = 0;
 long                               g_n_redelivered = 0;
 bool                               g_callback_failed = false;
+bool                               g_stop_requested = false;
 std::string                        g_callback_failure;
 
 void recordCallbackFailure(const char* phase, const char* message) noexcept {
@@ -128,12 +130,15 @@ void on_user00() noexcept {
     event::initialize();
     btag::initialize();
 
-    if (g_cfg.output.empty()) {
-      std::cerr << "harness::on_user00: output path not set\n";
-      std::exit(2);
+    if ((g_cfg.output.empty() && !g_cfg.frame_sink) ||
+        (!g_cfg.output.empty() && g_cfg.frame_sink)) {
+      throw std::invalid_argument(
+          "exactly one of output and frame_sink must be configured");
     }
-    g_writer = std::make_unique<podio::ROOTWriter>(g_cfg.output.string());
-    std::cout << "delphi_edm4hep::harness: opened " << g_cfg.output << "\n";
+    if (!g_cfg.output.empty()) {
+      g_writer = std::make_unique<podio::ROOTWriter>(g_cfg.output.string());
+      std::cout << "delphi_edm4hep::harness: opened " << g_cfg.output << "\n";
+    }
 
     // Assemble the list of intermediate(s): the primary input_edm4hep
     // plus any extras to union with it.
@@ -186,6 +191,10 @@ void on_user01(int* need) noexcept {
   if (!need) return;
   if (g_callback_failed) {
     *need = -3;  // stop after a caught C++ callback failure
+    return;
+  }
+  if (g_stop_requested) {
+    *need = -3;  // the in-memory consumer has finished
     return;
   }
   if (g_cfg.max_events > 0 && g_n_written >= g_cfg.max_events) {
@@ -272,7 +281,15 @@ static void on_user02_impl() {
     g_cfg.on_event(frame, ph::IIIRUN, ph::IIIEVT);
   }
 
-  g_writer->writeFrame(frame, "events");
+  if (g_cfg.frame_sink) {
+    if (!g_cfg.frame_sink(std::move(frame), ph::IIIRUN, ph::IIIEVT)) {
+      g_stop_requested = true;
+      g_current_sdst_frame = nullptr;
+      return;
+    }
+  } else {
+    g_writer->writeFrame(frame, "events");
+  }
   g_current_sdst_frame = nullptr;
   ++g_n_written;
 
@@ -338,8 +355,13 @@ void on_user99() noexcept {
       std::cerr << "delphi_edm4hep::harness: aborted after " << g_n_written
                 << " written events; partial output is not publishable\n";
     } else {
-      std::cout << "delphi_edm4hep::harness: wrote " << g_n_written
-                << " events to " << g_cfg.output << "\n";
+      if (!g_cfg.output.empty()) {
+        std::cout << "delphi_edm4hep::harness: wrote " << g_n_written
+                  << " events to " << g_cfg.output << "\n";
+      } else {
+        std::cout << "delphi_edm4hep::harness: delivered " << g_n_written
+                  << " events to the in-memory source\n";
+      }
     }
   } catch (...) {
     // Diagnostics are best effort; the failure state and exit code are not.
@@ -355,6 +377,7 @@ int run(const Config& cfg) {
   g_n_no_dst             = 0;
   g_n_redelivered        = 0;
   g_callback_failed      = false;
+  g_stop_requested       = false;
   g_callback_failure.clear();
   g_current_sdst_frame   = nullptr;
   g_writer.reset();

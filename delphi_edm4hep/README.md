@@ -98,6 +98,41 @@ cmake --build build -j
 ./build/delphi_btag_check --source fDST out_final.edm4hep.root data
 ```
 
+### Native Code4hep source
+
+When this project is added to the Code4hep build through
+`CODE4HEP_DELPHI_SOURCE_DIR`, it also builds `DelphiSource` and the
+`delphi_cmsRun` launcher. The source runs the same converter-owned sDST/fDST
+pipelines in memory, publishes each collection as a Stitched event product,
+and lets ordinary Code4hep paths consume or write the result:
+
+```python
+process.source = cms.Source(
+    "DelphiSource",
+    input=cms.untracked.string("input.fadana"),
+    inputMode=cms.untracked.string("file"),       # file, nickname, or pdl
+    conversionPass=cms.untracked.string("sdst"), # sdst or fdst
+    intermediateFiles=cms.untracked.vstring(),    # required for fdst
+    isRealData=cms.untracked.bool(False),
+)
+process.output = cms.OutputModule(
+    "PodioOutputModule",
+    fileName=cms.untracked.string("output.edm4hep.root"),
+)
+process.end = cms.EndPath(process.output)
+```
+
+Run the configuration with `delphi_cmsRun config.py`. The dedicated launcher
+is required because the non-PIC DELPHI/CERNLIB archives must live in an
+executable and export their symbols to the dynamically loaded source plugin.
+It links the production archive group, which excludes `libskelanaxx`.
+
+Podio Frame parameters are materialized as reserved framework products while
+an event is inside Code4hep, then restored as ordinary Frame parameters by
+`PodioOutputModule`. Consequently the DSTQID processing tag, signed DELPHI MC
+run number, magnetic field, beamspot, and BTAG configuration retain their
+normal `<source>_EVT_*` / `<source>_BTAGCFG_*` names in the output file.
+
 Pass 2 matches each fullDST event to the intermediate frame by
 `(runNumber, eventNumber)`, and matches tracks within an event by PA.TRAC
 perigee geometry (the PA index is not stable across DST levels).

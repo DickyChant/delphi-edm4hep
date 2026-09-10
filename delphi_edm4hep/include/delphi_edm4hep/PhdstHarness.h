@@ -31,6 +31,12 @@ namespace delphi_edm4hep::harness {
 // `frame` from whichever domain modules it needs.
 using EventHook = std::function<void(podio::Frame& frame, int run, int evt)>;
 
+// Optional destination for an in-memory frame. Returning true acknowledges
+// that the frame was consumed; false asks PHDST to stop cleanly. This is the
+// native Code4hep boundary: the source can publish a frame directly without a
+// temporary podio file while the standalone tools continue to use `output`.
+using FrameSink = std::function<bool(podio::Frame&& frame, int run, int evt)>;
+
 // Optional per-job initialization, per-PHDST-record preparation, and per-job
 // teardown hooks. The record hook runs before the no-DST/header guards because
 // reference processors must see every record. Direct per-event calculations
@@ -85,6 +91,7 @@ struct Config {
   // Full-DST uses this for direct package calculations that need EventInfo.
   PrepareEventHook on_prepare_event;
   EventHook    on_event;
+  FrameSink    frame_sink;
   FinalizeHook on_finalize;
 };
 
@@ -92,7 +99,9 @@ struct Config {
 // cfg.input_mode (see InputMode above), drives phdst_(), and blocks until
 // done. File mode points PDLINPUT at a short cwd-local symlink rather than
 // the real path, because the legacy fixed-format parser truncates long ones.
-// Returns 0 only when at least one event was written.
+// Exactly one destination must be configured: `output` for a podio file or
+// `frame_sink` for in-memory delivery. Returns 0 only when at least one event
+// was delivered to that destination.
 int run(const Config& cfg);
 
 // User-callback forwarders. The binary's extern "C" user*_ overrides
