@@ -2,6 +2,7 @@
 #include "delphi_edm4hep/Simulation/InnerDetectorReadoutGeometry.h"
 
 #include <algorithm>
+#include <cmath>
 #include <exception>
 #include <iostream>
 
@@ -18,6 +19,7 @@ int main(int argc, char **argv) {
     unsigned int jetBadChannels{};
     unsigned int anodeBadChannels{};
     unsigned int cathodeBadChannels{};
+    unsigned int triggerRoundTripMismatches{};
     for (const auto &sector : readout.jetSectors()) {
       jetBadChannels +=
           std::count_if(sector.wires.begin(), sector.wires.end(),
@@ -30,6 +32,24 @@ int main(int argc, char **argv) {
       cathodeBadChannels += std::count_if(
           layer.cathodes.begin(), layer.cathodes.end(),
           [](const auto &channel) { return channel.status != 0; });
+      for (const auto &channel : layer.anodes) {
+        const auto phi = readout.anodePhi(layer.layer, channel.channel);
+        const auto address = readout.locateAnode(
+            layer.layer, layer.anodeRadiusCm * std::cos(phi),
+            layer.anodeRadiusCm * std::sin(phi));
+        triggerRoundTripMismatches +=
+            !address ||
+            address->side != simulation::InnerDetectorTriggerSide::Anode ||
+            address->channel != channel.channel;
+      }
+      for (const auto &channel : layer.cathodes) {
+        const auto address = readout.locateCathode(
+            layer.layer, readout.cathodeZ(layer.layer, channel.channel));
+        triggerRoundTripMismatches +=
+            !address ||
+            address->side != simulation::InnerDetectorTriggerSide::Cathode ||
+            address->channel != channel.channel;
+      }
     }
     const auto &firstJet = readout.jetSectors().front();
     const auto &firstTrigger = readout.triggerLayers().front();
@@ -60,6 +80,8 @@ int main(int argc, char **argv) {
         << "jet_bad_channels=" << jetBadChannels << '\n'
         << "anode_bad_channels=" << anodeBadChannels << '\n'
         << "cathode_bad_channels=" << cathodeBadChannels << '\n';
+    std::cout << "trigger_round_trip_mismatches=" << triggerRoundTripMismatches
+              << '\n';
   } catch (const std::exception &error) {
     std::cerr << "delphi_id_readout_audit: " << error.what() << '\n';
     return 1;

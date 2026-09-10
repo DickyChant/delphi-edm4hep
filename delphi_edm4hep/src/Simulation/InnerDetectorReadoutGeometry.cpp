@@ -181,4 +181,66 @@ InnerDetectorReadoutGeometry InnerDetectorReadoutGeometry::fromCargo(
   return result;
 }
 
+std::optional<InnerDetectorTriggerAddress>
+InnerDetectorReadoutGeometry::locateAnode(std::uint32_t layer, double xCm,
+                                          double yCm) const {
+  if (layer < 1 || layer > triggerLayers_.size()) {
+    return std::nullopt;
+  }
+  const auto &geometry = triggerLayers_[layer - 1];
+  auto phi = std::fmod(std::atan2(yCm, xCm) - geometry.anodeFirstPhiRadians,
+                       2.0 * std::numbers::pi);
+  if (phi < 0) {
+    phi += 2.0 * std::numbers::pi;
+  }
+  auto wire = static_cast<std::uint32_t>(
+                  std::lround(phi / geometry.anodePitchRadians)) +
+              1;
+  if (wire > geometry.anodes.size()) {
+    wire -= geometry.anodes.size();
+  }
+  return InnerDetectorTriggerAddress{layer, InnerDetectorTriggerSide::Anode,
+                                     wire};
+}
+
+std::optional<InnerDetectorTriggerAddress>
+InnerDetectorReadoutGeometry::locateCathode(std::uint32_t layer,
+                                            double zCm) const {
+  if (layer < 1 || layer > triggerLayers_.size()) {
+    return std::nullopt;
+  }
+  const auto &geometry = triggerLayers_[layer - 1];
+  const auto strip = static_cast<std::int32_t>(zCm / geometry.cathodeWidthCm +
+                                               0.5 * geometry.cathodes.size()) +
+                     1;
+  if (strip < 1 ||
+      strip > static_cast<std::int32_t>(geometry.cathodes.size())) {
+    return std::nullopt;
+  }
+  return InnerDetectorTriggerAddress{layer, InnerDetectorTriggerSide::Cathode,
+                                     static_cast<std::uint32_t>(strip)};
+}
+
+double InnerDetectorReadoutGeometry::anodePhi(std::uint32_t layer,
+                                              std::uint32_t wire) const {
+  if (layer < 1 || layer > triggerLayers_.size() || wire < 1 ||
+      wire > triggerLayers_[layer - 1].anodes.size()) {
+    throw std::out_of_range("invalid ID trigger anode address");
+  }
+  const auto &geometry = triggerLayers_[layer - 1];
+  return std::fmod(geometry.anodeFirstPhiRadians +
+                       (wire - 1) * geometry.anodePitchRadians,
+                   2.0 * std::numbers::pi);
+}
+
+double InnerDetectorReadoutGeometry::cathodeZ(std::uint32_t layer,
+                                              std::uint32_t strip) const {
+  if (layer < 1 || layer > triggerLayers_.size() || strip < 1 ||
+      strip > triggerLayers_[layer - 1].cathodes.size()) {
+    throw std::out_of_range("invalid ID trigger cathode address");
+  }
+  const auto &geometry = triggerLayers_[layer - 1];
+  return geometry.cathodeFirstZCm + (strip - 1) * geometry.cathodeWidthCm;
+}
+
 } // namespace delphi_edm4hep::simulation

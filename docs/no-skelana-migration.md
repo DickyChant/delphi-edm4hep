@@ -214,9 +214,10 @@ native catalogue retains every 21-word jet calibration, two-word trigger
 calibration, channel status, wire/strip position, active length, the three
 time-zero constants, dead time, cathode/anode charge ratio, and cathode charge
 width used by v94c `SIGEOM`/`SICALB`. The snapshot audit currently finds two
-disabled jet channels and no disabled trigger channels. Drift-time inversion,
-charge induction, noise, and scheduled ID hit reconstruction remain the next
-slice.
+disabled jet channels and no disabled trigger channels. The corresponding
+`SIDA`/`SIDC` anode-wire and cathode-strip locators round-trip every one of the
+1,920 trigger addresses. Drift-time inversion, charge induction, noise, and
+scheduled ID hit reconstruction remain the next slice.
 
 `TpcReadoutGeometry` is the first native digitization service. It reads the 16
 pad-row `LOCC`/`SIZC` calibration records and all 12 measured sector transforms

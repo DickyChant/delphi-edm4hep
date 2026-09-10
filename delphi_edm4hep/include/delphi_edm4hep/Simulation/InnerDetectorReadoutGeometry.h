@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 
 namespace delphi_edm4hep::simulation {
 
@@ -39,6 +40,14 @@ struct InnerDetectorTriggerLayer {
   std::array<InnerDetectorTriggerChannel, 192> cathodes;
 };
 
+enum class InnerDetectorTriggerSide : std::uint8_t { Anode = 0, Cathode = 1 };
+
+struct InnerDetectorTriggerAddress {
+  std::uint32_t layer{};
+  InnerDetectorTriggerSide side{};
+  std::uint32_t channel{};
+};
+
 class InnerDetectorReadoutGeometry {
 public:
   static InnerDetectorReadoutGeometry
@@ -59,6 +68,13 @@ public:
   double cathodeDistributionSigmaCm() const {
     return cathodeDistributionSigmaCm_;
   }
+
+  std::optional<InnerDetectorTriggerAddress>
+  locateAnode(std::uint32_t layer, double xCm, double yCm) const;
+  std::optional<InnerDetectorTriggerAddress> locateCathode(std::uint32_t layer,
+                                                           double zCm) const;
+  double anodePhi(std::uint32_t layer, std::uint32_t wire) const;
+  double cathodeZ(std::uint32_t layer, std::uint32_t strip) const;
 
 private:
   std::array<InnerDetectorJetSector, 24> jetSectors_;
