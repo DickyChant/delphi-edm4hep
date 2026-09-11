@@ -340,16 +340,19 @@ publishes ordinary EDM4hep `TrackerHit3D` objects for the later pattern-
 recognition and track-fit stages; ADC amplitude is deliberately not mislabeled
 as an energy deposit.
 
-`CentralTrackFit` and `DelphiCentralTrackFitProducer` establish the first
-native central-track fit boundary. The framework-independent kernel performs a
-deterministic transverse circle and longitudinal arc-length fit and emits the
-EDM4hep perigee parameters `(D0, phi, omega, Z0, tanLambda)`. The scheduled
-producer aggregates the neighboring TPC pad responses into one point per row,
-requires at least eight distinct rows, applies an interaction-point constraint
-for the primary-track seed, and publishes an ordinary `Track` with its TPC hit
-relations, fit quality, hole count, and finite covariance estimates. The
-combined tracker steering now runs the already-native TPC response before this
-fit, so the track is produced from reconstructed hits rather than Geant4 truth.
+`CentralTrackFit`, `CentralTrackFinder`, and
+`DelphiCentralTrackFitProducer` establish the native central pattern-recognition
+and fit boundary. The scheduled producer clusters contiguous TPC pads within a
+row, while the framework-independent finder builds deterministic circle
+hypotheses, selects at most one cluster per physical row across all sectors,
+fits transverse and longitudinal helix parameters, and removes claimed
+clusters before finding the next candidate. It therefore emits multiple
+exclusive candidates and permits a candidate to cross sector boundaries. Each
+ordinary EDM4hep `Track` carries its selected raw TPC hit relations, perigee
+parameters `(D0, phi, omega, Z0, tanLambda)`, fit quality, hole count, and finite
+covariance estimates. Finding is based solely on reconstructed hits; truth is
+not consulted. The checked synthetic contract contains two tracks, each
+crossing a sector boundary, plus unrelated clusters.
 `HelixTrajectory` and `DelphiCentralTrackExtensionProducer` add the next native
 tracking boundary. They propagate each seed through reconstructed detector
 coordinates, assign every compatible VD measurement to its closest candidate,
@@ -369,11 +372,11 @@ algebraic seed; in the fixed CI event it moves the reconstructed transverse
 momentum from 7.85 GeV to 8.85 GeV for a 10 GeV input without changing hit
 ownership.
 
-This remains an initial global fit: the finder currently forms at most one
-candidate per TPC endcap/sector. Multi-track pattern recognition, candidates
-crossing sector boundaries, beamspot rather than origin constraints, robust
-outlier rejection, material effects, and quantitative DELPHI tracking closure
-remain.
+This remains an initial global fit and multi-candidate finder. Its pair-seeded
+search is intended to establish the native data and ownership contract, not yet
+the final dense-event algorithm. Beamspot rather than origin constraints,
+robust outlier rejection, material effects, displaced-track seeding, scalable
+high-occupancy tuning, and quantitative DELPHI tracking closure remain.
 
 `DelphiTrackTruthProducer` closes the native tracking provenance chain. It
 joins the selected hit relations back to the standard VD, ID, TPC, and OD
@@ -392,10 +395,10 @@ have scheduled response/reconstruction seams. The TPC has native calibrated
 digitization and hit reconstruction; the VD has its first strip and planar-hit
 path; the ID jet chamber has raw TDC digits and left/right hypotheses; and the
 OD has surveyed physical-tube digits and left/right three-dimensional planar
-hypotheses. Full VD/ID/OD response fidelity, the ID trigger layers, the
-full multi-track pattern-recognition/refit chain, spatial magnetic-field mapping,
-calorimeter and muon geometry/response, and their reconstruction remain
-explicit migration slices.
+hypotheses. Full VD/ID/OD response fidelity, the ID trigger layers,
+production-quality dense-event pattern recognition, spatial magnetic-field
+mapping, calorimeter and muon geometry/response, and their reconstruction
+remain explicit migration slices.
 
 The generic Code4hep Geant4 driver now requires `magneticFieldTesla` in its
 detector configuration instead of hiding a 0.1 T value in C++. It persists

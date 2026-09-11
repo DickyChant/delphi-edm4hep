@@ -95,6 +95,10 @@ add_executable(central_track_fit_test central_track_fit_test.cpp)
 target_link_libraries(central_track_fit_test PRIVATE delphi_geometry)
 add_test(NAME central_track_fit_contract COMMAND central_track_fit_test)
 
+add_executable(central_track_finder_test central_track_finder_test.cpp)
+target_link_libraries(central_track_finder_test PRIVATE delphi_geometry)
+add_test(NAME central_track_finder_contract COMMAND central_track_finder_test)
+
 add_executable(helix_trajectory_test helix_trajectory_test.cpp)
 target_link_libraries(helix_trajectory_test PRIVATE delphi_geometry)
 add_test(NAME helix_trajectory_contract COMMAND helix_trajectory_test)

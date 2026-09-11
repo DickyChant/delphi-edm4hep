@@ -66,6 +66,7 @@ message(STATUS
 # detector snapshot. Geometry conversion is built on this library rather than
 # linking the legacy database runtime into Code4hep.
 add_library(delphi_geometry STATIC
+  src/Reconstruction/CentralTrackFinder.cpp
   src/Reconstruction/CentralTrackFit.cpp
   src/Reconstruction/HelixTrajectory.cpp
   src/Geometry/CargoDatabase.cpp
