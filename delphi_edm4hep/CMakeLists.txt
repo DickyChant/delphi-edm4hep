@@ -237,6 +237,7 @@ if(DELPHI_BUILD_CODE4HEP_SOURCE)
       code4hep/DelphiEventSummaryProducer.cc
       code4hep/DelphiCentralTrackFitProducer.cc
       code4hep/DelphiCentralTrackExtensionProducer.cc
+      code4hep/DelphiCentralTrackRefitProducer.cc
       code4hep/DelphiInnerDetectorDigitizerProducer.cc
       code4hep/DelphiInnerDetectorHitReconstructionProducer.cc
       code4hep/DelphiOuterDetectorDigitizerProducer.cc

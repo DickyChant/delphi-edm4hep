@@ -12,6 +12,12 @@ struct SpacePoint {
   double zMm{};
 };
 
+struct SpacePointMeasurement {
+  SpacePoint position;
+  double transverseSigmaMm{1.0};
+  std::optional<double> longitudinalSigmaMm{10.0};
+};
+
 struct CentralTrackFitResult {
   double d0Mm{};
   double phiRadians{};
@@ -31,5 +37,10 @@ fitCentralTrack(const std::vector<SpacePoint> &points,
                 double transverseSigmaMm = 1.0,
                 double longitudinalSigmaMm = 10.0,
                 bool constrainToInteractionPoint = false);
+
+std::optional<CentralTrackFitResult> fitCentralTrackMeasurements(
+    const std::vector<SpacePointMeasurement> &measurements,
+    bool constrainToInteractionPoint = false,
+    bool refineTransverseCircle = true);
 
 } // namespace delphi_edm4hep::reconstruction

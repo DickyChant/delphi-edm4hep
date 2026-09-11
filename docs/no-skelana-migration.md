@@ -359,12 +359,21 @@ TPC relations while adding its selected VD, ID, and OD relations. The fixed
 10 GeV muon CI event currently retains 6 VD, 18 ID, 47 TPC, and 4 OD hits and
 repeats exactly.
 
-This remains a seed extension rather than a final track fit: it currently
-forms at most one candidate per TPC endcap/sector and does not refit after
-adding the outer measurements. Multi-track pattern recognition, candidates
-crossing sector boundaries, beamspot rather than origin constraints, outlier
-rejection, material-aware global refitting, and quantitative DELPHI tracking
-closure remain.
+`fitCentralTrackMeasurements` and `DelphiCentralTrackRefitProducer` perform a
+weighted geometric refit after that selection. They retain the partial
+coordinate contract of the planar detectors: VD and ID contribute transverse
+constraints without allowing their unmeasured longitudinal coordinate to bias
+`Z0` or `tanLambda`, while TPC row centroids and OD provide both coordinates.
+The geometric circle iteration reduces the high-momentum bias of the stable
+algebraic seed; in the fixed CI event it moves the reconstructed transverse
+momentum from 7.85 GeV to 8.85 GeV for a 10 GeV input without changing hit
+ownership.
+
+This remains an initial global fit: the finder currently forms at most one
+candidate per TPC endcap/sector. Multi-track pattern recognition, candidates
+crossing sector boundaries, beamspot rather than origin constraints, robust
+outlier rejection, material effects, and quantitative DELPHI tracking closure
+remain.
 
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
