@@ -375,6 +375,16 @@ crossing sector boundaries, beamspot rather than origin constraints, robust
 outlier rejection, material effects, and quantitative DELPHI tracking closure
 remain.
 
+`DelphiTrackTruthProducer` closes the native tracking provenance chain. It
+joins the selected hit relations back to the standard VD, ID, TPC, and OD
+`TrackerHitSimTrackerHitLink` products, accumulates their normalized
+contributions by persistent MC-particle identity, and emits standard
+`TrackMCParticleLink` weights normalized per reconstructed track. It never
+uses truth in finding, ambiguity selection, or fitting. The controlled muon
+has one dominant relation of weight 1; this product is the validation contract
+for efficiency, purity, and fake-rate measurements once multi-track finding is
+introduced.
+
 The snapshot path is retained as GDML auxiliary provenance. All modes reject a
 missing or structurally different hierarchy instead of silently falling back.
 The central tracker is now transported and all four barrel tracking systems

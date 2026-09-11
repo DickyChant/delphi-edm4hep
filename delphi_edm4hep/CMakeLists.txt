@@ -243,6 +243,7 @@ if(DELPHI_BUILD_CODE4HEP_SOURCE)
       code4hep/DelphiOuterDetectorDigitizerProducer.cc
       code4hep/DelphiOuterDetectorHitReconstructionProducer.cc
       code4hep/DelphiSource.cc
+      code4hep/DelphiTrackTruthProducer.cc
       code4hep/DelphiTrackerHitPartitionProducer.cc
       code4hep/DelphiVertexDigitizerProducer.cc
       code4hep/DelphiVertexHitReconstructionProducer.cc
