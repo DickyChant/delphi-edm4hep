@@ -29,6 +29,12 @@ EventInfo info;
 bool vdInitialized = false;
 bool beamDefaultsInitialized = false;
 
+// Default beam sizes (sigma x, y, z in cm), one row per processing year from
+// 1991 to 2002. Copied from SKELANA's PSCBSD deck (SIGBS(3,12) in
+// stdcdes.car, dstana 2017-12-01); PSBEAM passes the row for the current
+// processing to SETBS(1, 1, ...). From then on VDBSPT adds these sizes in
+// quadrature to the widths it reports and, for simulation, draws the beam spot
+// from a Gaussian of these sizes about the primary vertex.
 constexpr std::array<std::array<float, 3>, 12> beamSigmaDefaults{{
     {0.0157f, 0.0010f, 0.930f}, {0.0102f, 0.0010f, 0.710f},
     {0.0150f, 0.0010f, 0.730f}, {0.0119f, 0.0010f, 0.700f},
@@ -47,12 +53,20 @@ std::string processingTag() {
   return result;
 }
 
+// Row of beamSigmaDefaults for a processing tag. The second character is the
+// last digit of the year; tags starting with 'A' are 2000 onwards, as in
+// PSBEAM.
 int defaultBeamSigmaIndex(const std::string& tag) {
   if (tag.size() < 2 || tag[1] < '0' || tag[1] > '9') {
     throw std::runtime_error("DSTQID returned an invalid processing tag: '" +
                              tag + "'");
   }
-  const int year = tag[1] - '0' + (!tag.empty() && tag[0] == 'A' ? 10 : 0);
+  int year = tag[1] - '0' + (tag[0] == 'A' ? 10 : 0);
+  // 1990 has no row. PSBEAM reads SIGBS(1,0), outside the table, so DELPHI
+  // gives no default here; using the 1991 row is our choice. It matters only
+  // for simulation: no 1990 beam-spot database is shipped, so 1990 data is
+  // refused by beamspot::requireDatabase() anyway.
+  if (year == 0) year = 1;
   if (year < 1 || year > static_cast<int>(beamSigmaDefaults.size())) {
     throw std::runtime_error("DSTQID processing tag has no beam default: '" +
                              tag + "'");
@@ -68,6 +82,11 @@ void refreshBeamSpot(const std::string& tag) {
     setbs_(&mode, &index, sigma.data());
     beamDefaultsInitialized = true;
   }
+  // While SKELANA still runs, PSBEAM has already called VDBSPT for this
+  // event. Calling it again returns the same beam spot: VDBSPT keeps the
+  // current event's result (VDMCBS for simulation, the same-run path of VDBMCA
+  // for data), so it neither repeats the lookup nor draws new random numbers.
+  //
   // VDBSPT leaves its outputs untouched when it cannot open the
   // per-processing .DB file. Clear them first, so that case shows up as zero
   // widths (see internal/BeamSpotStatus.h) rather than as the previous event's
