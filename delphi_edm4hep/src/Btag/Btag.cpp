@@ -350,7 +350,7 @@ void BtagWriter::emitCombinedTag(bool valid,
   }
 
   // ---- secondary-vertex hypotheses (AASCND) ------------------------------
-  // "PV" below is AABTAG's own primary vertex, emitted as AABTAG_PrimaryVertex
+  // PV below is AABTAG's own primary vertex, emitted as AABTAG_PrimaryVertex
   // (POSVX in AAMNVX, which AAFSEC hands to AADCAN) -- not PV_PrimaryVertex.
   // parameters: [0] ITSEC  [1] NSEC  [2] NSVRT  [3] NRAP
   //   [4] JETSV, the CombinedTagRow row this hypothesis belongs to (1-based)
