@@ -11,6 +11,8 @@ int main() {
   assert(check::isSelectedPayloadName("fDST_BTG_ProbAllIP", "fDST"));
   assert(!check::isSelectedPayloadName("sDST_BTAGCFG_Mode", "sDST"));
   assert(!check::isSelectedPayloadName("fDST_AABTAG_Valid", "sDST"));
+  assert(check::kPrimaryVertexChi2Contract == "attached-only-v1");
+  assert(check::kPrimaryVertexChi2RoundoffToleranceSummary == "0.25");
 
   assert(check::isPositiveFinite(1.f));
   assert(!check::isPositiveFinite(0.f));
@@ -20,6 +22,24 @@ int main() {
   assert(!check::isNonnegativeFinite(-1.f));
   assert(!check::isNonnegativeFinite(
       std::numeric_limits<float>::infinity()));
+
+  assert(check::isValidAttachedPrimaryVertexChi2(1.f));
+  assert(check::isValidAttachedPrimaryVertexChi2(0.f));
+  assert(check::isValidAttachedPrimaryVertexChi2(
+      -check::kPrimaryVertexChi2RoundoffTolerance));
+  assert(!check::isValidAttachedPrimaryVertexChi2(
+      -check::kPrimaryVertexChi2RoundoffTolerance - 0.001f));
+  assert(!check::isValidAttachedPrimaryVertexChi2(
+      std::numeric_limits<float>::quiet_NaN()));
+  assert(!check::isValidAttachedPrimaryVertexChi2(
+      std::numeric_limits<float>::infinity()));
+  assert(check::isPrimaryVertexChi2Roundoff(-0.001f));
+  assert(check::isPrimaryVertexChi2Roundoff(
+      -check::kPrimaryVertexChi2RoundoffTolerance));
+  assert(!check::isPrimaryVertexChi2Roundoff(0.f));
+  assert(!check::isPrimaryVertexChi2Roundoff(1.f));
+  assert(!check::isPrimaryVertexChi2Roundoff(
+      -check::kPrimaryVertexChi2RoundoffTolerance - 0.001f));
 
   assert(check::isSensiblePrimaryVertexNdf(0));
   assert(check::isSensiblePrimaryVertexNdf(200));

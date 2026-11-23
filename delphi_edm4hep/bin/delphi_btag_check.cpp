@@ -66,6 +66,8 @@ struct Stats {
   std::uint64_t trackImpactNonfiniteFailures = 0;
   std::uint64_t trackErrorDomainFailures = 0;
   std::uint64_t trackChi2DomainFailures = 0;
+  std::uint64_t trackChi2PvRoundoffValues = 0;
+  std::uint64_t trackChi2PvUndefinedValues = 0;
   std::uint64_t trackMomentumDomainFailures = 0;
   std::uint64_t trackIntegerDomainFailures = 0;
   std::uint64_t pvSizeFailures = 0;
@@ -310,6 +312,9 @@ void printResult(const Stats& s, const Options& options,
       << " identity_source=sDST_EVT"
       << " btag_mode=" << options.mode
       << " recalculated_expected=" << expectedRecalculated
+      << " chi2_pv_contract=" << domain::kPrimaryVertexChi2Contract
+      << " chi2_pv_roundoff_tolerance="
+      << domain::kPrimaryVertexChi2RoundoffToleranceSummary
       << " provenance_schema=" << provenanceSchema(s)
       << " beamspot_status_source=" << beamspotStatusSource(s, options)
       << " primary_vertex_policy=" << primaryVertexPolicySummary(s)
@@ -375,6 +380,8 @@ void printResult(const Stats& s, const Options& options,
       << s.trackImpactNonfiniteFailures
       << " track_error_domain_failures=" << s.trackErrorDomainFailures
       << " track_chi2_domain_failures=" << s.trackChi2DomainFailures
+      << " track_chi2_pv_roundoff_values=" << s.trackChi2PvRoundoffValues
+      << " track_chi2_pv_undefined_values=" << s.trackChi2PvUndefinedValues
       << " track_momentum_domain_failures=" << s.trackMomentumDomainFailures
       << " track_integer_domain_failures=" << s.trackIntegerDomainFailures
       << " pv_size_failures=" << s.pvSizeFailures
@@ -1048,10 +1055,38 @@ int main(int argc, char** argv) {
           }
         }
       }
-      for (const auto* chi2Values : {chi2Vd, chi2Pv}) {
-        if (!chi2Values) continue;
-        for (const float value : *chi2Values) {
+      // Chi2VD is defined for every published track and remains strictly
+      // nonnegative.  Chi2PV has a different legacy relation contract:
+      // CCFVT2 defines it only for tracks attached to the primary vertex.
+      if (chi2Vd) {
+        for (const float value : *chi2Vd) {
           if (!domain::isNonnegativeFinite(value)) {
+            ++stats.trackChi2DomainFailures;
+            markValidPayloadFailure();
+          }
+        }
+      }
+      if (chi2Pv) {
+        for (std::size_t index = 0; index < chi2Pv->size(); ++index) {
+          const float value = (*chi2Pv)[index];
+          const bool relationKnown =
+              attached && index < attached->size() &&
+              domain::isValidAttachedFlag((*attached)[index]);
+          if (relationKnown && (*attached)[index] == 0) {
+            // AABTAG leaves this COMMON word undefined (and potentially
+            // stale) when no primary-vertex relation exists.  Preserve the
+            // raw value and expose its presence as a nonfatal diagnostic.
+            ++stats.trackChi2PvUndefinedValues;
+          } else if (relationKnown) {
+            if (!domain::isValidAttachedPrimaryVertexChi2(value)) {
+              ++stats.trackChi2DomainFailures;
+              markValidPayloadFailure();
+            } else if (domain::isPrimaryVertexChi2Roundoff(value)) {
+              ++stats.trackChi2PvRoundoffValues;
+            }
+          } else if (!domain::isNonnegativeFinite(value)) {
+            // Without a well-formed relation flag, fail closed rather than
+            // treating a malformed value as undefined.
             ++stats.trackChi2DomainFailures;
             markValidPayloadFailure();
           }

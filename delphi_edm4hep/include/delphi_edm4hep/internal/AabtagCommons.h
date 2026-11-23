@@ -79,7 +79,9 @@ extern AamainCommon aamain_;
 //   NATTVX/NDOFVX   tracks attached to the vertex / d.o.f. of the fit
 //   PARIMP / SIGIMP signed r-phi impact parameter wrt POSVX and its error
 //   EZED   / SIGZED z impact parameter at closest approach and its error
-//   CHI2TR          per-track contribution to the vertex chi^2
+//   CHI2TR          per-track contribution to the vertex chi^2, defined only
+//                   when the parallel INMVX value is true; otherwise the raw
+//                   COMMON word may be stale/undefined
 //   INMVX           Fortran LOGICAL(4): track attached to the main vertex
 struct AamnvxCommon {
   std::int32_t ntrvx;

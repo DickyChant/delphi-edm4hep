@@ -16,6 +16,18 @@ inline constexpr int kMaxTracks = 100;
 inline constexpr int kMaxPrimaryVertexNdf = 2 * kMaxTracks;
 inline constexpr std::int32_t kMaxVdHits = 6;
 inline constexpr std::int32_t kMaxVdLayers = 3;
+inline constexpr std::string_view kPrimaryVertexChi2Contract =
+    "attached-only-v1";
+// CCFVT2 obtains the attached-track contribution by subtracting two chi2
+// values after one has crossed a single-precision interface.  Small negative
+// residuals are therefore numerical roundoff, not negative physical chi2.
+// This bound covers the observed legacy envelope while remaining far below
+// AABTAG's chi2 outlier threshold of 6.
+inline constexpr float kPrimaryVertexChi2RoundoffTolerance = 0.25f;
+// Keep the shell-parseable checker field independent of stream float
+// formatting while tying its spelling to the domain contract here.
+inline constexpr std::string_view kPrimaryVertexChi2RoundoffToleranceSummary =
+    "0.25";
 
 inline bool isSelectedPayloadName(std::string_view name,
                                   std::string_view source) {
@@ -33,6 +45,15 @@ inline bool isPositiveFinite(float value) {
 
 inline bool isNonnegativeFinite(float value) {
   return isFinite(value) && value >= 0.f;
+}
+
+inline bool isValidAttachedPrimaryVertexChi2(float value) {
+  return isFinite(value) &&
+         value >= -kPrimaryVertexChi2RoundoffTolerance;
+}
+
+inline bool isPrimaryVertexChi2Roundoff(float value) {
+  return isValidAttachedPrimaryVertexChi2(value) && value < 0.f;
 }
 
 inline bool isSensiblePrimaryVertexNdf(int value) {

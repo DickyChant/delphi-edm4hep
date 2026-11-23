@@ -267,10 +267,18 @@ Per-event scalars stored as podio Frame parameters:
   loose/standard/tight.
 - `sDST_HAID_dEdxVD` (algType 7) — VD-only dE/dx. `params`: `[0]` VD dE/dx,
   `[1]` number of VD hits used.
-- `sDST_MUID_MuonID` (algType 2) — `[0]` muon tag (MUCAL2: 1 very-loose …
-  4 tight, 5 HCAL), `[1]` global χ² of the very-loose refit, `[2]` hit pattern.
+- `sDST_MUID_MuonID` (algType 2) — `[0]` raw MUCAL2 **bit mask**: bit 0
+  very-loose, bit 1 loose, bit 2 standard, bit 3 tight, bit 4 HCAL. For example,
+  select the standard bit with `int(round(params[0])) & (1 << 2)`; do not treat
+  the stored value as an ordinal quality level. `[1]` is the global χ² of the
+  very-loose refit and `[2]` is the hit-pattern word.
 - `sDST_ELID_ElectronID` (algType 3) — `[0]` electron tag (0 not run, 1 not-e,
-  2 very-loose, 3 loose, 4 standard, 5 tight), `[1]` γ-conversion tag.
+  2 very-loose, 3 loose, 4 standard, 5 tight), `[1]` γ-conversion tag (0 means
+  no tagged conversion and is the prompt-electron conversion veto; documented
+  tagged levels are 1 loose, 2 standard, 3 tight). These are integer-valued raw
+  fields. Rare values outside the documented ranges should be retained and
+  reported rather than silently remapped; only tags 4 and 5 satisfy the
+  documented standard-or-tighter electron selection.
 - `sDST_PHOT_PhotonID` (algType 30) — HPC photon-ID scores: energy-weighted
   shower depth, n clusters, first layer, n layers, max consecutive layers,
   transverse fluctuation, longitudinal-fit value (up to 7 params).
@@ -383,6 +391,13 @@ originals described in §2.2.
 Both passes take `--btag off|bank|recalc` (default `off`) and `--btag-pv`.
 These map to the SKELANA flags `IFLBTG` and `IFLPVT`:
 
+> **Production policy:** all production drivers are hard-locked to `recalc`.
+> Prefix isolation keeps its output separate from DELANA's vertex payload, so
+> there is no production reason to make another `bank` campaign. The low-level
+> `bank` mode below is retained only to read old files and reproduce the
+> explicitly archived stored-versus-rerun diagnostic; it is not an input to
+> current physics plots or EOS publications.
+
 | `--btag` | `IFLBTG` | shortDST (pass 1) | fullDST (pass 2) |
 |---|---|---|---|
 | `off` | 0 | AABTAG not run | AABTAG not run |
@@ -413,9 +428,9 @@ a validation failure, not merely a diagnostic label.
 The checker also fails closed on the payload itself. A valid AABTAG vertex
 must be primary, carry `algorithmType=3`, have finite position, covariance and
 chi2, and have `ndf` in the representable AABTAG range 0--200. Track impacts
-must be finite; errors and momenta positive finite; chi2 values nonnegative
-finite; `AttachedToPV` boolean; `UsedForTag` nonnegative (it is a category code,
-not a boolean); and the signed VD hit/layer magnitudes no larger than 6/3.
+must be finite; errors and momenta positive finite; `Chi2VD` nonnegative finite;
+`AttachedToPV` boolean; `UsedForTag` nonnegative (it is a category code, not a
+boolean); and the signed VD hit/layer magnitudes no larger than 6/3.
 `off` asserts that neither selected-prefix payload family exists. The retained
 historical shortDST `bank` reader permits individual NaN sentinels but rejects
 a frame whose complete event-level bank payload is missing/NaN.
@@ -452,7 +467,18 @@ on output.
   `NVDHitsRPhi` / `NVDHitsZ`, `NVDLayersRPhi` / `NVDLayersZ`, `Chi2VD`,
   `Chi2PV`, `Momentum`. The four `NVD*` values are raw signed legacy outputs:
   AAP efficiency/acceptance corrections negate a value to mark rejection, and
-  `abs(value)` is the underlying count.
+  `abs(value)` is the underlying count. `Chi2PV` is defined only when the
+  parallel `AttachedToPV` value is 1. CCFVT2 computes that contribution by a
+  subtraction affected by single-precision cancellation, so small finite
+  negatives are expected: the checker accepts values down to -0.25 and reports
+  them in the nonfatal `track_chi2_pv_roundoff_values` counter. When
+  `AttachedToPV` is 0, the raw COMMON word may be undefined or stale; it is
+  preserved without a numeric-domain failure and counted in
+  `track_chi2_pv_undefined_values` (one count for every unattached track,
+  irrespective of the raw word). Consumers must gate `Chi2PV` on
+  `AttachedToPV`; neither case is clamped or rewritten. The stable summary
+  identifies this rule as `chi2_pv_contract=attached-only-v1` and publishes
+  `chi2_pv_roundoff_tolerance=0.25`.
 - Frame parameters `BadEventCode`, `AlgorithmInvoked`, `Valid`, `NTracksRaw`,
   `NTracks`, `NTracksAttached`, `Truncated`. `BadEventCode` preserves AABTAG's
   raw `IBAD` snapshot (0 success, 1 processing failure, 2 vertex-fit failure),
@@ -576,4 +602,10 @@ few rare/forward per-PA modules are not currently emitted.
 
 B-tagging is the one deliberate exception, and it is opt-in (`--btag`, §2.5):
 `--btag recalc` reruns DELPHI's AABTAG at conversion time, which is a
-reconstruction step rather than a transcription. It is off by default.
+reconstruction step rather than a transcription. It is off by default. The
+[v94c MC calibration provenance](../docs/aabtag-v94c-mc-provenance.md)
+documents the installed AABTAG source, run-sign routing, and official dataset
+inventory used by the validation campaigns. The paired
+[stored-versus-rerun validation](../docs/aabtag-bank-rerun-validation.md)
+quantifies eventwise score migration and normalized shape changes in Data,
+qqps MC, and an official KK2f cross-check.

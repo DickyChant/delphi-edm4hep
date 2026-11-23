@@ -130,6 +130,62 @@ def malformed_recalc_frame() -> Frame:
     return frame
 
 
+def relation_aware_recalc_frame(attached_chi2_pv: float) -> Frame:
+    frame = common_frame("recalc", 1)
+    prefix = "sDST_AABTAG_"
+    for suffix, value in {
+        "BadEventCode": 0,
+        "AlgorithmInvoked": 1,
+        "Valid": 1,
+        "NTracksRaw": 4,
+        "NTracks": 4,
+        "NTracksAttached": 2,
+        "Truncated": 0,
+    }.items():
+        frame.put_parameter(prefix + suffix, value)
+    for suffix in ("ProbNegIP", "ProbPosIP", "ProbAllIP"):
+        put_float_vector(frame, prefix + suffix, [0.1, 0.2, 0.3])
+    put_float_vector(frame, prefix + "ThrustAxis", [1.0, 0.0, 0.0])
+    put_float(frame, prefix + "ThrustValue", 0.8)
+
+    vertex_collection = edm4hep.VertexCollection()
+    vertex = vertex_collection.create()
+    vertex.setPrimary(True)
+    vertex.setAlgorithmType(3)
+    vertex.setPosition((0.1, -0.2, 0.3))
+    vertex.setCovMatrix((0.01, 0.0, 0.01, 0.0, 0.0, 0.02))
+    vertex.setChi2(1.5)
+    vertex.setNdf(3)
+    frame.put(vertex_collection, prefix + "PrimaryVertex")
+    frame.put(edm4hep.ReconstructedParticleCollection(), "sDST_MAIN_Particles")
+
+    for suffix, values in {
+        "ParticleIndex": [-1, -1, -1, -1],
+        "UsedForTag": [1, 1, 0, 0],
+        "AttachedToPV": [1, 1, 0, 0],
+        "NVDHitsRPhi": [2, 2, 1, 1],
+        "NVDHitsZ": [2, 2, 1, 1],
+        "NVDLayersRPhi": [2, 2, 1, 1],
+        "NVDLayersZ": [2, 2, 1, 1],
+    }.items():
+        put_userdata(frame, prefix + "Tracks_" + suffix, "int32_t", values)
+    for suffix, values in {
+        "ImpactParRPhi": [0.01, -0.02, 0.03, -0.04],
+        "ImpactParRPhiError": [0.01, 0.01, 0.02, 0.02],
+        "ImpactParZ": [0.1, -0.2, 0.3, -0.4],
+        "ImpactParZError": [0.1, 0.1, 0.2, 0.2],
+        "ProbRPhi": [0.2, 0.3, 0.4, 0.5],
+        "ProbZ": [0.3, 0.4, 0.5, 0.6],
+        "Chi2VD": [0.0, 1.0, 2.0, 3.0],
+        # For unattached tracks CCFVT2 never defines Chi2PV.  Deliberately
+        # retain an arbitrary negative word and NaN to exercise that contract.
+        "Chi2PV": [attached_chi2_pv, 0.5, -123.0, math.nan],
+        "Momentum": [1.0, 2.0, 3.0, 4.0],
+    }.items():
+        put_userdata(frame, prefix + "Tracks_" + suffix, "float", values)
+    return frame
+
+
 def write_frame(path: Path, frame: Frame) -> None:
     writer = root_io.Writer(path)
     writer.write_frame(frame, "events")
@@ -223,6 +279,8 @@ def main() -> int:
                 "track_impact_nonfinite_failures": "2",
                 "track_error_domain_failures": "2",
                 "track_chi2_domain_failures": "2",
+                "track_chi2_pv_roundoff_values": "0",
+                "track_chi2_pv_undefined_values": "0",
                 "track_momentum_domain_failures": "1",
                 "track_integer_domain_failures": "6",
                 "validity_contract_failures": "1",
@@ -230,6 +288,49 @@ def main() -> int:
         )
         if returncode != 2:
             raise RuntimeError(f"malformed recalc fixture returned {returncode}")
+
+        chi2_pv_boundary = root / "chi2-pv-boundary.root"
+        write_frame(chi2_pv_boundary, relation_aware_recalc_frame(-0.25))
+        returncode, fields = run_checker(checker, chi2_pv_boundary, "recalc")
+        require(
+            fields,
+            {
+                "status": "PASS",
+                "chi2_pv_contract": "attached-only-v1",
+                "chi2_pv_roundoff_tolerance": "0.25",
+                "track_chi2_domain_failures": "0",
+                "track_chi2_pv_roundoff_values": "1",
+                "track_chi2_pv_undefined_values": "2",
+                "validity_contract_failures": "0",
+            },
+        )
+        if returncode != 0:
+            raise RuntimeError(f"Chi2PV boundary fixture returned {returncode}")
+
+        chi2_pv_below_boundary = root / "chi2-pv-below-boundary.root"
+        write_frame(
+            chi2_pv_below_boundary,
+            relation_aware_recalc_frame(-0.2501),
+        )
+        returncode, fields = run_checker(
+            checker, chi2_pv_below_boundary, "recalc"
+        )
+        require(
+            fields,
+            {
+                "status": "FAIL",
+                "chi2_pv_contract": "attached-only-v1",
+                "chi2_pv_roundoff_tolerance": "0.25",
+                "track_chi2_domain_failures": "1",
+                "track_chi2_pv_roundoff_values": "0",
+                "track_chi2_pv_undefined_values": "2",
+                "validity_contract_failures": "1",
+            },
+        )
+        if returncode != 2:
+            raise RuntimeError(
+                f"Chi2PV below-boundary fixture returned {returncode}"
+            )
     return 0
 
 
