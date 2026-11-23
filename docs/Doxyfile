@@ -14,6 +14,8 @@ GENERATE_LATEX         = NO
 # wrapper headers (extern/) are third-party and deliberately not documented.
 INPUT                  = README.md \
                          docs/README.md \
+                         docs/aabtag-v94c-mc-provenance.md \
+                         docs/aabtag-bank-rerun-validation.md \
                          delphi_edm4hep/README.md \
                          scripts/data-reco/README.md \
                          delphi_edm4hep/extern/delphi-analysis/README.md \

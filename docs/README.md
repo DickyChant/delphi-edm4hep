@@ -17,7 +17,7 @@ The converter is a **C++20 wrapper around live Fortran**: PHDST drives the
 event loop and SKELANA fills global COMMON blocks, which the writers read.
 Almost nothing is re-derived; the output is DELPHI bank values re-expressed
 in EDM4hep types. B-tagging is the one deliberate exception, and it is
-opt-in — see [SKELANA configuration](#skelana-configuration) below.
+opt-in — see the SKELANA configuration section below.
 
 ## Build and run
 
@@ -45,6 +45,43 @@ still override if needed.
 ./build/delphi_btag_check --source sDST [--primary-vertex-policy keep-delana|replace-with-aabtag] input.edm4hep.root data|NEG_RUN off|bank|recalc [identity-reference.root]
 ./build/delphi_btag_check --source fDST [--primary-vertex-policy keep-delana|replace-with-aabtag] final.edm4hep.root data|NEG_RUN off|bank|recalc
 ```
+
+These are low-level compatibility interfaces. Current data, qqps MC, lepton,
+and controlled-Pythia production drivers are hard-locked to `--btag recalc`;
+they reject bank/off selection. Stored-bank access remains only for reading or
+auditing explicitly archived historical evidence.
+
+The checker scans every frame and prints one shell-parseable validation
+summary. `--source` selects the independent `<source>_BTAGCFG`, `BTG` or
+`AABTAG`, and `<source>_MAIN` content contract; production callers always pass
+it explicitly. In `off` mode it proves that neither selected-prefix `BTG` nor
+`AABTAG` payload remains. Historical shortDST `bank` reads may contain some
+NaN sentinels, but a wholly missing/NaN bank payload fails explicitly. For a
+valid recalculation it also verifies the AABTAG PV identity/type and finite
+fit fields, and domains the parallel track floats, flags, and signed VD-count
+arrays according to their relations. In particular, `Chi2VD` remains strictly
+nonnegative, while `Chi2PV` is checked only for `AttachedToPV=1`, with the
+documented -0.25 CCFVT2 roundoff bound. Unattached raw `Chi2PV` words are
+undefined and nonfatal; the summary exposes both cases through
+`track_chi2_pv_roundoff_values` and `track_chi2_pv_undefined_values` (the
+latter counts every unattached track, regardless of its raw word). It also
+prints `chi2_pv_contract=attached-only-v1` and
+`chi2_pv_roundoff_tolerance=0.25` so campaign logs bind this interpretation.
+Current production also passes
+`--primary-vertex-policy keep-delana`; the check fails if either the semantic
+policy or raw `IFLPVT=0` differs in any frame. Event identity remains anchored
+to copied `sDST_EVT_*`, because
+pass 2 has no `fDST_EVT_*`. Consequently an identity-reference argument is
+accepted only for `--source sDST`; it must never be described as validation of
+fDST identity. New fDST output requires source-local beamspot/PV provenance.
+The explicit `--legacy-fdst-beamspot-fallback` flag exists only to audit frozen
+old files against copied `sDST_EVT_BeamSpotErrorCode`, and reports
+`provenance_schema=legacy-missing-source-local-btagcfg`,
+`beamspot_status_source=sDST_EVT_BeamSpotErrorCode`, plus requested/used/frame
+counters. A legacy identity reference requires the separate
+`--legacy-reference-beamspot-fallback` flag and is reported independently;
+reference fallback is never silent. Batch completion markers bind the direct
+source-specific summaries and product SHA-256 to the exact checker binary.
 
 ## Tests
 
