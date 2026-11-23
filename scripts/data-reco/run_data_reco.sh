@@ -39,7 +39,7 @@ DELPHI_REL=/cvmfs/delphi.cern.ch/releases/almalinux-9-x86_64/latest
 DDB=/cvmfs/delphi.cern.ch/condition-data
 
 [ -f "$RAW" ] || { echo "ERROR: raw input not found: $RAW" >&2; exit 1; }
-[ -f "$IMAGE" ] || { echo "ERROR: container image not found: $IMAGE" >&2; exit 1; }
+[ -e "$IMAGE" ] || { echo "ERROR: container image not found: $IMAGE" >&2; exit 1; }
 
 mkdir -p "$OUT_DIR"
 WORK=$OUT_DIR/work_data_${JOB_ID}
